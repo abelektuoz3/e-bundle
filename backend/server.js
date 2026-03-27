@@ -53,9 +53,9 @@ mongoose
   .then(() => console.log("MongoDB Connected"))
   .catch((err) => console.log("MongoDB Error:", err));
 
-// ================= MIDDLEWARE DEFINITIONS (PUT HERE - AFTER LINE 36) =================
+// ================= MIDDLEWARE DEFINITIONS =================
 
-// Authentication Middleware - DEFINE THIS FIRST!
+// Authentication Middleware
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const tokenFromQuery = req.query.token;
@@ -73,6 +73,7 @@ const authenticateToken = (req, res, next) => {
     next();
   });
 };
+
 // Admin Authentication Middleware
 async function authenticateAdmin(req, res, next) {
   try {
@@ -134,7 +135,6 @@ app.post(
       const { title, category, description } = req.body;
 
       if (!title) {
-        // Delete uploaded file if validation fails
         fs.unlinkSync(req.file.path);
         return res.status(400).json({
           success: false,
@@ -142,7 +142,6 @@ app.post(
         });
       }
 
-      // Create media record
       const media = new Media({
         title: title || req.file.originalname,
         originalName: req.file.originalname,
@@ -173,7 +172,6 @@ app.post(
         },
       });
     } catch (err) {
-      // Clean up file on error
       if (req.file && fs.existsSync(req.file.path)) {
         fs.unlinkSync(req.file.path);
       }
@@ -193,12 +191,10 @@ app.get("/api/media", authenticateAdmin, async (req, res) => {
 
     let query = {};
 
-    // Filter by type
     if (type && type !== "all") {
       query.type = type;
     }
 
-    // Search by title or description
     if (search) {
       query.$or = [
         { title: { $regex: search, $options: "i" } },
@@ -217,7 +213,6 @@ app.get("/api/media", authenticateAdmin, async (req, res) => {
       Media.countDocuments(query),
     ]);
 
-    // Calculate storage stats
     const stats = await Media.aggregate([
       {
         $group: {
@@ -325,13 +320,11 @@ app.delete("/api/media/:id", authenticateAdmin, async (req, res) => {
       });
     }
 
-    // Delete file from filesystem
     const filePath = path.join(__dirname, "uploads", "media", media.filename);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
 
-    // Delete from database
     await Media.findByIdAndDelete(req.params.id);
 
     res.json({
@@ -347,7 +340,7 @@ app.delete("/api/media/:id", authenticateAdmin, async (req, res) => {
   }
 });
 
-// Delete All Media (Use with caution!)
+// Delete All Media
 app.delete("/api/media", authenticateAdmin, async (req, res) => {
   try {
     const { confirm } = req.body;
@@ -359,10 +352,8 @@ app.delete("/api/media", authenticateAdmin, async (req, res) => {
       });
     }
 
-    // Get all media to delete files
     const allMedia = await Media.find({}, "filename");
 
-    // Delete all files
     for (const media of allMedia) {
       const filePath = path.join(__dirname, "uploads", "media", media.filename);
       if (fs.existsSync(filePath)) {
@@ -370,7 +361,6 @@ app.delete("/api/media", authenticateAdmin, async (req, res) => {
       }
     }
 
-    // Delete all records
     await Media.deleteMany({});
 
     res.json({
@@ -386,9 +376,8 @@ app.delete("/api/media", authenticateAdmin, async (req, res) => {
   }
 });
 
-// ================= PUBLIC MEDIA ACCESS (for students) =================
+// ================= PUBLIC MEDIA ACCESS =================
 
-// Get media info (public - for library page)
 app.get("/api/library/media", authenticateToken, async (req, res) => {
   try {
     const { type } = req.query;
@@ -396,7 +385,6 @@ app.get("/api/library/media", authenticateToken, async (req, res) => {
     let query = {};
     if (type && type !== "all") query.type = type;
 
-    // Only return approved/general category media to students
     query.category = { $in: ["general", "tutorial", "documentation"] };
 
     const media = await Media.find(query)
@@ -422,7 +410,6 @@ app.get("/api/library/media", authenticateToken, async (req, res) => {
   }
 });
 
-// Stream media files (students can access) - MOVED HERE BEFORE EMAIL SETUP
 app.get("/api/media/stream/:id", authenticateToken, async (req, res) => {
   try {
     const media = await Media.findById(req.params.id);
@@ -437,7 +424,6 @@ app.get("/api/media/stream/:id", authenticateToken, async (req, res) => {
       return res.status(404).json({ message: "File not found" });
     }
 
-    // Set content type with fallback
     const mimeType =
       media.mimeType ||
       (media.type === "video" ? "video/mp4"
@@ -446,7 +432,6 @@ app.get("/api/media/stream/:id", authenticateToken, async (req, res) => {
 
     res.setHeader("Content-Type", mimeType);
 
-    // Stream the file
     const stream = fs.createReadStream(filePath);
     stream.pipe(res);
   } catch (err) {
@@ -456,99 +441,61 @@ app.get("/api/media/stream/:id", authenticateToken, async (req, res) => {
 });
 
 // ================= EMAIL TRANSPORTER CONFIGURATION =================
-const SibApiV3Sdk = require("@getbrevo/brevo");
-// Configure email based on environment
 let sendEmail;
 
-const isProduction =
-  process.env.NODE_ENV === "production" || process.env.RENDER === "true";
+// Use nodemailer with Gmail SMTP
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 
-if (isProduction && process.env.BREVO_API_KEY) {
-  // Use Brevo for production (Render)
-  let apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-  let apiKey = apiInstance.authentications["apiKey"];
-  apiKey.apiKey = process.env.BREVO_API_KEY;
-
-  sendEmail = async (to, subject, html, text) => {
-    try {
-      let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-      sendSmtpEmail.subject = subject;
-      sendSmtpEmail.htmlContent = html;
-      sendSmtpEmail.textContent = text;
-      sendSmtpEmail.sender = {
-        name: "E-Bundle Ethiopia",
-        email: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-      };
-      sendSmtpEmail.to = [{ email: to }];
-
-      await apiInstance.sendTransacEmail(sendSmtpEmail);
-      console.log(`✅ Email sent to ${to}`);
-      return true;
-    } catch (error) {
-      console.error(`❌ Failed to send email to ${to}:`, error.message);
-      if (error.response && error.response.body) {
-        console.error("Brevo error details:", error.response.body);
-      }
-      return false;
-    }
-  };
-  console.log("✅ Brevo email service configured");
-} else {
-  // Fallback to nodemailer for local development
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
-
-  sendEmail = async (to, subject, html, text) => {
-    try {
-      await transporter.sendMail({
-        from: `"E-Bundle Ethiopia" <${process.env.EMAIL_USER}>`,
-        to,
-        subject,
-        html,
-        text,
-      });
-      console.log(`✅ Email sent to ${to}`);
-      return true;
-    } catch (error) {
-      console.error(`❌ Failed to send email to ${to}:`, error.message);
-      return false;
-    }
-  };
-
-  // Verify email transporter on startup
-  const verifyTransporter = async (retries = 3) => {
-    for (let i = 0; i < retries; i++) {
-      try {
-        await transporter.verify();
-        console.log("✅ Email server is ready to send messages");
-        return true;
-      } catch (error) {
-        console.error(
-          `❌ Email transporter error (attempt ${i + 1}/${retries}):`,
-          error.message,
-        );
-        if (i < retries - 1) {
-          console.log("Retrying in 5 seconds...");
-          await new Promise((resolve) => setTimeout(resolve, 5000));
-        }
-      }
-    }
-    console.log(
-      "⚠️ Email service may not work properly. Continuing without email...",
-    );
+sendEmail = async (to, subject, html, text) => {
+  try {
+    await transporter.sendMail({
+      from: `"E-Bundle Ethiopia" <${process.env.EMAIL_USER}>`,
+      to,
+      subject,
+      html,
+      text,
+    });
+    console.log(`✅ Email sent to ${to}`);
+    return true;
+  } catch (error) {
+    console.error(`❌ Failed to send email to ${to}:`, error.message);
     return false;
-  };
-  verifyTransporter();
-}
+  }
+};
+
+// Verify email transporter on startup
+const verifyTransporter = async (retries = 3) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      await transporter.verify();
+      console.log("✅ Email server is ready to send messages");
+      return true;
+    } catch (error) {
+      console.error(
+        `❌ Email transporter error (attempt ${i + 1}/${retries}):`,
+        error.message,
+      );
+      if (i < retries - 1) {
+        console.log("Retrying in 5 seconds...");
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+      }
+    }
+  }
+  console.log(
+    "⚠️ Email service may not work properly. Continuing without email...",
+  );
+  return false;
+};
+verifyTransporter();
 
 // ================= HELPER FUNCTIONS =================
 
-// Generate 6-digit OTP
 const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
@@ -650,8 +597,6 @@ adminSchema.methods.isLocked = function () {
 };
 
 const Admin = mongoose.model("Admin", adminSchema);
-
-// ================= ADMIN AUTHENTICATION SCHEMA =================
 
 // ================= ADMIN AUTHENTICATION ENDPOINTS =================
 
@@ -919,7 +864,7 @@ app.post("/api/admin/change-password", authenticateAdmin, async (req, res) => {
   }
 });
 
-// Admin Forgot Password - Sends 6-digit OTP
+// Admin Forgot Password
 app.post("/api/admin/forgot-password", async (req, res) => {
   try {
     const { email } = req.body;
@@ -1355,8 +1300,6 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// Authentication Middleware
-
 // Get Profile
 app.get("/profile", authenticateToken, async (req, res) => {
   try {
@@ -1462,13 +1405,12 @@ app.put("/profile", authenticateToken, async (req, res) => {
   }
 });
 
-// Add this new endpoint to track media-specific progress
+// Track media progress
 app.post("/api/track-media", authenticateToken, async (req, res) => {
   try {
     const { mediaId, mediaType, courseId, progress, completed, timeSpent } =
       req.body;
 
-    // Find or create progress record
     let progressRecord = await Progress.findOne({
       userId: req.user.id,
       courseId: courseId || mediaId,
@@ -1482,11 +1424,10 @@ app.post("/api/track-media", authenticateToken, async (req, res) => {
         totalLessons: 1,
         percentage: 0,
         timeSpent: 0,
-        mediaProgress: {}, // Track individual media files
+        mediaProgress: {},
       });
     }
 
-    // Update media-specific progress
     if (!progressRecord.mediaProgress) {
       progressRecord.mediaProgress = {};
     }
@@ -1498,7 +1439,6 @@ app.post("/api/track-media", authenticateToken, async (req, res) => {
       type: mediaType,
     };
 
-    // Calculate overall course progress
     const mediaKeys = Object.keys(progressRecord.mediaProgress);
     const completedMedia = mediaKeys.filter(
       (k) => progressRecord.mediaProgress[k].completed,
@@ -1515,7 +1455,6 @@ app.post("/api/track-media", authenticateToken, async (req, res) => {
 
     await progressRecord.save();
 
-    // Log activity
     const activity = new Activity({
       userId: req.user.id,
       type: "lesson",
@@ -1537,7 +1476,7 @@ app.post("/api/track-media", authenticateToken, async (req, res) => {
   }
 });
 
-// Get detailed progress for all media
+// Get media progress
 app.get("/api/media-progress", authenticateToken, async (req, res) => {
   try {
     const progressRecords = await Progress.find({ userId: req.user.id });
@@ -1549,7 +1488,6 @@ app.get("/api/media-progress", authenticateToken, async (req, res) => {
           mediaProgress[mediaId] = data.progress || 0;
         });
       }
-      // Also include course-level progress
       mediaProgress[record.courseId?.toString()] = record.percentage || 0;
     });
 
@@ -2017,7 +1955,6 @@ app.post("/update-progress", authenticateToken, async (req, res) => {
 
 // ================= LIBRARY ENDPOINTS =================
 
-// Get Library Materials
 app.get("/api/library", authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("grade");
@@ -2097,7 +2034,6 @@ app.get("/api/library", authenticateToken, async (req, res) => {
   }
 });
 
-// Get User Progress
 app.get("/api/progress", authenticateToken, async (req, res) => {
   try {
     const progress = await Progress.find({ userId: req.user.id });
@@ -2119,7 +2055,6 @@ app.get("/api/progress", authenticateToken, async (req, res) => {
 
 // ================= COMMUNITY ENDPOINTS =================
 
-// Get Study Groups
 app.get("/api/study-groups", authenticateToken, async (req, res) => {
   try {
     const groups = [
@@ -2180,7 +2115,7 @@ app.get("/api/study-groups", authenticateToken, async (req, res) => {
   }
 });
 
-// ================= NEW: MESSAGE SCHEMA FOR PERSISTENT CHAT =================
+// ================= MESSAGE SCHEMA =================
 const messageSchema = new mongoose.Schema({
   groupId: { type: String, required: true, index: true },
   userId: {
@@ -2200,7 +2135,7 @@ const messageSchema = new mongoose.Schema({
 
 const Message = mongoose.model("Message", messageSchema);
 
-// Get Messages with pagination
+// Get Messages
 app.get("/api/messages", authenticateToken, async (req, res) => {
   try {
     const { group, limit = 100, before } = req.query;
@@ -2216,7 +2151,6 @@ app.get("/api/messages", authenticateToken, async (req, res) => {
       .limit(parseInt(limit))
       .lean();
 
-    // Populate user details if needed
     const userIds = [...new Set(messages.map((m) => m.userId))];
     const users = await User.find({ _id: { $in: userIds } }).select(
       "firstName lastName avatar",
@@ -2283,7 +2217,6 @@ app.post("/api/messages", authenticateToken, async (req, res) => {
 
     await newMessage.save();
 
-    // Log activity
     const activity = new Activity({
       userId: req.user.id,
       type: "community",
@@ -2293,7 +2226,6 @@ app.post("/api/messages", authenticateToken, async (req, res) => {
     });
     await activity.save();
 
-    // Update streak
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const lastActive = user.lastActive ? new Date(user.lastActive) : null;
@@ -2350,7 +2282,6 @@ app.put("/api/messages/:messageId", authenticateToken, async (req, res) => {
         .json({ success: false, message: "Message not found" });
     }
 
-    // Check if user owns the message
     if (message.userId.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
@@ -2393,7 +2324,6 @@ app.delete("/api/messages/:messageId", authenticateToken, async (req, res) => {
         .json({ success: false, message: "Message not found" });
     }
 
-    // Check if user owns the message
     if (message.userId.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
@@ -2644,7 +2574,6 @@ app.get("/api/test", async (req, res) => {
       });
     }
 
-    const axios = require("axios");
     const response = await axios.post(
       "https://api.groq.com/openai/v1/chat/completions",
       {
@@ -2697,12 +2626,12 @@ const io = socketIo(server, {
     credentials: true,
     methods: ["GET", "POST"],
   },
-  transports: ["websocket", "polling"], // Add this for better compatibility
+  transports: ["websocket", "polling"],
 });
 
-// Store connected users and their socket IDs
-const connectedUsers = new Map(); // userId -> { socketId, grade, name }
-const waitingUsers = []; // Queue for random matching
+// Store connected users
+const connectedUsers = new Map();
+const waitingUsers = [];
 
 // Socket.io connection handling
 io.on("connection", (socket) => {
@@ -2711,7 +2640,6 @@ io.on("connection", (socket) => {
   let currentUserId = null;
   let currentRoom = null;
 
-  // Handle user registration
   socket.on("register", (userData) => {
     currentUserId = userData.userId;
     connectedUsers.set(currentUserId, {
@@ -2723,11 +2651,9 @@ io.on("connection", (socket) => {
     console.log(`User ${userData.name} (${userData.grade}) registered`);
   });
 
-  // Handle joining random video chat
   socket.on("find-random-partner", (userData) => {
     currentUserId = userData.userId;
 
-    // Store user in waiting queue
     waitingUsers.push({
       userId: currentUserId,
       socketId: socket.id,
@@ -2739,11 +2665,9 @@ io.on("connection", (socket) => {
       `User ${userData.name} looking for partner. Queue size: ${waitingUsers.length}`,
     );
 
-    // Try to match users
     matchUsers();
   });
 
-  // Handle leaving random queue
   socket.on("leave-queue", () => {
     const index = waitingUsers.findIndex((u) => u.socketId === socket.id);
     if (index !== -1) {
@@ -2752,9 +2676,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  // WebRTC signaling
   socket.on("offer", (data) => {
-    // Forward offer to the specified user
     const targetSocket = io.sockets.sockets.get(data.target);
     if (targetSocket) {
       targetSocket.emit("offer", {
@@ -2785,7 +2707,6 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Handle call ended
   socket.on("end-call", (data) => {
     if (data.target) {
       const targetSocket = io.sockets.sockets.get(data.target);
@@ -2794,36 +2715,30 @@ io.on("connection", (socket) => {
       }
     }
 
-    // Clean up room
     if (currentRoom) {
       socket.leave(currentRoom);
       currentRoom = null;
     }
   });
 
-  // Handle disconnection
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
 
-    // Remove from waiting queue
     const queueIndex = waitingUsers.findIndex((u) => u.socketId === socket.id);
     if (queueIndex !== -1) {
       waitingUsers.splice(queueIndex, 1);
     }
 
-    // Remove from connected users
     if (currentUserId) {
       connectedUsers.delete(currentUserId);
     }
 
-    // Notify partner if in a call
     if (currentRoom) {
       socket.to(currentRoom).emit("partner-disconnected");
     }
   });
 });
 
-// Function to match users
 function matchUsers() {
   while (waitingUsers.length >= 2) {
     const user1 = waitingUsers.shift();
@@ -2838,7 +2753,6 @@ function matchUsers() {
       socket1.join(roomName);
       socket2.join(roomName);
 
-      // Store room info on sockets
       socket1.currentRoom = roomName;
       socket2.currentRoom = roomName;
 
@@ -2862,7 +2776,6 @@ function matchUsers() {
 
       console.log(`Matched ${user1.name} with ${user2.name}`);
     } else {
-      // If one of the sockets is no longer connected, add back the other
       if (socket1) waitingUsers.push(user1);
       if (socket2) waitingUsers.push(user2);
     }
