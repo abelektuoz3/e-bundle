@@ -456,38 +456,44 @@ app.get("/api/media/stream/:id", authenticateToken, async (req, res) => {
 });
 
 // ================= EMAIL TRANSPORTER CONFIGURATION =================
-const sgMail = require('@sendgrid/mail');
+const SibApiV3Sdk = require("brevo");
 
 // Configure email based on environment
 let sendEmail;
 
-const isProduction = process.env.NODE_ENV === "production" || process.env.RENDER === "true";
+const isProduction =
+  process.env.NODE_ENV === "production" || process.env.RENDER === "true";
 
-if (isProduction && process.env.SENDGRID_API_KEY) {
-  // Use SendGrid for production (Render)
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-  
+if (isProduction && process.env.BREVO_API_KEY) {
+  // Use Brevo for production (Render)
+  let apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+  let apiKey = apiInstance.authentications["apiKey"];
+  apiKey.apiKey = process.env.BREVO_API_KEY;
+
   sendEmail = async (to, subject, html, text) => {
     try {
-      const msg = {
-        to,
-        from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-        subject,
-        html,
-        text,
+      let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+      sendSmtpEmail.subject = subject;
+      sendSmtpEmail.htmlContent = html;
+      sendSmtpEmail.textContent = text;
+      sendSmtpEmail.sender = {
+        name: "E-Bundle Ethiopia",
+        email: process.env.EMAIL_FROM || process.env.EMAIL_USER,
       };
-      await sgMail.send(msg);
+      sendSmtpEmail.to = [{ email: to }];
+
+      await apiInstance.sendTransacEmail(sendSmtpEmail);
       console.log(`✅ Email sent to ${to}`);
       return true;
     } catch (error) {
       console.error(`❌ Failed to send email to ${to}:`, error.message);
-      if (error.response) {
-        console.error('SendGrid error details:', error.response.body);
+      if (error.response && error.response.body) {
+        console.error("Brevo error details:", error.response.body);
       }
       return false;
     }
   };
-  console.log("✅ SendGrid email service configured");
+  console.log("✅ Brevo email service configured");
 } else {
   // Fallback to nodemailer for local development
   const transporter = nodemailer.createTransport({
@@ -497,7 +503,7 @@ if (isProduction && process.env.SENDGRID_API_KEY) {
       pass: process.env.EMAIL_PASS,
     },
   });
-  
+
   sendEmail = async (to, subject, html, text) => {
     try {
       await transporter.sendMail({
@@ -514,7 +520,7 @@ if (isProduction && process.env.SENDGRID_API_KEY) {
       return false;
     }
   };
-  
+
   // Verify email transporter on startup
   const verifyTransporter = async (retries = 3) => {
     for (let i = 0; i < retries; i++) {
@@ -523,14 +529,19 @@ if (isProduction && process.env.SENDGRID_API_KEY) {
         console.log("✅ Email server is ready to send messages");
         return true;
       } catch (error) {
-        console.error(`❌ Email transporter error (attempt ${i + 1}/${retries}):`, error.message);
+        console.error(
+          `❌ Email transporter error (attempt ${i + 1}/${retries}):`,
+          error.message,
+        );
         if (i < retries - 1) {
           console.log("Retrying in 5 seconds...");
           await new Promise((resolve) => setTimeout(resolve, 5000));
         }
       }
     }
-    console.log("⚠️ Email service may not work properly. Continuing without email...");
+    console.log(
+      "⚠️ Email service may not work properly. Continuing without email...",
+    );
     return false;
   };
   verifyTransporter();
@@ -571,7 +582,7 @@ const sendAdminResetEmail = async (email, otp, firstName) => {
     </div>
   `;
   const text = `Your E-Bundle Ethiopia admin password reset code is: ${otp}. This code will expire in 10 minutes.`;
-  
+
   return await sendEmail(email, "Admin Password Reset Code", html, text);
 };
 
@@ -603,7 +614,7 @@ const sendOTPEmail = async (email, otp, firstName) => {
     </div>
   `;
   const text = `Your E-Bundle Ethiopia verification code is: ${otp}. This code will expire in 10 minutes.`;
-  
+
   return await sendEmail(email, "Your Email Verification Code", html, text);
 };
 
