@@ -1,0 +1,872 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
+    <title>Community | E-Bundle Ethiopia</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Ethiopic:wght@400;500;700&display=swap"
+      rel="stylesheet" />
+
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: { sans: ["Inter", "Noto Sans Ethiopic", "sans-serif"] },
+            colors: {
+              primary: "#4F46E5",
+              secondary: "#7C3AED",
+              accent: "#EC4899",
+            },
+          },
+        },
+      };
+    </script>
+
+    <style>
+      /* Custom Styles */
+      .glass {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .glass-card {
+        background: linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.05) 0%,
+          rgba(255, 255, 255, 0.01) 100%
+        );
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        transition: all 0.3s ease;
+      }
+      .glass-card:hover {
+        border-color: rgba(79, 70, 229, 0.3);
+      }
+      .messages-container {
+        scroll-behavior: smooth;
+      }
+      .message-bubble {
+        animation: fadeInUp 0.3s ease-out;
+      }
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .unread-badge {
+        min-width: 20px;
+        height: 20px;
+        border-radius: 10px;
+        background: #4f46e5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: bold;
+        padding: 0 6px;
+      }
+      .typing-indicator {
+        display: inline-flex;
+        align-items: center;
+      }
+      .typing-dot {
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background-color: #9ca3af;
+        margin: 0 2px;
+        animation: typingAnimation 1.4s infinite ease-in-out;
+      }
+      .typing-dot:nth-child(1) {
+        animation-delay: -0.32s;
+      }
+      .typing-dot:nth-child(2) {
+        animation-delay: -0.16s;
+      }
+      @keyframes typingAnimation {
+        0%,
+        80%,
+        100% {
+          transform: scale(0.8);
+          opacity: 0.5;
+        }
+        40% {
+          transform: scale(1.2);
+          opacity: 1;
+        }
+      }
+      .blob {
+        position: absolute;
+        filter: blur(80px);
+        opacity: 0.3;
+        animation: blob 7s infinite;
+      }
+      @keyframes blob {
+        0% {
+          transform: translate(0px, 0px) scale(1);
+        }
+        33% {
+          transform: translate(30px, -50px) scale(1.1);
+        }
+        66% {
+          transform: translate(-20px, 20px) scale(0.9);
+        }
+        100% {
+          transform: translate(0px, 0px) scale(1);
+        }
+      }
+    </style>
+  </head>
+  <body class="antialiased relative selection:bg-primary selection:text-white">
+    <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+      <div class="blob bg-primary w-72 h-72 rounded-full top-0 left-0"></div>
+      <div
+        class="blob bg-secondary w-96 h-96 rounded-full bottom-0 right-0"></div>
+    </div>
+
+    <div id="toastContainer" class="fixed top-20 right-4 z-50 space-y-2"></div>
+
+    <!-- Navbar - Sticky but with proper z-index -->
+    <nav
+      class="w-full glass border-b border-white/10 px-6 py-4 flex justify-between items-center sticky top-0 z-50">
+      <div
+        class="flex items-center space-x-3 cursor-pointer"
+        onclick="window.location.href = 'dashboard.html'">
+        <div
+          class="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center">
+          <i class="fas fa-graduation-cap text-white text-lg"></i>
+        </div>
+        <span class="text-xl font-bold hidden sm:block">E-Bundle</span>
+      </div>
+
+      <div class="hidden md:flex items-center space-x-1">
+        <a
+          href="dashboard.html"
+          class="nav-btn px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all flex items-center space-x-2">
+          <i class="fas fa-home"></i><span>Dashboard</span>
+        </a>
+        <a
+          href="library.html"
+          class="nav-btn px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all flex items-center space-x-2">
+          <i class="fas fa-book"></i><span>Library</span>
+        </a>
+        <a
+          href="ai-tutor.html"
+          class="nav-btn px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all flex items-center space-x-2">
+          <i class="fas fa-robot"></i><span>AI Tutor</span>
+        </a>
+        <a
+          href="community.html"
+          class="nav-btn px-4 py-2 rounded-lg text-white bg-white/10 transition-all flex items-center space-x-2">
+          <i class="fas fa-users"></i><span>Community</span>
+        </a>
+        <a
+          href="kahoot.html"
+          class="nav-btn px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all flex items-center space-x-2">
+          <i class="fas fa-gamepad"></i><span>Kahoot</span>
+        </a>
+        <a
+          href="video-chat.html"
+          class="nav-btn px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all flex items-center space-x-2">
+          <i class="fas fa-video"></i><span>Video Chat</span>
+        </a>
+      </div>
+
+      <div class="flex items-center space-x-4">
+        <div
+          class="hidden sm:flex items-center space-x-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/10"
+          id="streakDisplay">
+          <i class="fas fa-fire text-orange-500"></i>
+          <span class="text-sm font-semibold" id="streakText">Loading...</span>
+        </div>
+        <div class="relative group">
+          <div
+            class="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-secondary p-[2px] cursor-pointer">
+            <img
+              id="navAvatar"
+              src="https://api.dicebear.com/7.x/avataaars/svg?seed=User"
+              class="w-full h-full rounded-full bg-slate-900" />
+          </div>
+          <div
+            class="absolute right-0 mt-2 w-48 glass rounded-xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top-right z-50">
+            <div class="p-2">
+              <div
+                class="px-4 py-2 text-sm text-gray-400 border-b border-white/10 mb-1"
+                id="navUserName">
+                Loading...
+              </div>
+              <a
+                href="profile.html"
+                class="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-sm transition-colors block"
+                >Profile</a
+              >
+              <a
+                href="settings.html"
+                class="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-sm transition-colors block"
+                >Settings</a
+              >
+              <hr class="border-white/10 my-2" />
+              <a
+                href="#"
+                onclick="logout()"
+                class="w-full text-left px-4 py-2 hover:bg-red-500/20 text-red-400 rounded-lg text-sm transition-colors block"
+                >Logout</a
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content - Fixed height accounting for navbar -->
+    <main class="h-[calc(100vh-73px)] relative z-10">
+      <div class="p-6 h-full max-w-7xl mx-auto">
+        <section class="fade-in h-full">
+          <div class="h-full flex gap-4">
+            <!-- Sidebar -->
+            <div
+              class="w-72 glass-card rounded-2xl overflow-hidden flex flex-col h-full">
+              <div class="p-4 border-b border-white/10">
+                <h3 class="font-bold">Study Groups</h3>
+                <p class="text-xs text-gray-400 mt-1" id="onlineUsersCount">
+                  0 online
+                </p>
+              </div>
+              <div
+                class="p-3 space-y-2 overflow-y-auto flex-1"
+                id="studyGroupsList">
+                <!-- Study groups loaded dynamically -->
+                <div class="text-center py-4 text-gray-400 text-sm">
+                  Loading groups...
+                </div>
+              </div>
+            </div>
+
+            <!-- Chat Area -->
+            <div
+              class="flex-1 glass-card rounded-2xl overflow-hidden flex flex-col h-full">
+              <!-- Chat Header -->
+              <div
+                class="p-4 border-b border-white/10 flex items-center justify-between flex-shrink-0">
+                <div class="flex items-center space-x-3">
+                  <div
+                    class="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center"
+                    id="currentGroupIcon">
+                    <i class="fas fa-hashtag text-primary"></i>
+                  </div>
+                  <div>
+                    <h3 class="font-bold" id="currentGroupName">
+                      Grade 10 Prep
+                    </h3>
+                    <p class="text-xs text-gray-400">
+                      <span id="groupOnlineCount">0</span> students online
+                    </p>
+                  </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                  <div
+                    id="typingIndicator"
+                    class="text-xs text-gray-400 hidden">
+                    <div class="typing-indicator">
+                      <span>Someone is typing</span>
+                      <span class="typing-dot"></span>
+                      <span class="typing-dot"></span>
+                      <span class="typing-dot"></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Messages Container - Scrollable area -->
+              <div
+                id="communityMessages"
+                class="flex-1 overflow-y-auto p-4 space-y-4 messages-container">
+                <!-- Messages loaded dynamically -->
+                <div class="flex items-center justify-center h-full">
+                  <div class="text-gray-400 text-center">
+                    <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                    <p>Loading messages...</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Message Input - Fixed at bottom -->
+              <div class="p-4 border-t border-white/10 flex-shrink-0">
+                <div class="flex items-center space-x-3">
+                  <input
+                    type="text"
+                    id="communityInput"
+                    placeholder="Type your message..."
+                    class="flex-1 px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-primary text-white"
+                    onkeypress="handleKeyPress(event)" />
+                  <button
+                    onclick="sendMessage()"
+                    class="p-2 bg-primary rounded-lg hover:bg-primary/80 transition-colors">
+                    <i class="fas fa-paper-plane text-white"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      // ✅ UPDATED: API Configuration - Your deployed backend
+      const API_URL = "https://e-bundle.onrender.com";
+      const SOCKET_URL = "https://e-bundle.onrender.com"; // Same URL for Socket.IO
+
+      let currentUser = null;
+      let currentGroup = "grade10-prep";
+      let messages = [];
+      let studyGroups = [];
+      let socket = null;
+      let typingTimeout = null;
+      let isTyping = false;
+      let unreadCounts = {};
+
+      // Group data
+      const groups = [
+        {
+          id: "grade9-prep",
+          name: "Grade 9 Prep",
+          icon: "fa-hashtag",
+          color: "primary",
+          subject: "General",
+        },
+        {
+          id: "grade10-prep",
+          name: "Grade 10 Prep",
+          icon: "fa-hashtag",
+          color: "primary",
+          subject: "General",
+        },
+        {
+          id: "grade12-egsece",
+          name: "Grade 12 EGSECE",
+          icon: "fa-graduation-cap",
+          color: "secondary",
+          subject: "Exam Prep",
+        },
+        {
+          id: "math-help",
+          name: "Math Help Center",
+          icon: "fa-calculator",
+          color: "green",
+          subject: "Math",
+        },
+        {
+          id: "science-lab",
+          name: "Science Lab",
+          icon: "fa-flask",
+          color: "purple",
+          subject: "Science",
+        },
+        {
+          id: "english-club",
+          name: "English Club",
+          icon: "fa-language",
+          color: "yellow",
+          subject: "Language",
+        },
+        {
+          id: "history-buffs",
+          name: "History Buffs",
+          icon: "fa-landmark",
+          color: "red",
+          subject: "Social",
+        },
+      ];
+
+      // Check authentication
+      function checkAuth() {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          window.location.href = "login.html";
+          return null;
+        }
+        return token;
+      }
+
+      // Fetch current user profile
+      async function fetchUserProfile() {
+        const token = checkAuth();
+        if (!token) return;
+
+        try {
+          const response = await fetch(`${API_URL}/profile`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          if (!response.ok) {
+            if (response.status === 401) {
+              localStorage.removeItem("token");
+              localStorage.removeItem("user");
+              window.location.href = "login.html";
+              return;
+            }
+            throw new Error("Failed to fetch profile");
+          }
+
+          const data = await response.json();
+          currentUser = data.user;
+
+          // Update UI
+          document.getElementById("navUserName").textContent =
+            currentUser.firstName;
+          document.getElementById("streakText").textContent =
+            `${currentUser.streak || 0} Day Streak`;
+          if (currentUser.avatar) {
+            document.getElementById("navAvatar").src = currentUser.avatar;
+          }
+
+          // Connect to socket after getting user
+          connectSocket(token);
+        } catch (error) {
+          console.error("Error fetching profile:", error);
+          showToast("Failed to load profile", "error");
+        }
+      }
+
+      // Connect to Socket.IO
+      function connectSocket(token) {
+        if (socket) {
+          socket.disconnect();
+        }
+
+        socket = io(SOCKET_URL, {
+          auth: { token: token },
+          transports: ["websocket", "polling"],
+          reconnection: true,
+          reconnectionAttempts: 5,
+          reconnectionDelay: 1000,
+        });
+
+        socket.on("connect", () => {
+          console.log("Connected to chat server");
+          showToast("Connected to community chat", "success");
+
+          // Join current group
+          joinGroup(currentGroup);
+        });
+
+        socket.on("connect_error", (error) => {
+          console.error("Socket connection error:", error);
+          showToast(
+            "Connection error. Messages will be saved locally.",
+            "error",
+          );
+        });
+
+        // Listen for new messages
+        socket.on("new_message", (message) => {
+          console.log("New message received:", message);
+          if (message.groupId === currentGroup) {
+            messages.push(message);
+            renderMessages();
+            // Clear unread count for current group
+            unreadCounts[message.groupId] = 0;
+            updateUnreadBadge(message.groupId);
+          } else {
+            // Update group unread count
+            unreadCounts[message.groupId] =
+              (unreadCounts[message.groupId] || 0) + 1;
+            updateUnreadBadge(message.groupId);
+          }
+        });
+
+        // Listen for typing indicators
+        socket.on("user_typing", (data) => {
+          if (
+            data.groupId === currentGroup &&
+            data.userId !== currentUser?.id
+          ) {
+            const typingDiv = document.getElementById("typingIndicator");
+            typingDiv.innerHTML = `
+              <div class="typing-indicator">
+                <span>${data.userName} is typing</span>
+                <span class="typing-dot"></span>
+                <span class="typing-dot"></span>
+                <span class="typing-dot"></span>
+              </div>
+            `;
+            typingDiv.classList.remove("hidden");
+            setTimeout(() => {
+              typingDiv.classList.add("hidden");
+            }, 3000);
+          }
+        });
+
+        // Listen for user joins
+        socket.on("user_joined", (data) => {
+          if (data.groupId === currentGroup) {
+            updateOnlineCount();
+            showToast(`${data.userName} joined the group`, "success");
+          }
+        });
+
+        // Listen for user leaves
+        socket.on("user_left", (data) => {
+          if (data.groupId === currentGroup) {
+            updateOnlineCount();
+            showToast(`${data.userName} left the group`, "info");
+          }
+        });
+
+        // Update online users list
+        socket.on("online_users", (data) => {
+          if (data.groupId === currentGroup) {
+            updateOnlineUsers(data.users);
+          }
+        });
+
+        // Update group online count
+        socket.on("group_online_count", (data) => {
+          if (data.groupId === currentGroup) {
+            document.getElementById("groupOnlineCount").textContent =
+              data.count;
+            document.getElementById("onlineUsersCount").textContent =
+              `${data.count} online`;
+          }
+        });
+      }
+
+      // Join a group
+      function joinGroup(groupId) {
+        if (socket && socket.connected && currentUser) {
+          socket.emit("join_group", {
+            groupId: groupId,
+            userId: currentUser.id,
+            userName: currentUser.firstName,
+            userAvatar: currentUser.avatar,
+          });
+        }
+      }
+
+      // Leave current group
+      function leaveGroup(groupId) {
+        if (socket && socket.connected && currentUser) {
+          socket.emit("leave_group", {
+            groupId: groupId,
+            userId: currentUser.id,
+          });
+        }
+      }
+
+      // Send message
+      async function sendMessage() {
+        const input = document.getElementById("communityInput");
+        const text = input.value.trim();
+        if (!text || !currentUser) return;
+
+        const message = {
+          id: Date.now(),
+          groupId: currentGroup,
+          userId: currentUser.id,
+          userName: currentUser.firstName,
+          userAvatar:
+            currentUser.avatar ||
+            `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser.firstName}`,
+          text: text,
+          time: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          timestamp: new Date().toISOString(),
+        };
+
+        // Add to local messages immediately
+        messages.push(message);
+        renderMessages();
+        input.value = "";
+
+        // Stop typing indicator
+        stopTyping();
+
+        // Send via socket
+        if (socket && socket.connected) {
+          socket.emit("send_message", message);
+        } else {
+          // Save locally if offline
+          saveMessagesToLocal();
+          showToast("Message saved locally (offline mode)", "info");
+        }
+
+        // Log activity
+        try {
+          const token = localStorage.getItem("token");
+          await fetch(`${API_URL}/log-activity`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              type: "community",
+              title: "Community Message",
+              description: `Sent message in ${currentGroup}`,
+              xp: 2,
+            }),
+          });
+        } catch (err) {
+          console.error("Error logging activity:", err);
+        }
+      }
+
+      // Handle typing
+      function handleKeyPress(event) {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          sendMessage();
+        } else {
+          startTyping();
+        }
+      }
+
+      function startTyping() {
+        if (!isTyping && socket && socket.connected && currentUser) {
+          isTyping = true;
+          socket.emit("typing", {
+            groupId: currentGroup,
+            userId: currentUser.id,
+            userName: currentUser.firstName,
+          });
+
+          if (typingTimeout) clearTimeout(typingTimeout);
+          typingTimeout = setTimeout(() => {
+            stopTyping();
+          }, 3000);
+        }
+      }
+
+      function stopTyping() {
+        if (isTyping) {
+          isTyping = false;
+          if (typingTimeout) clearTimeout(typingTimeout);
+        }
+      }
+
+      // Load messages from localStorage
+      function loadMessagesFromLocal() {
+        const saved = localStorage.getItem(`messages_${currentGroup}`);
+        if (saved) {
+          messages = JSON.parse(saved);
+          renderMessages();
+        }
+      }
+
+      // Save messages to localStorage
+      function saveMessagesToLocal() {
+        localStorage.setItem(
+          `messages_${currentGroup}`,
+          JSON.stringify(messages.slice(-200)), // Keep last 200 messages
+        );
+      }
+
+      // Render messages
+      function renderMessages() {
+        const container = document.getElementById("communityMessages");
+        if (messages.length === 0) {
+          container.innerHTML = `
+            <div class="flex flex-col items-center justify-center h-full text-gray-400">
+              <i class="fas fa-comments text-4xl mb-3 opacity-50"></i>
+              <p>No messages yet. Start the conversation!</p>
+              <p class="text-xs mt-2">Be respectful and helpful to others</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = messages
+          .map((m) => {
+            const isSelf = m.userId === currentUser?.id;
+            const avatar =
+              m.userAvatar ||
+              `https://api.dicebear.com/7.x/avataaars/svg?seed=${m.userName}`;
+
+            return `
+              <div class="flex items-start space-x-3 ${isSelf ? "justify-end" : ""} message-bubble">
+                ${!isSelf ? `<img src="${avatar}" class="w-8 h-8 rounded-full flex-shrink-0">` : ""}
+                <div class="${isSelf ? "bg-primary/20" : "glass"} p-3 rounded-2xl max-w-lg ${isSelf ? "rounded-tr-none" : "rounded-tl-none"}">
+                  ${!isSelf ? `<p class="text-xs text-primary font-semibold mb-1">${escapeHtml(m.userName)}</p>` : ""}
+                  <p class="text-sm text-gray-300">${escapeHtml(m.text)}</p>
+                  <p class="text-xs text-gray-500 mt-1 text-right">${m.time}</p>
+                </div>
+                ${isSelf ? `<img src="${avatar}" class="w-8 h-8 rounded-full flex-shrink-0">` : ""}
+              </div>
+            `;
+          })
+          .join("");
+
+        // Scroll to bottom
+        container.scrollTop = container.scrollHeight;
+
+        // Save messages to localStorage
+        saveMessagesToLocal();
+      }
+
+      // Load study groups
+      function loadStudyGroups() {
+        studyGroups = groups;
+        renderStudyGroups();
+      }
+
+      // Render study groups
+      function renderStudyGroups() {
+        const container = document.getElementById("studyGroupsList");
+        container.innerHTML = studyGroups
+          .map(
+            (group) => `
+              <button onclick="switchGroup('${group.id}')" 
+                      class="w-full p-3 ${currentGroup === group.id ? "bg-primary/20 border border-primary/30" : "hover:bg-white/5"} rounded-xl flex items-center space-x-3 text-left transition-all group-btn">
+                <div class="w-10 h-10 bg-${group.color}-500/20 rounded-lg flex items-center justify-center">
+                  <i class="fas ${group.icon} text-${group.color}-400"></i>
+                </div>
+                <div class="flex-1">
+                  <p class="font-medium text-sm">${group.name}</p>
+                  <p class="text-xs text-gray-400">${group.subject}</p>
+                </div>
+                <div id="unread_${group.id}" class="unread-badge ${!unreadCounts[group.id] ? "hidden" : ""}">
+                  ${unreadCounts[group.id] || ""}
+                </div>
+              </button>
+            `,
+          )
+          .join("");
+      }
+
+      // Update unread badge
+      function updateUnreadBadge(groupId) {
+        const badge = document.getElementById(`unread_${groupId}`);
+        const count = unreadCounts[groupId] || 0;
+        if (badge) {
+          if (count > 0) {
+            badge.textContent = count > 99 ? "99+" : count;
+            badge.classList.remove("hidden");
+          } else {
+            badge.classList.add("hidden");
+          }
+        }
+      }
+
+      // Switch group
+      function switchGroup(groupId) {
+        if (currentGroup === groupId) return;
+
+        // Save current messages before leaving
+        saveMessagesToLocal();
+
+        // Leave current group
+        leaveGroup(currentGroup);
+
+        // Switch to new group
+        currentGroup = groupId;
+        const group = studyGroups.find((g) => g.id === groupId);
+        if (group) {
+          document.getElementById("currentGroupName").textContent = group.name;
+          document.getElementById("currentGroupIcon").innerHTML =
+            `<i class="fas ${group.icon} text-primary"></i>`;
+        }
+
+        // Clear unread count for this group
+        unreadCounts[groupId] = 0;
+        updateUnreadBadge(groupId);
+
+        // Load messages for new group
+        loadMessagesFromLocal();
+
+        // Join new group
+        joinGroup(groupId);
+
+        // Update active group in UI
+        renderStudyGroups();
+      }
+
+      // Update online count
+      function updateOnlineCount() {
+        // This is updated via socket events
+      }
+
+      // Update online users list
+      function updateOnlineUsers(users) {
+        const count = users.length;
+        document.getElementById("groupOnlineCount").textContent = count;
+        document.getElementById("onlineUsersCount").textContent =
+          `${count} online`;
+      }
+
+      // Utility functions
+      function escapeHtml(text) {
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      function showToast(message, type = "info") {
+        const container = document.getElementById("toastContainer");
+        const toast = document.createElement("div");
+        const colors =
+          type === "error" ? "bg-red-500/20 border-red-500/50 text-red-400"
+          : type === "success" ?
+            "bg-green-500/20 border-green-500/50 text-green-400"
+          : "bg-primary/20 border-primary/50 text-primary";
+        const icons =
+          type === "error" ? "fa-exclamation-circle"
+          : type === "success" ? "fa-check-circle"
+          : "fa-info-circle";
+
+        toast.className = `px-4 py-3 rounded-xl glass border ${colors} text-sm flex items-center space-x-2 transform translate-x-full transition-transform duration-300`;
+        toast.innerHTML = `<i class="fas ${icons}"></i><span>${message}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => toast.classList.remove("translate-x-full"), 10);
+        setTimeout(() => {
+          toast.classList.add("translate-x-full");
+          setTimeout(() => toast.remove(), 300);
+        }, 3000);
+      }
+
+      function logout() {
+        if (socket) {
+          socket.disconnect();
+        }
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        showToast("Logged out successfully", "success");
+        setTimeout(() => {
+          window.location.href = "index.html";
+        }, 1000);
+      }
+
+      // Auto-save messages periodically
+      setInterval(() => {
+        if (messages.length > 0) {
+          saveMessagesToLocal();
+        }
+      }, 30000);
+
+      // Initialize
+      document.addEventListener("DOMContentLoaded", () => {
+        fetchUserProfile();
+        loadStudyGroups();
+
+        // Load messages from localStorage
+        loadMessagesFromLocal();
+      });
+    </script>
+  </body>
+</html>

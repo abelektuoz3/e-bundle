@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kahoot Quiz | E-Bundle Ethiopia</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet" />
+    <link rel="stylesheet" href="style/kahoot.css" />
+  </head>
+  <body
+    class="antialiased min-h-screen relative selection:bg-primary selection:text-white">
+    <!-- Navigation -->
+    <nav
+      class="w-full glass border-b border-white/10 px-6 py-4 flex justify-between items-center sticky top-0 z-50">
+      <div
+        class="flex items-center space-x-3 cursor-pointer"
+        onclick="window.location.href = 'dashboard.html'">
+        <div
+          class="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center">
+          <i class="fas fa-graduation-cap text-white text-lg"></i>
+        </div>
+        <span class="text-xl font-bold">E-Bundle</span>
+      </div>
+      <div class="flex items-center space-x-4">
+        <button
+          onclick="window.location.href = 'dashboard.html'"
+          class="px-4 py-2 glass rounded-full hover:bg-white/10 transition-all">
+          Dashboard
+        </button>
+        <button
+          onclick="window.location.href = 'library.html'"
+          class="px-4 py-2 glass rounded-full hover:bg-white/10 transition-all">
+          Library
+        </button>
+        <button
+          onclick="window.location.href = 'ai-tutor.html'"
+          class="px-4 py-2 glass rounded-full hover:bg-white/10 transition-all">
+          AI Tutor
+        </button>
+        <button
+          onclick="window.location.href = 'community.html'"
+          class="px-4 py-2 glass rounded-full hover:bg-white/10 transition-all">
+          Community
+        </button>
+        <button
+          onclick="window.location.href = 'video-chat.html'"
+          class="px-4 py-2 glass rounded-full hover:bg-white/10 transition-all">
+          Video Chat
+        </button>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="p-6 max-w-7xl mx-auto">
+      <section id="kahoot" class="space-y-6">
+        <div class="kahoot-card mb-6">
+          <div
+            class="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+              <h2 class="text-3xl md:text-4xl font-bold mb-2">
+                🎮 Kahoot Community Quiz
+              </h2>
+              <p class="text-white/80">
+                260+ questions • No repeats in a quiz session
+              </p>
+            </div>
+            <div class="flex gap-3">
+              <button
+                onclick="kahootApp.startRandomQuiz()"
+                class="px-6 py-3 bg-white text-primary font-bold rounded-xl hover:bg-white/90 transition-all">
+                <i class="fas fa-random mr-2"></i> Random Quiz (10 Qs)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div class="stat-card">
+            <div class="text-2xl font-bold" id="totalQuestions">260</div>
+            <div class="text-sm text-gray-400">Total Questions</div>
+          </div>
+          <div class="stat-card">
+            <div class="text-2xl font-bold" id="totalCategories">12</div>
+            <div class="text-sm text-gray-400">Categories</div>
+          </div>
+          <div class="stat-card">
+            <div class="text-2xl font-bold" id="totalPlays">5.2K</div>
+            <div class="text-sm text-gray-400">Community Plays</div>
+          </div>
+          <div class="stat-card">
+            <div class="text-2xl font-bold" id="avgRating">4.8</div>
+            <div class="text-sm text-gray-400">Avg Rating</div>
+          </div>
+        </div>
+
+        <div class="flex flex-col md:flex-row gap-4 mb-6">
+          <input
+            type="text"
+            id="kahootSearch"
+            placeholder="Search questions..."
+            class="flex-1 px-4 py-3 glass-input rounded-xl"
+            onkeyup="kahootApp.filterQuestions()" />
+          <select
+            id="categoryFilter"
+            class="px-4 py-3 glass-input rounded-xl"
+            onchange="kahootApp.filterQuestions()">
+            <option value="All">All Categories</option>
+          </select>
+        </div>
+
+        <div
+          class="category-filters flex flex-wrap gap-2 mb-6"
+          id="categoryFilters"></div>
+
+        <div
+          id="kahootQuestionsGrid"
+          class="questions-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+
+        <div class="flex justify-center gap-2 mt-6" id="kahootPagination"></div>
+      </section>
+    </main>
+
+    <!-- Quiz Modal -->
+    <div
+      id="kahootModal"
+      class="fixed inset-0 z-[200] flex items-center justify-center p-4 hidden modal-overlay">
+      <div
+        class="glass max-w-2xl w-full p-8 rounded-3xl border border-white/10">
+        <div class="flex justify-between items-center mb-6">
+          <div>
+            <span class="text-sm text-gray-400" id="quizCategory"></span>
+            <div class="quiz-progress w-64 mt-2">
+              <div
+                class="quiz-progress-bar"
+                id="quizProgress"
+                style="width: 0%"></div>
+            </div>
+          </div>
+          <button
+            onclick="kahootApp.closeModal()"
+            class="text-gray-400 hover:text-white text-2xl">
+            &times;
+          </button>
+        </div>
+
+        <h2 class="text-2xl font-bold mb-6" id="modalQuestion"></h2>
+
+        <div
+          class="grid grid-cols-1 md:grid-cols-2 gap-3"
+          id="modalOptions"></div>
+
+        <div class="mt-6 flex justify-between items-center">
+          <div id="quizResult" class="text-lg font-bold"></div>
+          <button
+            id="nextQuizBtn"
+            onclick="kahootApp.nextQuestion()"
+            class="px-6 py-3 bg-primary hover:bg-primary/80 rounded-xl font-bold transition-all hidden">
+            Next Question <i class="fas fa-arrow-right ml-2"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Question Database (260+ Questions)
+      const kahootQuestions = [
+        ...Array(30)
+          .fill(null)
+          .map((_, i) => ({
+            id: i + 1,
+            category: "Science",
+            question: `Science Q${i + 1}: What is the chemical symbol for ${["water", "oxygen", "gold", "silver", "iron"][i % 5]}?`,
+            options: ["H₂O", "O₂", "Au", "Ag", "Fe"],
+            correct: i % 5,
+            plays: Math.floor(Math.random() * 1000) + 100,
+            rating: (Math.random() * 2 + 3).toFixed(1),
+          })),
+        ...Array(25)
+          .fill(null)
+          .map((_, i) => ({
+            id: i + 31,
+            category: "Physics",
+            question: `Physics Q${i + 1}: What is the SI unit of ${["force", "energy", "power", "pressure", "electric current"][i % 5]}?`,
+            options: ["Newton", "Joule", "Watt", "Pascal", "Ampere"],
+            correct: i % 5,
+            plays: Math.floor(Math.random() * 1000) + 100,
+            rating: (Math.random() * 2 + 3).toFixed(1),
+          })),
+        ...Array(25)
+          .fill(null)
+          .map((_, i) => ({
+            id: i + 56,
+            category: "Chemistry",
+            question: `Chemistry Q${i + 1}: What is the atomic number of ${["oxygen", "carbon", "hydrogen", "nitrogen", "gold"][i % 5]}?`,
+            options: ["8", "6", "1", "7", "79"],
+            correct: i % 5,
+            plays: Math.floor(Math.random() * 1000) + 100,
+            rating: (Math.random() * 2 + 3).toFixed(1),
+          })),
+        ...Array(25)
+          .fill(null)
+          .map((_, i) => ({
+            id: i + 81,
+            category: "Biology",
+            question: `Biology Q${i + 1}: What is the powerhouse of the cell?`,
+            options: [
+              "Mitochondria",
+              "Nucleus",
+              "Ribosome",
+              "Golgi apparatus",
+              "Endoplasmic reticulum",
+            ],
+            correct: 0,
+            plays: Math.floor(Math.random() * 1000) + 100,
+            rating: (Math.random() * 2 + 3).toFixed(1),
+          })),
+        ...Array(25)
+          .fill(null)
+          .map((_, i) => ({
+            id: i + 106,
+            category: "History",
+            question: `History Q${i + 1}: In which year did ${["WWII end", "Moon landing", "Berlin Wall fall", "Columbus reach America", "French Revolution start"][i % 5]}?`,
+            options: ["1945", "1969", "1989", "1492", "1789"],
+            correct: i % 5,
+            plays: Math.floor(Math.random() * 1000) + 100,
+            rating: (Math.random() * 2 + 3).toFixed(1),
+          })),
+        ...Array(25)
+          .fill(null)
+          .map((_, i) => ({
+            id: i + 131,
+            category: "Geography",
+            question: `Geography Q${i + 1}: What is the capital of ${["France", "Japan", "Brazil", "Australia", "Egypt"][i % 5]}?`,
+            options: ["Paris", "Tokyo", "Brasília", "Canberra", "Cairo"],
+            correct: i % 5,
+            plays: Math.floor(Math.random() * 1000) + 100,
+            rating: (Math.random() * 2 + 3).toFixed(1),
+          })),
+        ...Array(25)
+          .fill(null)
+          .map((_, i) => ({
+            id: i + 156,
+            category: "Mathematics",
+            question: `Math Q${i + 1}: What is ${i + 2} × ${i + 3}?`,
+            options: [
+              (i + 2) * (i + 3),
+              (i + 2) * (i + 3) + 1,
+              (i + 2) * (i + 3) - 1,
+              (i + 2) * (i + 3) + 2,
+              (i + 2) * (i + 3) - 2,
+            ].map((n) => n.toString()),
+            correct: 0,
+            plays: Math.floor(Math.random() * 1000) + 100,
+            rating: (Math.random() * 2 + 3).toFixed(1),
+          })),
+        ...Array(20)
+          .fill(null)
+          .map((_, i) => ({
+            id: i + 181,
+            category: "Technology",
+            question: `Tech Q${i + 1}: What does ${["CPU", "RAM", "SSD", "HTML", "CSS"][i % 5]} stand for?`,
+            options: [
+              "Central Processing Unit",
+              "Random Access Memory",
+              "Solid State Drive",
+              "HyperText Markup Language",
+              "Cascading Style Sheets",
+            ],
+            correct: i % 5,
+            plays: Math.floor(Math.random() * 1000) + 100,
+            rating: (Math.random() * 2 + 3).toFixed(1),
+          })),
+        ...Array(20)
+          .fill(null)
+          .map((_, i) => ({
+            id: i + 201,
+            category: "Ethiopian Studies",
+            question: `Ethiopia Q${i + 1}: What is the capital of Ethiopia?`,
+            options: [
+              "Addis Ababa",
+              "Dire Dawa",
+              "Bahir Dar",
+              "Gondar",
+              "Hawassa",
+            ],
+            correct: 0,
+            plays: Math.floor(Math.random() * 1000) + 100,
+            rating: (Math.random() * 2 + 3).toFixed(1),
+          })),
+        ...Array(20)
+          .fill(null)
+          .map((_, i) => ({
+            id: i + 221,
+            category: "Literature",
+            question: `Literature Q${i + 1}: Who wrote "Romeo and Juliet"?`,
+            options: [
+              "Shakespeare",
+              "Dickens",
+              "Hemingway",
+              "Tolstoy",
+              "Twain",
+            ],
+            correct: 0,
+            plays: Math.floor(Math.random() * 1000) + 100,
+            rating: (Math.random() * 2 + 3).toFixed(1),
+          })),
+        ...Array(19)
+          .fill(null)
+          .map((_, i) => ({
+            id: i + 241,
+            category: "Art",
+            question: `Art Q${i + 1}: Who painted the Mona Lisa?`,
+            options: [
+              "Da Vinci",
+              "Van Gogh",
+              "Picasso",
+              "Rembrandt",
+              "Michelangelo",
+            ],
+            correct: 0,
+            plays: Math.floor(Math.random() * 1000) + 100,
+            rating: (Math.random() * 2 + 3).toFixed(1),
+          })),
+      ];
+
+      const kahootApp = {
+        currentPage: 1,
+        questionsPerPage: 12,
+        currentCategory: "All",
+        searchTerm: "",
+        currentQuiz: [],
+        currentQuestionIndex: 0,
+        score: 0,
+        usedQuestionIds: new Set(),
+
+        init: function () {
+          this.renderCategoryFilters();
+          this.renderQuestions();
+          document.getElementById("totalQuestions").innerText =
+            kahootQuestions.length;
+          document.getElementById("totalCategories").innerText = [
+            ...new Set(kahootQuestions.map((q) => q.category)),
+          ].length;
+          document.getElementById("totalPlays").innerText =
+            Math.floor(
+              kahootQuestions.reduce((sum, q) => sum + q.plays, 0) / 1000,
+            ) + "K";
+          document.getElementById("avgRating").innerText = (4.8).toFixed(1);
+        },
+
+        getCategories: function () {
+          return ["All", ...new Set(kahootQuestions.map((q) => q.category))];
+        },
+
+        renderCategoryFilters: function () {
+          const container = document.getElementById("categoryFilters");
+          const select = document.getElementById("categoryFilter");
+          const categories = this.getCategories();
+          if (container)
+            container.innerHTML = categories
+              .map(
+                (cat) =>
+                  `<button class="category-btn ${cat === this.currentCategory ? "active" : ""}" onclick="kahootApp.filterByCategory('${cat}')">${cat}</button>`,
+              )
+              .join("");
+          if (select)
+            select.innerHTML = categories
+              .map(
+                (cat) =>
+                  `<option value="${cat}" ${cat === this.currentCategory ? "selected" : ""}>${cat}</option>`,
+              )
+              .join("");
+        },
+
+        filterByCategory: function (category) {
+          this.currentCategory = category;
+          this.currentPage = 1;
+          document.getElementById("categoryFilter").value = category;
+          this.renderCategoryFilters();
+          this.renderQuestions();
+        },
+
+        filterQuestions: function () {
+          this.searchTerm = document
+            .getElementById("kahootSearch")
+            .value.toLowerCase();
+          this.currentCategory =
+            document.getElementById("categoryFilter").value;
+          this.currentPage = 1;
+          this.renderCategoryFilters();
+          this.renderQuestions();
+        },
+
+        getFilteredQuestions: function () {
+          return kahootQuestions.filter((q) => {
+            const matchesCategory =
+              this.currentCategory === "All" ||
+              q.category === this.currentCategory;
+            const matchesSearch =
+              q.question.toLowerCase().includes(this.searchTerm) ||
+              q.category.toLowerCase().includes(this.searchTerm);
+            return matchesCategory && matchesSearch;
+          });
+        },
+
+        renderQuestions: function () {
+          const filtered = this.getFilteredQuestions();
+          const start = (this.currentPage - 1) * this.questionsPerPage;
+          const pageQuestions = filtered.slice(
+            start,
+            start + this.questionsPerPage,
+          );
+          const grid = document.getElementById("kahootQuestionsGrid");
+          if (!grid) return;
+          grid.innerHTML = pageQuestions
+            .map(
+              (q) => `
+                    <div class="glass-card p-4 rounded-xl cursor-pointer hover:scale-105 transition-all" onclick="kahootApp.openQuestion(${q.id})">
+                        <span class="inline-block px-2 py-1 bg-primary/20 text-primary text-xs rounded-full mb-2">${q.category}</span>
+                        <h3 class="font-bold text-sm mb-2">${q.question}</h3>
+                        <div class="flex justify-between text-xs text-gray-400"><span>⭐ ${q.rating}</span><span>👥 ${q.plays} plays</span></div>
+                    </div>
+                `,
+            )
+            .join("");
+          this.renderPagination(filtered.length);
+        },
+
+        renderPagination: function (total) {
+          const totalPages = Math.ceil(total / this.questionsPerPage);
+          const pagination = document.getElementById("kahootPagination");
+          if (!pagination) return;
+          let html = "";
+          for (let i = 1; i <= totalPages; i++)
+            html += `<button class="px-3 py-1 rounded-lg ${i === this.currentPage ? "bg-primary" : "bg-white/10 hover:bg-white/20"}" onclick="kahootApp.goToPage(${i})">${i}</button>`;
+          pagination.innerHTML = html;
+        },
+
+        goToPage: function (page) {
+          this.currentPage = page;
+          this.renderQuestions();
+        },
+
+        openQuestion: function (id) {
+          const question = kahootQuestions.find((q) => q.id === id);
+          if (!question) return;
+          this.currentQuiz = [question];
+          this.currentQuestionIndex = 0;
+          this.score = 0;
+          this.showQuestion(question);
+        },
+
+        startRandomQuiz: function () {
+          const filtered = this.getFilteredQuestions();
+          this.usedQuestionIds.clear();
+          const shuffled = [...filtered].sort(() => Math.random() - 0.5);
+          this.currentQuiz = [];
+          for (
+            let i = 0;
+            i < shuffled.length && this.currentQuiz.length < 10;
+            i++
+          ) {
+            if (!this.usedQuestionIds.has(shuffled[i].id)) {
+              this.currentQuiz.push(shuffled[i]);
+              this.usedQuestionIds.add(shuffled[i].id);
+            }
+          }
+          if (this.currentQuiz.length < 10)
+            this.currentQuiz = shuffled.slice(0, 10);
+          this.currentQuestionIndex = 0;
+          this.score = 0;
+          this.showQuestion(this.currentQuiz[0]);
+        },
+
+        showQuestion: function (question) {
+          document.getElementById("quizCategory").innerText =
+            `${question.category} • Question ${this.currentQuestionIndex + 1}/${this.currentQuiz.length}`;
+          document.getElementById("quizProgress").style.width =
+            `${((this.currentQuestionIndex + 1) / this.currentQuiz.length) * 100}%`;
+          document.getElementById("modalQuestion").innerText =
+            question.question;
+          document.getElementById("modalOptions").innerHTML = question.options
+            .map(
+              (opt, idx) =>
+                `<div class="question-option" onclick="kahootApp.checkAnswer(this, ${idx}, ${question.correct})">${opt}</div>`,
+            )
+            .join("");
+          document.getElementById("quizResult").innerHTML = "";
+          document.getElementById("nextQuizBtn").classList.add("hidden");
+          document.getElementById("kahootModal").classList.remove("hidden");
+        },
+
+        checkAnswer: function (element, selected, correct) {
+          const options = document.querySelectorAll(".question-option");
+          options.forEach((opt) => (opt.style.pointerEvents = "none"));
+          if (selected === correct) {
+            element.classList.add("correct");
+            this.score++;
+            document.getElementById("quizResult").innerHTML = "✅ Correct!";
+          } else {
+            element.classList.add("incorrect");
+            options[correct].classList.add("correct");
+            document.getElementById("quizResult").innerHTML = "❌ Incorrect";
+          }
+          document.getElementById("nextQuizBtn").classList.remove("hidden");
+        },
+
+        nextQuestion: function () {
+          this.currentQuestionIndex++;
+          if (this.currentQuestionIndex < this.currentQuiz.length)
+            this.showQuestion(this.currentQuiz[this.currentQuestionIndex]);
+          else {
+            document.getElementById("kahootModal").classList.add("hidden");
+            alert(
+              `Quiz complete! Score: ${this.score}/${this.currentQuiz.length}`,
+            );
+          }
+        },
+
+        closeModal: function () {
+          document.getElementById("kahootModal").classList.add("hidden");
+        },
+      };
+
+      document.addEventListener("DOMContentLoaded", () => kahootApp.init());
+    </script>
+  </body>
+</html>

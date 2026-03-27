@@ -1,0 +1,1039 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
+    <title>Library | E-Bundle Ethiopia</title>
+
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      rel="stylesheet" />
+
+    <!-- Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Ethiopic:wght@400;500;700&display=swap"
+      rel="stylesheet" />
+
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "Noto Sans Ethiopic", "sans-serif"],
+            },
+            colors: {
+              primary: "#4F46E5",
+              secondary: "#7C3AED",
+              accent: "#EC4899",
+              success: "#10B981",
+              warning: "#F59E0B",
+            },
+          },
+        },
+      };
+    </script>
+
+    <style>
+      body {
+        background-color: #0f172a;
+        color: #f8fafc;
+        font-family: "Inter", "Noto Sans Ethiopic", sans-serif;
+      }
+
+      .glass {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .glass-card {
+        background: linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.05) 0%,
+          rgba(255, 255, 255, 0.01) 100%
+        );
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        transition: all 0.3s ease;
+      }
+
+      .glass-card:hover {
+        border-color: rgba(79, 70, 229, 0.3);
+        transform: translateY(-2px);
+      }
+
+      .blob {
+        position: absolute;
+        filter: blur(60px);
+        opacity: 0.3;
+        animation: blob 7s infinite;
+      }
+
+      @keyframes blob {
+        0% {
+          transform: translate(0px, 0px) scale(1);
+        }
+        33% {
+          transform: translate(30px, -50px) scale(1.1);
+        }
+        66% {
+          transform: translate(-20px, 20px) scale(0.9);
+        }
+        100% {
+          transform: translate(0px, 0px) scale(1);
+        }
+      }
+
+      .animation-delay-2000 {
+        animation-delay: 2s;
+      }
+
+      .animation-delay-4000 {
+        animation-delay: 4s;
+      }
+
+      .media-card {
+        transition: all 0.3s ease;
+      }
+
+      .media-card:hover {
+        transform: translateY(-4px);
+      }
+
+      .play-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .media-card:hover .play-overlay {
+        opacity: 1;
+      }
+
+      .play-button {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #4f46e5, #7c3aed);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.3s ease;
+      }
+
+      .play-button:hover {
+        transform: scale(1.1);
+      }
+
+      .media-progress-bar {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      .media-progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #4f46e5, #7c3aed);
+        transition: width 0.3s ease;
+      }
+
+      .media-progress-fill.completed {
+        background: linear-gradient(90deg, #10b981, #34d399);
+      }
+
+      .status-badge {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+        backdrop-filter: blur(8px);
+        z-index: 10;
+      }
+
+      .status-completed {
+        background: rgba(16, 185, 129, 0.9);
+        color: white;
+      }
+
+      .status-in-progress {
+        background: rgba(245, 158, 11, 0.9);
+        color: white;
+      }
+
+      .tab-btn.active {
+        background: linear-gradient(
+          135deg,
+          rgba(79, 70, 229, 0.2),
+          rgba(124, 58, 237, 0.2)
+        );
+        color: white;
+        border: 1px solid rgba(79, 70, 229, 0.5);
+      }
+
+      .search-input:focus {
+        border-color: rgba(79, 70, 229, 0.5);
+      }
+
+      .modal-overlay {
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(8px);
+      }
+
+      .error-message {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        padding: 12px;
+        border-radius: 12px;
+        color: #ef4444;
+      }
+
+      .fade-in {
+        animation: fadeIn 0.5s ease-out;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    </style>
+  </head>
+  <body
+    class="antialiased min-h-screen relative selection:bg-primary selection:text-white">
+    <!-- Animated Background -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+      <div class="blob bg-primary w-72 h-72 rounded-full top-0 left-0"></div>
+      <div
+        class="blob bg-secondary w-96 h-96 rounded-full bottom-0 right-0 animation-delay-2000"></div>
+      <div
+        class="blob bg-accent w-64 h-64 rounded-full top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animation-delay-4000"></div>
+      <div
+        class="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%239C92AC\' fill-opacity=\'0.05\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-20"></div>
+    </div>
+
+    <!-- Navbar -->
+    <nav
+      class="w-full glass border-b border-white/10 px-6 py-4 flex justify-between items-center sticky top-0 z-50">
+      <div
+        class="flex items-center space-x-3 cursor-pointer"
+        onclick="window.location.href = 'dashboard.html'">
+        <div
+          class="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center">
+          <i class="fas fa-graduation-cap text-white text-lg"></i>
+        </div>
+        <span class="text-xl font-bold hidden sm:block">E-Bundle</span>
+      </div>
+
+      <div class="hidden md:flex items-center space-x-1">
+        <a
+          href="dashboard.html"
+          class="nav-btn px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all flex items-center space-x-2">
+          <i class="fas fa-home"></i><span>Dashboard</span>
+        </a>
+        <a
+          href="library.html"
+          class="nav-btn px-4 py-2 rounded-lg text-white bg-white/10 transition-all flex items-center space-x-2">
+          <i class="fas fa-book"></i><span>Library</span>
+        </a>
+        <a
+          href="ai-tutor.html"
+          class="nav-btn px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all flex items-center space-x-2">
+          <i class="fas fa-robot"></i><span>AI Tutor</span>
+        </a>
+        <a
+          href="community.html"
+          class="nav-btn px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all flex items-center space-x-2">
+          <i class="fas fa-users"></i><span>Community</span>
+        </a>
+        <a
+          href="kahoot.html"
+          class="nav-btn px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all flex items-center space-x-2">
+          <i class="fas fa-gamepad"></i><span>Kahoot</span>
+        </a>
+        <a
+          href="video-chat.html"
+          class="nav-btn px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all flex items-center space-x-2">
+          <i class="fas fa-video"></i><span>Video Chat</span>
+        </a>
+      </div>
+
+      <div class="flex items-center space-x-4">
+        <div
+          class="hidden sm:flex items-center space-x-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
+          <i class="fas fa-book text-primary"></i>
+          <span class="text-sm font-semibold">Library</span>
+        </div>
+        <div class="relative group">
+          <div
+            class="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-secondary p-[2px] cursor-pointer">
+            <img
+              id="userAvatar"
+              src="https://api.dicebear.com/7.x/avataaars/svg?seed=User"
+              alt="Profile"
+              class="w-full h-full rounded-full bg-slate-900" />
+          </div>
+          <div
+            class="absolute right-0 mt-2 w-48 glass rounded-xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top-right z-50">
+            <div class="p-2">
+              <div
+                class="px-4 py-2 text-sm text-gray-400 border-b border-white/10 mb-1">
+                <span id="userNameDisplay">User</span>
+              </div>
+              <a
+                href="profile.html"
+                class="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-sm transition-colors block"
+                >Profile</a
+              >
+              <hr class="border-white/10 my-2" />
+              <button
+                onclick="logout()"
+                class="w-full text-left px-4 py-2 hover:bg-red-500/20 text-red-400 rounded-lg text-sm transition-colors">
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+    <!-- Main Content -->
+    <main class="relative z-10 p-6 max-w-7xl mx-auto">
+      <section class="fade-in space-y-6">
+        <!-- Header with Search Bar -->
+        <div
+          class="flex flex-col md:flex-row justify-between items-center gap-4">
+          <div>
+            <h2 class="text-3xl font-bold">Learning Library</h2>
+            <p class="text-gray-400">Access all your study materials</p>
+          </div>
+
+          <!-- Search Bar Component -->
+          <div class="relative w-full md:w-80 lg:w-96">
+            <div class="glass rounded-xl p-0.5">
+              <div class="relative flex items-center">
+                <i
+                  class="fas fa-search absolute left-4 text-gray-400 text-sm"></i>
+                <input
+                  type="text"
+                  id="librarySearchInput"
+                  placeholder="Search by title or description..."
+                  class="search-input w-full bg-transparent py-2.5 pl-10 pr-10 rounded-xl text-white placeholder-gray-400 focus:outline-none text-sm"
+                  autocomplete="off" />
+                <button
+                  id="clearSearchBtn"
+                  class="clear-search-btn absolute right-3 text-gray-400 hover:text-white transition-colors opacity-0 pointer-events-none"
+                  onclick="clearSearch()">
+                  <i class="fas fa-times-circle text-sm"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div
+          class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div class="glass p-1 rounded-xl flex flex-wrap space-x-1">
+            <button
+              onclick="switchTab('audio')"
+              id="tab-audio"
+              class="tab-btn active px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium flex items-center space-x-2">
+              <i class="fas fa-headphones"></i>
+              <span class="hidden sm:inline">Audio</span>
+            </button>
+            <button
+              onclick="switchTab('video')"
+              id="tab-video"
+              class="tab-btn px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium flex items-center space-x-2 text-gray-400 hover:text-white hover:bg-white/5">
+              <i class="fas fa-video"></i>
+              <span class="hidden sm:inline">Video</span>
+            </button>
+            <button
+              onclick="switchTab('pdf')"
+              id="tab-pdf"
+              class="tab-btn px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium flex items-center space-x-2 text-gray-400 hover:text-white hover:bg-white/5">
+              <i class="fas fa-file-pdf"></i>
+              <span class="hidden sm:inline">PDF / Docs</span>
+            </button>
+          </div>
+
+          <!-- Search result count badge -->
+          <div
+            id="searchResultBadge"
+            class="text-xs text-gray-500 bg-white/5 px-3 py-1.5 rounded-full hidden">
+            <i class="fas fa-filter mr-1"></i>
+            <span id="resultCount">0</span> results
+          </div>
+        </div>
+
+        <!-- Media Grid -->
+        <div
+          id="libraryGrid"
+          class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+          <!-- Media items loaded here -->
+          <div class="col-span-3 text-center py-12 text-gray-400">
+            <i class="fas fa-spinner fa-spin text-3xl mb-3"></i>
+            <p>Loading library...</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Player Modal -->
+    <div
+      id="player-modal"
+      class="fixed inset-0 z-50 hidden items-center justify-center modal-overlay p-4">
+      <div
+        class="glass max-w-4xl w-full rounded-2xl p-6 relative border border-white/10">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <h3 id="player-title" class="text-xl font-bold"></h3>
+            <p class="text-sm text-gray-400" id="player-status"></p>
+          </div>
+          <button
+            onclick="closePlayer()"
+            class="w-10 h-10 hover:bg-white/10 rounded-full flex items-center justify-center transition-colors text-gray-400 hover:text-white">
+            <i class="fas fa-times text-xl"></i>
+          </button>
+        </div>
+        <div id="player-container"></div>
+        <div id="error-container"></div>
+
+        <!-- Progress Tracking Controls -->
+        <div class="mt-4 flex justify-between items-center">
+          <div class="flex items-center space-x-4">
+            <button
+              id="markCompleteBtn"
+              onclick="markMediaComplete()"
+              class="px-4 py-2 bg-success/20 hover:bg-success/30 text-success border border-success/30 rounded-lg text-sm transition-colors flex items-center space-x-2">
+              <i class="fas fa-check-circle"></i>
+              <span>Mark as Complete</span>
+            </button>
+          </div>
+          <div class="text-sm text-gray-400">
+            Progress:
+            <span id="watchProgress" class="text-primary font-bold">0%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ✅ UPDATED: API Configuration - Your deployed backend
+      const API_URL = "https://e-bundle.onrender.com";
+
+      let authToken = localStorage.getItem("token");
+      let currentTab = "audio";
+      let currentMediaId = null;
+      let currentMediaType = null;
+      let currentMediaTitle = null;
+      let watchStartTime = null;
+      let mediaProgress = {};
+      let currentVideoElement = null;
+      let allMediaCache = [];
+      let currentSearchQuery = "";
+      let lastReportedProgress = 0;
+
+      // Check if user is logged in
+      if (!authToken) {
+        showToast("Please login first", "error");
+        setTimeout(() => {
+          window.location.href = "login.html";
+        }, 2000);
+      }
+
+      // Load user data for display
+      function loadUserData() {
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
+        if (user.firstName) {
+          document.getElementById("userNameDisplay").textContent =
+            user.firstName;
+        }
+        if (user.avatar) {
+          document.getElementById("userAvatar").src = user.avatar;
+        }
+      }
+
+      // ==========================================
+      // TOAST NOTIFICATIONS
+      // ==========================================
+      function showToast(message, type = "info") {
+        const container = document.getElementById("toastContainer");
+        const toast = document.createElement("div");
+        const colors =
+          type === "error" ? "bg-red-500/20 border-red-500/50 text-red-400"
+          : type === "success" ?
+            "bg-green-500/20 border-green-500/50 text-green-400"
+          : "bg-primary/20 border-primary/50 text-primary";
+
+        toast.className = `px-4 py-3 rounded-xl glass border ${colors} text-sm flex items-center space-x-2 transform translate-x-full transition-transform duration-300`;
+        toast.innerHTML = `<i class="fas ${
+          type === "error" ? "fa-exclamation-circle"
+          : type === "success" ? "fa-check-circle"
+          : "fa-info-circle"
+        }"></i><span>${message}</span>`;
+
+        container.appendChild(toast);
+
+        setTimeout(() => {
+          toast.classList.remove("translate-x-full");
+        }, 10);
+
+        setTimeout(() => {
+          toast.classList.add("translate-x-full");
+          setTimeout(() => toast.remove(), 300);
+        }, 3000);
+      }
+
+      // ==========================================
+      // SEARCH FUNCTIONALITY
+      // ==========================================
+      function filterMediaBySearch() {
+        const searchInput = document.getElementById("librarySearchInput");
+        const query = searchInput.value.trim().toLowerCase();
+        currentSearchQuery = query;
+
+        const clearBtn = document.getElementById("clearSearchBtn");
+        if (query.length > 0) {
+          clearBtn.classList.remove("opacity-0", "pointer-events-none");
+          clearBtn.classList.add("opacity-100", "pointer-events-auto");
+        } else {
+          clearBtn.classList.remove("opacity-100", "pointer-events-auto");
+          clearBtn.classList.add("opacity-0", "pointer-events-none");
+        }
+
+        if (!allMediaCache.length) {
+          return;
+        }
+
+        let filteredMedia = allMediaCache;
+        if (query) {
+          filteredMedia = allMediaCache.filter((item) => {
+            const titleMatch = item.title?.toLowerCase().includes(query);
+            const descMatch = item.description?.toLowerCase().includes(query);
+            const categoryMatch = item.category?.toLowerCase().includes(query);
+            return titleMatch || descMatch || categoryMatch;
+          });
+        }
+
+        const badge = document.getElementById("searchResultBadge");
+        const resultCountSpan = document.getElementById("resultCount");
+        if (query && filteredMedia.length !== allMediaCache.length) {
+          resultCountSpan.textContent = filteredMedia.length;
+          badge.classList.remove("hidden");
+        } else {
+          badge.classList.add("hidden");
+        }
+
+        renderMediaFromCache(filteredMedia);
+      }
+
+      function clearSearch() {
+        const searchInput = document.getElementById("librarySearchInput");
+        searchInput.value = "";
+        currentSearchQuery = "";
+        filterMediaBySearch();
+        searchInput.focus();
+        showToast("Search cleared", "info");
+      }
+
+      function renderMediaFromCache(mediaList) {
+        const grid = document.getElementById("libraryGrid");
+        if (!mediaList || mediaList.length === 0) {
+          grid.innerHTML = `<div class="col-span-3 text-center py-12">
+                    <i class="fas fa-book-open text-5xl text-gray-600 mb-4"></i>
+                    <p class="text-gray-400">No matching media found</p>
+                </div>`;
+          return;
+        }
+
+        grid.innerHTML = mediaList
+          .map((item) => {
+            const colors = getTypeColors(item.type);
+            const progress = mediaProgress[item.id] || 0;
+            const isCompleted = progress === 100;
+            const isStarted = progress > 0 && progress < 100;
+
+            let statusBadge = "";
+            if (isCompleted) {
+              statusBadge = `<span class="status-badge status-completed"><i class="fas fa-check mr-1"></i>Done</span>`;
+            } else if (isStarted) {
+              statusBadge = `<span class="status-badge status-in-progress"><i class="fas fa-spinner mr-1"></i>${Math.round(progress)}%</span>`;
+            }
+
+            return `
+                    <div class="media-card glass-card rounded-2xl overflow-hidden group cursor-pointer" 
+                         data-media-id="${item.id}"
+                         onclick="playMedia('${item.id}', '${item.type}', '${escapeHtml(item.title)}')">
+                        
+                        <div class="h-48 bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center relative overflow-hidden">
+                            <div class="absolute inset-0 bg-gradient-to-br ${colors.gradient} opacity-10 group-hover:opacity-20 transition-opacity duration-500"></div>
+                            
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <i class="fas ${colors.icon} text-6xl ${colors.iconColor} opacity-60 group-hover:scale-110 group-hover:opacity-100 transition-all duration-500"></i>
+                            </div>
+                            
+                            <div class="play-overlay">
+                                <div class="play-button">
+                                    <i class="fas ${isCompleted ? "fa-redo" : "fa-play"} text-white text-2xl ml-1"></i>
+                                </div>
+                            </div>
+
+                            ${statusBadge}
+
+                            <div class="absolute top-3 left-3 z-10">
+                                <span class="text-xs font-bold px-2 py-1 rounded-lg bg-black/30 backdrop-blur text-white border border-white/10 uppercase tracking-wider">
+                                    ${item.type}
+                                </span>
+                            </div>
+
+                            ${
+                              progress > 0 ?
+                                `
+                                <div class="media-progress-bar">
+                                    <div class="media-progress-fill ${isCompleted ? "completed" : ""}" style="width: ${progress}%"></div>
+                                </div>
+                            `
+                              : ""
+                            }
+                        </div>
+
+                        <div class="p-5">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-xs font-bold px-2 py-1 rounded bg-white/5 text-gray-400 border border-white/5">${item.category || "General"}</span>
+                                <span class="text-xs text-gray-500">${item.size || ""}</span>
+                            </div>
+                            <h3 class="font-bold text-lg mb-2 group-hover:text-primary transition-colors line-clamp-2">${escapeHtml(item.title)}</h3>
+                            <p class="text-sm text-gray-400 line-clamp-2">${escapeHtml(item.description) || "No description available"}</p>
+                            
+                            ${
+                              progress > 0 ?
+                                `
+                                <div class="mt-3 flex items-center space-x-2">
+                                    <div class="flex-1 bg-white/10 rounded-full h-1.5">
+                                        <div class="${isCompleted ? "bg-green-400" : "bg-warning"} h-1.5 rounded-full" style="width: ${progress}%"></div>
+                                    </div>
+                                    <span class="text-xs ${isCompleted ? "text-green-400" : "text-warning"}">${Math.round(progress)}%</span>
+                                </div>
+                            `
+                              : ""
+                            }
+                        </div>
+                    </div>
+                `;
+          })
+          .join("");
+      }
+
+      function getTypeColors(type) {
+        const colors = {
+          video: {
+            gradient: "from-red-500 to-orange-500",
+            icon: "fa-play-circle",
+            iconColor: "text-red-400",
+          },
+          audio: {
+            gradient: "from-green-500 to-emerald-500",
+            icon: "fa-headphones",
+            iconColor: "text-green-400",
+          },
+          pdf: {
+            gradient: "from-orange-500 to-yellow-500",
+            icon: "fa-file-pdf",
+            iconColor: "text-orange-400",
+          },
+        };
+        return colors[type] || colors.pdf;
+      }
+
+      function escapeHtml(text) {
+        if (!text) return "";
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      // ==========================================
+      // LOAD USER PROGRESS
+      // ==========================================
+      async function loadUserProgress() {
+        try {
+          const response = await fetch(`${API_URL}/api/media-progress`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+          });
+          const data = await response.json();
+
+          if (data.success) {
+            mediaProgress = data.progress || {};
+          }
+        } catch (err) {
+          console.error("Error loading progress:", err);
+        }
+      }
+
+      // ==========================================
+      // LOAD MEDIA
+      // ==========================================
+      async function loadMedia(type = "all") {
+        try {
+          await loadUserProgress();
+
+          const response = await fetch(
+            `${API_URL}/api/library/media?type=${type}`,
+            {
+              headers: { Authorization: `Bearer ${authToken}` },
+            },
+          );
+
+          const data = await response.json();
+
+          if (data.success) {
+            allMediaCache = data.media || [];
+            if (currentSearchQuery) {
+              filterMediaBySearch();
+            } else {
+              renderMediaFromCache(allMediaCache);
+            }
+          } else {
+            console.error("Server error:", data.message);
+            document.getElementById("libraryGrid").innerHTML =
+              `<div class="col-span-3 text-center py-12 text-red-400">Error loading media: ${data.message}</div>`;
+          }
+        } catch (err) {
+          console.error("Load error:", err);
+          document.getElementById("libraryGrid").innerHTML =
+            `<div class="col-span-3 text-center py-12 text-red-400">Failed to load media. Please check your connection.</div>`;
+        }
+      }
+
+      // ==========================================
+      // TRACKING FUNCTIONS
+      // ==========================================
+      async function trackMediaProgress(
+        mediaId,
+        progressPercent,
+        completed = false,
+      ) {
+        try {
+          const response = await fetch(`${API_URL}/api/track-media`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              mediaId: mediaId,
+              mediaType: currentMediaType,
+              progress: progressPercent,
+              completed: completed,
+              timeSpent: Math.floor((Date.now() - watchStartTime) / 60000),
+            }),
+          });
+
+          if (response.ok) {
+            mediaProgress[mediaId] = completed ? 100 : progressPercent;
+            document.getElementById("watchProgress").textContent =
+              `${Math.round(progressPercent)}%`;
+            if (completed) {
+              const btn = document.getElementById("markCompleteBtn");
+              btn.innerHTML =
+                '<i class="fas fa-check"></i><span>Completed</span>';
+              btn.classList.add("opacity-50", "cursor-not-allowed");
+              btn.disabled = true;
+              showToast("Media marked as complete!", "success");
+              loadMedia(currentTab);
+            }
+          }
+        } catch (err) {
+          console.error("Error tracking progress:", err);
+        }
+      }
+
+      async function markMediaComplete() {
+        if (!currentMediaId) return;
+        await trackMediaProgress(currentMediaId, 100, true);
+      }
+
+      async function startMediaTracking(mediaId, mediaType, title) {
+        currentMediaId = mediaId;
+        currentMediaType = mediaType;
+        currentMediaTitle = title;
+        watchStartTime = Date.now();
+
+        const currentProgress = mediaProgress[mediaId] || 0;
+        document.getElementById("watchProgress").textContent =
+          `${Math.round(currentProgress)}%`;
+
+        const btn = document.getElementById("markCompleteBtn");
+        if (currentProgress === 100) {
+          btn.innerHTML = '<i class="fas fa-check"></i><span>Completed</span>';
+          btn.classList.add("opacity-50", "cursor-not-allowed");
+          btn.disabled = true;
+        } else {
+          btn.innerHTML =
+            '<i class="fas fa-check-circle"></i><span>Mark as Complete</span>';
+          btn.classList.remove("opacity-50", "cursor-not-allowed");
+          btn.disabled = false;
+        }
+
+        try {
+          await fetch(`${API_URL}/log-activity`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              type: "lesson",
+              title: `Started ${mediaType}: ${title}`,
+              description: `Opened ${mediaType} content`,
+              xp: 5,
+            }),
+          });
+        } catch (err) {
+          console.error("Error logging activity:", err);
+        }
+      }
+
+      // ==========================================
+      // PLAYER FUNCTIONS
+      // ==========================================
+      async function playMedia(id, type, title) {
+        const modal = document.getElementById("player-modal");
+        const container = document.getElementById("player-container");
+        const errorContainer = document.getElementById("error-container");
+
+        errorContainer.innerHTML = "";
+        document.getElementById("player-title").textContent = title;
+        await startMediaTracking(id, type, title);
+
+        const streamUrl = `${API_URL}/api/media/stream/${id}?token=${encodeURIComponent(authToken)}`;
+
+        if (type === "video") {
+          container.innerHTML = `
+                    <div class="relative rounded-xl overflow-hidden bg-black">
+                        <video id="activeVideo" controls class="w-full max-h-[70vh]" autoplay crossorigin="anonymous" playsinline ontimeupdate="updateVideoProgress(this)" onended="onMediaEnded('${id}')" onerror="handleMediaError(this, '${type}')">
+                            <source src="${streamUrl}">
+                            Your browser does not support video.
+                        </video>
+                    </div>
+                `;
+          currentVideoElement = document.getElementById("activeVideo");
+        } else if (type === "audio") {
+          container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center p-8 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl border border-white/10">
+                        <div class="w-24 h-24 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center mb-6 shadow-lg shadow-green-500/20">
+                            <i class="fas fa-music text-white text-4xl"></i>
+                        </div>
+                        <h4 class="text-xl font-bold mb-2">${escapeHtml(title)}</h4>
+                        <p class="text-gray-400 mb-6">Audio Lesson</p>
+                        <audio id="activeAudio" controls class="w-full max-w-md" autoplay crossorigin="anonymous" ontimeupdate="updateAudioProgress(this)" onended="onMediaEnded('${id}')" onerror="handleMediaError(this, '${type}')">
+                            <source src="${streamUrl}">
+                            Your browser does not support audio.
+                        </audio>
+                    </div>
+                `;
+          currentVideoElement = document.getElementById("activeAudio");
+        } else if (type === "pdf") {
+          container.innerHTML = `
+                    <div id="pdf-container" class="w-full h-96 bg-slate-800 rounded-xl flex items-center justify-center border border-white/10">
+                        <div class="text-center"><i class="fas fa-spinner fa-spin text-4xl text-primary mb-4"></i><p class="text-gray-400">Loading PDF...</p></div>
+                    </div>
+                    <div class="mt-4 flex justify-between items-center">
+                        <div class="flex gap-2">
+                            <a href="${streamUrl}" target="_blank" class="px-4 py-2 bg-primary hover:bg-primary/80 rounded-lg text-sm transition-colors flex items-center"><i class="fas fa-external-link-alt mr-2"></i>Open in New Tab</a>
+                            <a href="${streamUrl}&download=1" download class="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition-colors flex items-center"><i class="fas fa-download mr-2"></i>Download</a>
+                        </div>
+                    </div>
+                `;
+          currentVideoElement = null;
+          await trackMediaProgress(id, 50, false);
+
+          fetch(`${API_URL}/api/media/stream/${id}`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+          })
+            .then((res) => {
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              return res.blob();
+            })
+            .then((blob) => {
+              const url = URL.createObjectURL(blob);
+              document.getElementById("pdf-container").innerHTML =
+                `<iframe src="${url}" class="w-full h-full rounded-xl" type="application/pdf"></iframe>`;
+            })
+            .catch((err) => showError(`Error loading PDF: ${err.message}`));
+        }
+
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+      }
+
+      async function updateVideoProgress(videoElement) {
+        if (!videoElement || !currentMediaId) return;
+        const current = videoElement.currentTime,
+          duration = videoElement.duration || 0;
+        if (duration === 0) return;
+        const percent = (current / duration) * 100;
+        document.getElementById("watchProgress").textContent =
+          `${Math.round(percent)}%`;
+        const threshold = Math.floor(percent / 10) * 10;
+        if (threshold > lastReportedProgress || percent >= 95) {
+          lastReportedProgress = threshold;
+          await trackMediaProgress(currentMediaId, percent, percent >= 95);
+        }
+      }
+
+      async function updateAudioProgress(audioElement) {
+        if (!audioElement || !currentMediaId) return;
+        const current = audioElement.currentTime,
+          duration = audioElement.duration || 0;
+        if (duration === 0) return;
+        const percent = (current / duration) * 100;
+        document.getElementById("watchProgress").textContent =
+          `${Math.round(percent)}%`;
+        const threshold = Math.floor(percent / 10) * 10;
+        if (threshold > lastReportedProgress || percent >= 95) {
+          lastReportedProgress = threshold;
+          await trackMediaProgress(currentMediaId, percent, percent >= 95);
+        }
+      }
+
+      async function onMediaEnded(mediaId) {
+        showToast("Content finished! Marking as complete...", "success");
+        await trackMediaProgress(mediaId, 100, true);
+        const btn = document.getElementById("markCompleteBtn");
+        btn.innerHTML = '<i class="fas fa-check"></i><span>Completed</span>';
+        btn.classList.add("opacity-50", "cursor-not-allowed");
+        btn.disabled = true;
+        loadMedia(currentTab);
+      }
+
+      function handleMediaError(mediaElement, type) {
+        if (mediaElement.error && mediaElement.error.code === 4) return;
+        const errorMessages = {
+          1: "Playback was aborted",
+          2: "Network error - please check your connection",
+          3: "Decode error - file may be corrupted",
+          4: "Format not supported by your browser",
+        };
+        const code = mediaElement.error ? mediaElement.error.code : "unknown";
+        const message = errorMessages[code] || "Unknown playback error";
+        showError(
+          `${type.charAt(0).toUpperCase() + type.slice(1)} error: ${message}`,
+        );
+      }
+
+      function showError(message) {
+        const errorContainer = document.getElementById("error-container");
+        errorContainer.innerHTML = `<div class="error-message flex items-center space-x-3 mt-4"><i class="fas fa-exclamation-circle text-red-400"></i><span>${message}</span></div>`;
+      }
+
+      function closePlayer() {
+        const modal = document.getElementById("player-modal"),
+          container = document.getElementById("player-container");
+        const media = container.querySelector("video, audio");
+        if (media) {
+          media.pause();
+          media.src = "";
+        }
+        currentVideoElement = null;
+        lastReportedProgress = 0;
+        container.innerHTML = "";
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+        loadMedia(currentTab);
+      }
+
+      // ==========================================
+      // TAB SWITCHING
+      // ==========================================
+      function switchTab(tab) {
+        currentTab = tab;
+        ["audio", "video", "pdf"].forEach((t) => {
+          const btn = document.getElementById(`tab-${t}`);
+          if (t === tab) {
+            btn.className =
+              "tab-btn active px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium flex items-center space-x-2";
+          } else {
+            btn.className =
+              "tab-btn px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium flex items-center space-x-2 text-gray-400 hover:text-white hover:bg-white/5 transition-all";
+          }
+        });
+
+        const searchInput = document.getElementById("librarySearchInput");
+        if (searchInput) searchInput.value = "";
+        currentSearchQuery = "";
+        document
+          .getElementById("clearSearchBtn")
+          ?.classList.add("opacity-0", "pointer-events-none");
+        document.getElementById("searchResultBadge")?.classList.add("hidden");
+        loadMedia(tab);
+      }
+
+      // ==========================================
+      // LOGOUT
+      // ==========================================
+      function logout() {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        showToast("Logged out successfully", "success");
+        setTimeout(() => {
+          window.location.href = "login.html";
+        }, 1000);
+      }
+
+      // ==========================================
+      // EVENT LISTENERS & INITIALIZATION
+      // ==========================================
+      document.addEventListener("DOMContentLoaded", () => {
+        loadUserData();
+        loadMedia("audio");
+
+        // Close modal on backdrop click
+        document
+          .getElementById("player-modal")
+          .addEventListener("click", function (e) {
+            if (e.target === this) closePlayer();
+          });
+
+        // Close modal on ESC key
+        document.addEventListener("keydown", function (e) {
+          if (e.key === "Escape") closePlayer();
+        });
+
+        // Search input event
+        const searchInput = document.getElementById("librarySearchInput");
+        if (searchInput) {
+          searchInput.addEventListener("input", function () {
+            filterMediaBySearch();
+          });
+        }
+      });
+    </script>
+  </body>
+</html>

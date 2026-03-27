@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
+    <title>Sign Up | E-Bundle Ethiopia</title>
+
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      rel="stylesheet" />
+
+    <!-- Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Ethiopic:wght@400;500;700&display=swap"
+      rel="stylesheet" />
+
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "Noto Sans Ethiopic", "sans-serif"],
+            },
+            colors: {
+              primary: "#4F46E5",
+              secondary: "#7C3AED",
+              accent: "#EC4899",
+              success: "#10B981",
+              error: "#EF4444",
+            },
+            animation: {
+              blob: "blob 7s infinite",
+              shake: "shake 0.5s ease-in-out",
+              "pulse-slow": "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+            },
+            keyframes: {
+              blob: {
+                "0%": { transform: "translate(0px, 0px) scale(1)" },
+                "33%": { transform: "translate(30px, -50px) scale(1.1)" },
+                "66%": { transform: "translate(-20px, 20px) scale(0.9)" },
+                "100%": { transform: "translate(0px, 0px) scale(1)" },
+              },
+              shake: {
+                "0%, 100%": { transform: "translateX(0)" },
+                "10%, 30%, 50%, 70%, 90%": { transform: "translateX(-5px)" },
+                "20%, 40%, 60%, 80%": { transform: "translateX(5px)" },
+              },
+            },
+          },
+        },
+      };
+    </script>
+
+    <link rel="stylesheet" href="style/signup.css" />
+  </head>
+  <body
+    class="antialiased min-h-screen relative selection:bg-primary selection:text-white flex items-center justify-center p-4">
+    <!-- Animated Background -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+      <div class="blob bg-primary w-72 h-72 rounded-full top-0 left-0"></div>
+      <div
+        class="blob bg-secondary w-96 h-96 rounded-full bottom-0 right-0 animation-delay-2000"></div>
+      <div
+        class="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%239C92AC\' fill-opacity=\'0.05\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-20"></div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+    <!-- Signup Card -->
+    <div class="relative z-10 w-full max-w-lg">
+      <!-- Back to Home -->
+      <div class="mb-6 text-center">
+        <a
+          href="landing.html"
+          class="inline-flex items-center space-x-2 text-gray-400 hover:text-white transition-colors">
+          <i class="fas fa-arrow-left"></i>
+          <span>Back to Home</span>
+        </a>
+      </div>
+
+      <div
+        id="signupCard"
+        class="glass-card w-full rounded-3xl p-8 slide-up max-h-[85vh] overflow-y-auto custom-scroll relative">
+        <!-- Status Overlay -->
+        <div id="statusOverlay" class="status-overlay">
+          <div id="statusIcon"></div>
+          <h3 id="statusTitle"></h3>
+          <p id="statusMessage"></p>
+        </div>
+
+        <div class="text-center mb-6">
+          <div
+            class="w-16 h-16 mx-auto bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center mb-4">
+            <i class="fas fa-user-plus text-white text-2xl"></i>
+          </div>
+          <h2 class="text-2xl font-bold">Create Your Account</h2>
+          <p class="text-gray-400 text-sm">
+            Join thousands of Ethiopian students
+          </p>
+        </div>
+
+        <!-- Progress Steps -->
+        <div class="step-indicator">
+          <div class="step active" id="step1">1</div>
+          <div class="step-line"></div>
+          <div class="step" id="step2">2</div>
+          <div class="step-line"></div>
+          <div class="step" id="step3">3</div>
+        </div>
+
+        <form
+          id="signupForm"
+          class="space-y-4"
+          onsubmit="event.preventDefault()">
+          <!-- Step 1: Personal Info -->
+          <div id="step1Content" class="step-content">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium mb-2 text-gray-300"
+                  >First Name *</label
+                >
+                <input
+                  type="text"
+                  id="regFirstName"
+                  class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:border-primary text-white placeholder-gray-500"
+                  placeholder="John" />
+                <p
+                  id="firstNameError"
+                  class="text-xs text-error mt-1 hidden text-red-400">
+                  Required
+                </p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-2 text-gray-300"
+                  >Last Name *</label
+                >
+                <input
+                  type="text"
+                  id="regLastName"
+                  class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:border-primary text-white placeholder-gray-500"
+                  placeholder="Doe" />
+                <p
+                  id="lastNameError"
+                  class="text-xs text-error mt-1 hidden text-red-400">
+                  Required
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium mb-2 text-gray-300"
+                >Student ID *</label
+              >
+              <input
+                type="text"
+                id="regStudentId"
+                placeholder="e.g., ETH20241234"
+                class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:border-primary text-white placeholder-gray-500" />
+              <p
+                id="studentIdError"
+                class="text-xs text-error mt-1 hidden text-red-400">
+                Please enter your student ID
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onclick="nextStep(2)"
+              class="w-full py-3 bg-primary rounded-xl font-semibold hover:shadow-lg hover:shadow-primary/50 transition-all mt-4">
+              Continue <i class="fas fa-arrow-right ml-2"></i>
+            </button>
+          </div>
+
+          <!-- Step 2: Academic Info -->
+          <div id="step2Content" class="step-content hidden">
+            <div>
+              <label class="block text-sm font-medium mb-2 text-gray-300"
+                >Grade Level *</label
+              >
+              <select
+                id="regGrade"
+                class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:border-primary text-white">
+                <option value="" class="bg-slate-900">Select Grade</option>
+                <option value="9" class="bg-slate-900">Grade 9</option>
+                <option value="10" class="bg-slate-900">
+                  Grade 10 (EGSECE)
+                </option>
+                <option value="11" class="bg-slate-900">Grade 11</option>
+                <option value="12" class="bg-slate-900">
+                  Grade 12 (EHEEE)
+                </option>
+              </select>
+              <p
+                id="gradeError"
+                class="text-xs text-error mt-1 hidden text-red-400">
+                Please select your grade
+              </p>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium mb-2 text-gray-300"
+                >School Name *</label
+              >
+              <input
+                type="text"
+                id="regSchool"
+                placeholder="Your school name"
+                class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:border-primary text-white placeholder-gray-500" />
+              <p
+                id="schoolError"
+                class="text-xs text-error mt-1 hidden text-red-400">
+                Please enter your school name
+              </p>
+            </div>
+
+            <div class="flex space-x-3 mt-4">
+              <button
+                type="button"
+                onclick="prevStep(1)"
+                class="flex-1 py-3 glass rounded-xl font-semibold hover:bg-white/10 transition-all">
+                <i class="fas fa-arrow-left mr-2"></i> Back
+              </button>
+              <button
+                type="button"
+                onclick="nextStep(3)"
+                class="flex-1 py-3 bg-primary rounded-xl font-semibold hover:shadow-lg hover:shadow-primary/50 transition-all">
+                Continue <i class="fas fa-arrow-right ml-2"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Step 3: Account Info -->
+          <div id="step3Content" class="step-content hidden">
+            <div>
+              <label class="block text-sm font-medium mb-2 text-gray-300"
+                >Email *</label
+              >
+              <input
+                type="email"
+                id="regEmail"
+                placeholder="your@email.com"
+                class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:border-primary text-white placeholder-gray-500" />
+              <p
+                id="emailError"
+                class="text-xs text-error mt-1 hidden text-red-400">
+                Please enter a valid email
+              </p>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium mb-2 text-gray-300"
+                >Password *</label
+              >
+              <div class="relative">
+                <input
+                  type="password"
+                  id="regPassword"
+                  placeholder="Create a strong password"
+                  class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:border-primary text-white placeholder-gray-500" />
+                <button
+                  type="button"
+                  onclick="togglePassword('regPassword', this)"
+                  class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors">
+                  <i class="fas fa-eye"></i>
+                </button>
+              </div>
+              <div id="passwordStrength" class="password-strength"></div>
+              <p id="passwordHint" class="text-xs text-gray-500 mt-1">
+                Min 6 characters
+              </p>
+              <p
+                id="passwordError"
+                class="text-xs text-error mt-1 hidden text-red-400">
+                Password must be at least 6 characters
+              </p>
+            </div>
+
+            <div class="flex items-start space-x-2 mt-4">
+              <input
+                type="checkbox"
+                id="terms"
+                class="w-4 h-4 rounded border-gray-600 bg-white/5 text-primary focus:ring-primary mt-1" />
+              <label for="terms" class="text-sm text-gray-400">
+                I agree to the
+                <a href="#" class="text-primary hover:text-primary/80"
+                  >Terms of Service</a
+                >
+                and
+                <a href="#" class="text-primary hover:text-primary/80"
+                  >Privacy Policy</a
+                >
+                *
+              </label>
+            </div>
+            <p
+              id="termsError"
+              class="text-xs text-error mt-1 hidden text-red-400">
+              You must agree to the terms
+            </p>
+
+            <div class="flex space-x-3 mt-4">
+              <button
+                type="button"
+                onclick="prevStep(2)"
+                class="flex-1 py-3 glass rounded-xl font-semibold hover:bg-white/10 transition-all">
+                <i class="fas fa-arrow-left mr-2"></i> Back
+              </button>
+              <button
+                type="button"
+                id="signupBtn"
+                onclick="handleRegister()"
+                class="flex-1 py-3 bg-primary rounded-xl font-semibold hover:shadow-lg hover:shadow-primary/50 transition-all flex items-center justify-center space-x-2">
+                <span id="signupBtnText">Create Account</span>
+                <div id="signupSpinner" class="spinner hidden"></div>
+              </button>
+            </div>
+          </div>
+        </form>
+
+        <p class="text-center text-sm text-gray-400 mt-6">
+          Already have an account?
+          <a
+            href="login.html"
+            class="text-primary hover:text-primary/80 font-semibold"
+            >Sign in</a
+          >
+        </p>
+      </div>
+    </div>
+
+    <script>
+      // =============================================
+      // ✅ UPDATED: API Configuration - Your deployed backend
+      // =============================================
+      const API_URL = "https://e-bundle.onrender.com";
+
+      let currentStep = 1;
+
+      // Toast notification system
+      function showToast(message, type = "info") {
+        const container = document.getElementById("toastContainer");
+        const toast = document.createElement("div");
+        const colors =
+          type === "error" ? "bg-red-500/20 border-red-500/50 text-red-400"
+          : type === "success" ?
+            "bg-green-500/20 border-green-500/50 text-green-400"
+          : "bg-primary/20 border-primary/50 text-primary";
+
+        toast.className = `px-4 py-3 rounded-xl glass border ${colors} text-sm flex items-center space-x-2 transform translate-x-full transition-transform duration-300`;
+        toast.innerHTML = `<i class="fas ${
+          type === "error" ? "fa-exclamation-circle"
+          : type === "success" ? "fa-check-circle"
+          : "fa-info-circle"
+        }"></i><span>${message}</span>`;
+
+        container.appendChild(toast);
+
+        setTimeout(() => {
+          toast.classList.remove("translate-x-full");
+        }, 10);
+
+        setTimeout(() => {
+          toast.classList.add("translate-x-full");
+          setTimeout(() => toast.remove(), 300);
+        }, 3000);
+      }
+
+      // Toggle password visibility
+      function togglePassword(inputId, btn) {
+        const input = document.getElementById(inputId);
+        const icon = btn.querySelector("i");
+
+        if (input.type === "password") {
+          input.type = "text";
+          icon.classList.remove("fa-eye");
+          icon.classList.add("fa-eye-slash");
+        } else {
+          input.type = "password";
+          icon.classList.remove("fa-eye-slash");
+          icon.classList.add("fa-eye");
+        }
+      }
+
+      // Password strength checker
+      document
+        .getElementById("regPassword")
+        ?.addEventListener("input", function () {
+          const password = this.value;
+          const strengthBar = document.getElementById("passwordStrength");
+
+          if (password.length === 0) {
+            strengthBar.className = "password-strength";
+          } else if (password.length < 6) {
+            strengthBar.className = "password-strength strength-weak";
+          } else if (password.length < 10) {
+            strengthBar.className = "password-strength strength-medium";
+          } else {
+            strengthBar.className = "password-strength strength-strong";
+          }
+        });
+
+      // Navigation between steps
+      function nextStep(step) {
+        // Validate current step before proceeding
+        if (!validateStep(currentStep)) {
+          const card = document.getElementById("signupCard");
+          card.classList.add("error-shake");
+          setTimeout(() => card.classList.remove("error-shake"), 500);
+          return;
+        }
+
+        // Hide current step
+        document
+          .getElementById(`step${currentStep}Content`)
+          .classList.add("hidden");
+
+        // Show next step
+        currentStep = step;
+        document
+          .getElementById(`step${currentStep}Content`)
+          .classList.remove("hidden");
+
+        // Update step indicators
+        updateStepIndicators();
+      }
+
+      function prevStep(step) {
+        document
+          .getElementById(`step${currentStep}Content`)
+          .classList.add("hidden");
+        currentStep = step;
+        document
+          .getElementById(`step${currentStep}Content`)
+          .classList.remove("hidden");
+        updateStepIndicators();
+      }
+
+      function updateStepIndicators() {
+        for (let i = 1; i <= 3; i++) {
+          const stepEl = document.getElementById(`step${i}`);
+          stepEl.classList.remove("active", "completed");
+
+          if (i < currentStep) {
+            stepEl.classList.add("completed");
+            stepEl.innerHTML = '<i class="fas fa-check text-xs"></i>';
+          } else if (i === currentStep) {
+            stepEl.classList.add("active");
+            stepEl.innerHTML = i;
+          } else {
+            stepEl.innerHTML = i;
+          }
+        }
+      }
+
+      // Validate individual steps
+      function validateStep(step) {
+        let isValid = true;
+
+        if (step === 1) {
+          const firstName = document.getElementById("regFirstName");
+          const lastName = document.getElementById("regLastName");
+          const studentId = document.getElementById("regStudentId");
+
+          // Reset
+          firstName.classList.remove("input-error", "input-success");
+          lastName.classList.remove("input-error", "input-success");
+          studentId.classList.remove("input-error", "input-success");
+          document.getElementById("firstNameError").classList.add("hidden");
+          document.getElementById("lastNameError").classList.add("hidden");
+          document.getElementById("studentIdError").classList.add("hidden");
+
+          if (!firstName.value.trim()) {
+            firstName.classList.add("input-error");
+            document
+              .getElementById("firstNameError")
+              .classList.remove("hidden");
+            isValid = false;
+          } else {
+            firstName.classList.add("input-success");
+          }
+
+          if (!lastName.value.trim()) {
+            lastName.classList.add("input-error");
+            document.getElementById("lastNameError").classList.remove("hidden");
+            isValid = false;
+          } else {
+            lastName.classList.add("input-success");
+          }
+
+          if (!studentId.value.trim()) {
+            studentId.classList.add("input-error");
+            document
+              .getElementById("studentIdError")
+              .classList.remove("hidden");
+            isValid = false;
+          } else {
+            studentId.classList.add("input-success");
+          }
+        }
+
+        if (step === 2) {
+          const grade = document.getElementById("regGrade");
+          const school = document.getElementById("regSchool");
+
+          grade.classList.remove("input-error", "input-success");
+          school.classList.remove("input-error", "input-success");
+          document.getElementById("gradeError").classList.add("hidden");
+          document.getElementById("schoolError").classList.add("hidden");
+
+          if (!grade.value) {
+            grade.classList.add("input-error");
+            document.getElementById("gradeError").classList.remove("hidden");
+            isValid = false;
+          } else {
+            grade.classList.add("input-success");
+          }
+
+          if (!school.value.trim()) {
+            school.classList.add("input-error");
+            document.getElementById("schoolError").classList.remove("hidden");
+            isValid = false;
+          } else {
+            school.classList.add("input-success");
+          }
+        }
+
+        if (!isValid) {
+          showToast("Please fill in all required fields", "error");
+        }
+
+        return isValid;
+      }
+
+      // Show status overlay
+      function showStatus(type, title, message, redirectUrl = null) {
+        const overlay = document.getElementById("statusOverlay");
+        const iconContainer = document.getElementById("statusIcon");
+        const titleEl = document.getElementById("statusTitle");
+        const messageEl = document.getElementById("statusMessage");
+
+        if (type === "success") {
+          overlay.className = "status-overlay success";
+          iconContainer.innerHTML = `
+                    <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                        <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
+                        <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+                    </svg>
+                `;
+        } else {
+          overlay.className = "status-overlay error";
+          iconContainer.innerHTML = `
+                    <div class="error-x">
+                        <i class="fas fa-times"></i>
+                    </div>
+                `;
+        }
+
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+
+        overlay.classList.add("active");
+
+        if (redirectUrl) {
+          setTimeout(() => {
+            window.location.href = redirectUrl;
+          }, 2500);
+        }
+      }
+
+      // Hide status overlay
+      function hideStatus() {
+        const overlay = document.getElementById("statusOverlay");
+        overlay.classList.remove("active");
+      }
+
+      // Validate email format
+      function validateEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+      }
+
+      // Final validation and submission
+      async function handleRegister() {
+        const email = document.getElementById("regEmail");
+        const password = document.getElementById("regPassword");
+        const terms = document.getElementById("terms");
+
+        email.classList.remove("input-error", "input-success");
+        password.classList.remove("input-error", "input-success");
+        document.getElementById("emailError").classList.add("hidden");
+        document.getElementById("passwordError").classList.add("hidden");
+        document.getElementById("termsError").classList.add("hidden");
+
+        let isValid = true;
+
+        if (!email.value.trim() || !validateEmail(email.value)) {
+          email.classList.add("input-error");
+          document.getElementById("emailError").classList.remove("hidden");
+          isValid = false;
+        } else {
+          email.classList.add("input-success");
+        }
+
+        if (!password.value || password.value.length < 6) {
+          password.classList.add("input-error");
+          document.getElementById("passwordError").classList.remove("hidden");
+          isValid = false;
+        } else {
+          password.classList.add("input-success");
+        }
+
+        if (!terms.checked) {
+          document.getElementById("termsError").classList.remove("hidden");
+          isValid = false;
+        }
+
+        if (!isValid) return;
+
+        const btn = document.getElementById("signupBtn");
+        const btnText = document.getElementById("signupBtnText");
+        const spinner = document.getElementById("signupSpinner");
+
+        btn.disabled = true;
+        btnText.textContent = "Creating Account...";
+        spinner.classList.remove("hidden");
+
+        // COLLECT DATA
+        const userData = {
+          firstName: document.getElementById("regFirstName").value,
+          lastName: document.getElementById("regLastName").value,
+          studentId: document.getElementById("regStudentId").value,
+          grade: document.getElementById("regGrade").value,
+          school: document.getElementById("regSchool").value,
+          email: email.value,
+          password: password.value,
+        };
+
+        try {
+          // ✅ UPDATED: Using deployed backend URL
+          const res = await fetch(`${API_URL}/signup`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(userData),
+          });
+
+          const data = await res.json();
+
+          if (res.ok) {
+            // Store email in sessionStorage for OTP verification page
+            sessionStorage.setItem("pendingEmail", email.value);
+
+            // Show success status and redirect to OTP verification
+            showStatus(
+              "success",
+              "Account Created!",
+              "Please verify your email with the OTP sent to you.",
+              `otp-verification.html?email=${encodeURIComponent(email.value)}`,
+            );
+          } else {
+            showStatus(
+              "error",
+              "Error",
+              data.message || "Something went wrong",
+            );
+          }
+        } catch (error) {
+          console.error("Signup error:", error);
+          showStatus(
+            "error",
+            "Server Error",
+            "Could not connect to server. Please check your connection and try again.",
+          );
+        }
+
+        btn.disabled = false;
+        btnText.textContent = "Create Account";
+        spinner.classList.add("hidden");
+      }
+
+      // Real-time validation feedback
+      document.addEventListener("DOMContentLoaded", () => {
+        const inputs = [
+          "regFirstName",
+          "regLastName",
+          "regStudentId",
+          "regSchool",
+          "regEmail",
+        ];
+
+        inputs.forEach((id) => {
+          const input = document.getElementById(id);
+          if (input) {
+            input.addEventListener("blur", function () {
+              if (this.value.trim()) {
+                this.classList.remove("input-error");
+                this.classList.add("input-success");
+                const errorEl =
+                  document.getElementById(
+                    id.replace("reg", "").toLowerCase() + "Error",
+                  ) ||
+                  document.getElementById(
+                    id
+                      .replace("reg", "")
+                      .replace(/[A-Z]/g, (letter) => letter.toLowerCase()) +
+                      "Error",
+                  ) ||
+                  document.getElementById(id + "Error");
+                if (errorEl) errorEl.classList.add("hidden");
+              }
+            });
+          }
+        });
+
+        // Focus first input on load
+        setTimeout(() => {
+          document.getElementById("regFirstName")?.focus();
+        }, 500);
+      });
+    </script>
+  </body>
+</html>

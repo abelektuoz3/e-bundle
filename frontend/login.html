@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
+    <title>Sign In | E-Bundle Ethiopia</title>
+
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      rel="stylesheet" />
+
+    <!-- Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Ethiopic:wght@400;500;700&display=swap"
+      rel="stylesheet" />
+
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "Noto Sans Ethiopic", "sans-serif"],
+            },
+            colors: {
+              primary: "#4F46E5",
+              secondary: "#7C3AED",
+              accent: "#EC4899",
+              success: "#10B981",
+              error: "#EF4444",
+            },
+            animation: {
+              blob: "blob 7s infinite",
+              shake: "shake 0.5s ease-in-out",
+              "pulse-slow": "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+            },
+            keyframes: {
+              blob: {
+                "0%": { transform: "translate(0px, 0px) scale(1)" },
+                "33%": { transform: "translate(30px, -50px) scale(1.1)" },
+                "66%": { transform: "translate(-20px, 20px) scale(0.9)" },
+                "100%": { transform: "translate(0px, 0px) scale(1)" },
+              },
+              shake: {
+                "0%, 100%": { transform: "translateX(0)" },
+                "10%, 30%, 50%, 70%, 90%": { transform: "translateX(-5px)" },
+                "20%, 40%, 60%, 80%": { transform: "translateX(5px)" },
+              },
+            },
+          },
+        },
+      };
+    </script>
+
+    <link rel="stylesheet" href="style/login.css" />
+  </head>
+  <body
+    class="antialiased min-h-screen relative selection:bg-primary selection:text-white flex items-center justify-center p-4">
+    <!-- Animated Background -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+      <div class="blob bg-primary w-72 h-72 rounded-full top-0 left-0"></div>
+      <div
+        class="blob bg-secondary w-96 h-96 rounded-full bottom-0 right-0 animation-delay-2000"></div>
+      <div
+        class="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%239C92AC\' fill-opacity=\'0.05\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-20"></div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+    <!-- Login Card -->
+    <div class="relative z-10 w-full max-w-md">
+      <!-- Back to Home -->
+      <div class="mb-6 text-center">
+        <a
+          href="landing.html"
+          class="inline-flex items-center space-x-2 text-gray-400 hover:text-white transition-colors">
+          <i class="fas fa-arrow-left"></i>
+          <span>Back to Home</span>
+        </a>
+      </div>
+
+      <div
+        id="loginCard"
+        class="glass-card w-full rounded-3xl p-8 slide-up relative">
+        <!-- Status Overlay -->
+        <div id="statusOverlay" class="status-overlay">
+          <div id="statusIcon"></div>
+          <h3 id="statusTitle"></h3>
+          <p id="statusMessage"></p>
+        </div>
+
+        <div class="text-center mb-8">
+          <div
+            class="w-16 h-16 mx-auto bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center mb-4">
+            <i class="fas fa-graduation-cap text-white text-2xl"></i>
+          </div>
+          <h2 class="text-2xl font-bold">Welcome Back!</h2>
+          <p class="text-gray-400 text-sm mt-2">
+            Sign in to continue your learning journey
+          </p>
+        </div>
+
+        <div id="loginForm" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-2 text-gray-300"
+              >Student ID or Email</label
+            >
+            <div class="relative">
+              <i
+                class="fas fa-user absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+              <input
+                type="text"
+                id="loginId"
+                placeholder="e.g., ETH20241234"
+                class="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:border-primary transition-colors text-white placeholder-gray-500" />
+            </div>
+            <p id="loginIdError" class="text-xs text-error mt-1 hidden">
+              Please enter your student ID or email
+            </p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-2 text-gray-300"
+              >Password</label
+            >
+            <div class="relative">
+              <i
+                class="fas fa-lock absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+              <input
+                type="password"
+                id="loginPassword"
+                placeholder="Enter your password"
+                class="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:border-primary transition-colors text-white placeholder-gray-500" />
+              <button
+                type="button"
+                onclick="togglePassword('loginPassword', this)"
+                class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+            <p id="loginPasswordError" class="text-xs text-error mt-1 hidden">
+              Please enter your password
+            </p>
+          </div>
+
+          <div class="flex items-center justify-between text-sm">
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="checkbox"
+                class="w-4 h-4 rounded border-gray-600 bg-white/5 text-primary focus:ring-primary" />
+              <span class="text-gray-400">Remember me</span>
+            </label>
+            <a
+              href="forget-pass.html"
+              class="text-primary hover:text-primary/80 transition-colors"
+              >Forgot password?</a
+            >
+          </div>
+
+          <button
+            id="loginBtn"
+            onclick="handleLogin()"
+            class="w-full py-4 bg-primary rounded-xl font-semibold hover:shadow-lg hover:shadow-primary/50 transition-all transform hover:scale-[1.02] flex items-center justify-center space-x-2">
+            <span id="loginBtnText">Sign In</span>
+            <div id="loginSpinner" class="spinner hidden"></div>
+          </button>
+
+          <div class="grid grid-cols-2 gap-3">
+            <button
+              onclick="demoLogin('student')"
+              class="py-2 glass rounded-lg text-sm hover:bg-white/5 transition-colors">
+              Demo Student
+            </button>
+            <button
+              onclick="demoLogin('admin')"
+              class="py-2 glass rounded-lg text-sm hover:bg-white/5 transition-colors">
+              Demo Admin
+            </button>
+          </div>
+
+          <p class="text-center text-sm text-gray-400">
+            Don't have an account?
+            <a
+              href="signup.html"
+              class="text-primary hover:text-primary/80 font-semibold"
+              >Sign up</a
+            >
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ✅ UPDATED: API Configuration - Your deployed backend
+      const API_URL = "https://e-bundle.onrender.com";
+
+      // Toast notification system
+      function showToast(message, type = "info") {
+        const container = document.getElementById("toastContainer");
+        const toast = document.createElement("div");
+        const colors =
+          type === "error" ? "bg-red-500/20 border-red-500/50 text-red-400"
+          : type === "success" ?
+            "bg-green-500/20 border-green-500/50 text-green-400"
+          : "bg-primary/20 border-primary/50 text-primary";
+
+        toast.className = `px-4 py-3 rounded-xl glass border ${colors} text-sm flex items-center space-x-2 transform translate-x-full transition-transform duration-300`;
+        toast.innerHTML = `<i class="fas ${
+          type === "error" ? "fa-exclamation-circle"
+          : type === "success" ? "fa-check-circle"
+          : "fa-info-circle"
+        }"></i><span>${message}</span>`;
+
+        container.appendChild(toast);
+
+        setTimeout(() => {
+          toast.classList.remove("translate-x-full");
+        }, 10);
+
+        setTimeout(() => {
+          toast.classList.add("translate-x-full");
+          setTimeout(() => toast.remove(), 300);
+        }, 3000);
+      }
+
+      // Toggle password visibility
+      function togglePassword(inputId, btn) {
+        const input = document.getElementById(inputId);
+        const icon = btn.querySelector("i");
+
+        if (input.type === "password") {
+          input.type = "text";
+          icon.classList.remove("fa-eye");
+          icon.classList.add("fa-eye-slash");
+        } else {
+          input.type = "password";
+          icon.classList.remove("fa-eye-slash");
+          icon.classList.add("fa-eye");
+        }
+      }
+
+      // Show status overlay
+      function showStatus(type, title, message, redirectUrl = null) {
+        const overlay = document.getElementById("statusOverlay");
+        const iconContainer = document.getElementById("statusIcon");
+        const titleEl = document.getElementById("statusTitle");
+        const messageEl = document.getElementById("statusMessage");
+
+        if (type === "success") {
+          overlay.className = "status-overlay success";
+          iconContainer.innerHTML = `
+                <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                    <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
+                    <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+                </svg>
+            `;
+        } else {
+          overlay.className = "status-overlay error";
+          iconContainer.innerHTML = `
+                <div class="error-x">
+                    <i class="fas fa-times"></i>
+                </div>
+            `;
+        }
+
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        overlay.classList.add("active");
+
+        if (redirectUrl) {
+          setTimeout(() => {
+            window.location.href = redirectUrl;
+          }, 2000);
+        }
+      }
+
+      function hideStatus() {
+        document.getElementById("statusOverlay").classList.remove("active");
+      }
+
+      // Validate inputs
+      function validateLogin() {
+        const loginId = document.getElementById("loginId");
+        const password = document.getElementById("loginPassword");
+        const loginIdError = document.getElementById("loginIdError");
+        const passwordError = document.getElementById("loginPasswordError");
+        let isValid = true;
+
+        loginId.classList.remove("input-error", "input-success");
+        password.classList.remove("input-error", "input-success");
+        loginIdError.classList.add("hidden");
+        passwordError.classList.add("hidden");
+
+        if (!loginId.value.trim()) {
+          loginId.classList.add("input-error");
+          loginIdError.classList.remove("hidden");
+          isValid = false;
+        } else {
+          loginId.classList.add("input-success");
+        }
+
+        if (!password.value.trim()) {
+          password.classList.add("input-error");
+          passwordError.classList.remove("hidden");
+          isValid = false;
+        } else {
+          password.classList.add("input-success");
+        }
+
+        return isValid;
+      }
+
+      // Handle login with your deployed backend
+      async function handleLogin() {
+        if (!validateLogin()) {
+          const card = document.getElementById("loginCard");
+          card.classList.add("error-shake");
+          setTimeout(() => card.classList.remove("error-shake"), 500);
+          showToast("Please fill in all required fields", "error");
+          return;
+        }
+
+        const loginId = document.getElementById("loginId").value.trim();
+        const password = document.getElementById("loginPassword").value;
+
+        // Show loading state
+        const btn = document.getElementById("loginBtn");
+        const btnText = document.getElementById("loginBtnText");
+        const spinner = document.getElementById("loginSpinner");
+
+        btn.disabled = true;
+        btnText.textContent = "Signing in...";
+        spinner.classList.remove("hidden");
+
+        try {
+          const response = await fetch(`${API_URL}/login`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ loginId, password }),
+          });
+
+          const data = await response.json();
+
+          if (response.ok && data.token) {
+            // Store JWT token and user info
+            localStorage.setItem("token", data.token);
+            localStorage.setItem("user", JSON.stringify(data.user));
+            sessionStorage.setItem("justLoggedIn", "true");
+
+            showStatus(
+              "success",
+              "Login Successful!",
+              `Welcome back, ${data.user.firstName || data.user.email}! Redirecting...`,
+              "dashboard.html",
+            );
+            showToast("Login successful! Welcome back!", "success");
+          } else {
+            throw new Error(data.message || "Login failed");
+          }
+        } catch (error) {
+          btn.disabled = false;
+          btnText.textContent = "Sign In";
+          spinner.classList.add("hidden");
+
+          document.getElementById("loginId").classList.remove("input-success");
+          document
+            .getElementById("loginPassword")
+            .classList.remove("input-success");
+          document.getElementById("loginId").classList.add("input-error");
+          document.getElementById("loginPassword").classList.add("input-error");
+
+          const card = document.getElementById("loginCard");
+          card.classList.add("error-shake");
+          setTimeout(() => card.classList.remove("error-shake"), 500);
+
+          showStatus(
+            "error",
+            "Login Failed",
+            error.message || "Invalid credentials. Please try again.",
+          );
+          showToast(error.message || "Invalid credentials", "error");
+
+          setTimeout(() => {
+            hideStatus();
+            document.getElementById("loginId").classList.remove("input-error");
+            document
+              .getElementById("loginPassword")
+              .classList.remove("input-error");
+          }, 2500);
+        }
+      }
+
+      // Demo login
+      async function demoLogin(type) {
+        const btn = document.getElementById("loginBtn");
+        const btnText = document.getElementById("loginBtnText");
+        const spinner = document.getElementById("loginSpinner");
+
+        btn.disabled = true;
+        btnText.textContent = "Signing in...";
+        spinner.classList.remove("hidden");
+
+        // Demo credentials
+        const demoCredentials = {
+          student: { loginId: "demo@student.com", password: "demo123" },
+          admin: { loginId: "demo@admin.com", password: "admin123" },
+        };
+
+        try {
+          const response = await fetch(`${API_URL}/login`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(demoCredentials[type]),
+          });
+
+          const data = await response.json();
+
+          if (response.ok && data.token) {
+            localStorage.setItem("token", data.token);
+            localStorage.setItem("user", JSON.stringify(data.user));
+            sessionStorage.setItem("justLoggedIn", "true");
+            showStatus(
+              "success",
+              "Demo Login Successful!",
+              `Welcome, ${type === "student" ? "Student" : "Admin"}! Redirecting...`,
+              "dashboard.html",
+            );
+            showToast(
+              `Demo login: ${type === "student" ? "Student" : "Admin"}`,
+              "success",
+            );
+          } else {
+            showToast(
+              "Demo user not found. Please sign up first or use valid credentials.",
+              "error",
+            );
+            btn.disabled = false;
+            btnText.textContent = "Sign In";
+            spinner.classList.add("hidden");
+          }
+        } catch (error) {
+          showToast(
+            "Server error. Please check if backend is running.",
+            "error",
+          );
+          btn.disabled = false;
+          btnText.textContent = "Sign In";
+          spinner.classList.add("hidden");
+        }
+      }
+
+      // Enter key support
+      document.addEventListener("DOMContentLoaded", () => {
+        document
+          .getElementById("loginPassword")
+          .addEventListener("keypress", function (e) {
+            if (e.key === "Enter") {
+              handleLogin();
+            }
+          });
+
+        document
+          .getElementById("loginId")
+          .addEventListener("keypress", function (e) {
+            if (e.key === "Enter") {
+              document.getElementById("loginPassword").focus();
+            }
+          });
+      });
+    </script>
+  </body>
+</html>

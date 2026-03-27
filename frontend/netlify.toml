@@ -1,0 +1,28 @@
+# netlify.toml - Place this in your frontend folder
+
+[build]
+  # No build command needed for static HTML
+  command = "echo 'No build step needed'"
+  # Publish directory is the frontend folder itself
+  publish = "."
+
+[[redirects]]
+  # Redirect root (/) to landing.html
+  from = "/"
+  to = "/landing.html"
+  status = 200
+
+[[redirects]]
+  # Handle 404 errors - redirect to landing page
+  from = "/*"
+  to = "/landing.html"
+  status = 404
+
+[[headers]]
+  # Set security headers for all pages
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"

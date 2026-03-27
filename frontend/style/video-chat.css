@@ -1,0 +1,112 @@
+body {
+  background-color: #0f172a;
+  color: #f8fafc;
+  font-family: "Inter", sans-serif;
+}
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.glass-card {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(255, 255, 255, 0.01) 100%
+  );
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.video-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000;
+}
+.local-video-container {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  width: 160px;
+  height: 120px;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  z-index: 10;
+  background: #1e293b;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.local-video-container:hover {
+  transform: scale(1.02);
+  border-color: #4f46e5;
+}
+@media (min-width: 768px) {
+  .local-video-container {
+    width: 200px;
+    height: 150px;
+  }
+}
+video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.control-btn {
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.control-btn:hover {
+  transform: scale(1.1);
+}
+.partner-info {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  border-radius: 1rem;
+  padding: 0.5rem 1rem;
+}
+.connection-status {
+  position: absolute;
+  bottom: 5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+.pulse-animation {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+@keyframes ripple {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+.ripple-effect {
+  position: relative;
+  overflow: visible;
+}
+.ripple-effect::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(79, 70, 229, 0.3);
+  animation: ripple 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
