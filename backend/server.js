@@ -456,8 +456,7 @@ app.get("/api/media/stream/:id", authenticateToken, async (req, res) => {
 });
 
 // ================= EMAIL TRANSPORTER CONFIGURATION =================
-const SibApiV3Sdk = require("brevo");
-
+const SibApiV3Sdk = require("@getbrevo/brevo");
 // Configure email based on environment
 let sendEmail;
 
