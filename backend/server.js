@@ -441,58 +441,49 @@ app.get("/api/media/stream/:id", authenticateToken, async (req, res) => {
 });
 
 // ================= EMAIL TRANSPORTER CONFIGURATION =================
+const { Resend } = require("resend");
+
 let sendEmail;
 
-// Use nodemailer with Gmail SMTP
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+// Initialize Resend if API key exists
+if (process.env.RESEND_API_KEY) {
+  const resend = new Resend(process.env.RESEND_API_KEY);
 
-sendEmail = async (to, subject, html, text) => {
-  try {
-    await transporter.sendMail({
-      from: `"E-Bundle Ethiopia" <${process.env.EMAIL_USER}>`,
-      to,
-      subject,
-      html,
-      text,
-    });
-    console.log(`✅ Email sent to ${to}`);
-    return true;
-  } catch (error) {
-    console.error(`❌ Failed to send email to ${to}:`, error.message);
-    return false;
-  }
-};
-
-// Verify email transporter on startup
-const verifyTransporter = async (retries = 3) => {
-  for (let i = 0; i < retries; i++) {
+  sendEmail = async (to, subject, html, text) => {
     try {
-      await transporter.verify();
-      console.log("✅ Email server is ready to send messages");
+      console.log(`📧 Attempting to send email to ${to}...`);
+      const { data, error } = await resend.emails.send({
+        from: `E-Bundle Ethiopia <${process.env.EMAIL_FROM || "onboarding@resend.dev"}>`,
+        to: [to],
+        subject,
+        html,
+        text,
+      });
+
+      if (error) {
+        console.error(`❌ Resend error:`, error);
+        return false;
+      }
+
+      console.log(`✅ Email sent to ${to}. ID: ${data?.id}`);
       return true;
     } catch (error) {
-      console.error(
-        `❌ Email transporter error (attempt ${i + 1}/${retries}):`,
-        error.message,
-      );
-      if (i < retries - 1) {
-        console.log("Retrying in 5 seconds...");
-        await new Promise((resolve) => setTimeout(resolve, 5000));
-      }
+      console.error(`❌ Failed to send email to ${to}:`, error.message);
+      return false;
     }
-  }
+  };
+  console.log("✅ Resend email service configured");
+} else {
+  // Fallback to console log for local development
+  sendEmail = async (to, subject, html, text) => {
+    console.log(`📧 [DEV] Would send email to ${to}: ${subject}`);
+    console.log(`[DEV] Email content: ${text}`);
+    return true;
+  };
   console.log(
-    "⚠️ Email service may not work properly. Continuing without email...",
+    "⚠️ No RESEND_API_KEY found. Emails will be logged to console only.",
   );
-  return false;
-};
-verifyTransporter();
+}
 
 // ================= HELPER FUNCTIONS =================
 
