@@ -291,7 +291,6 @@
     </main>
 
     <script>
-      // Make videoChatApp globally accessible
       window.videoChatApp = {
         localStream: null,
         peer: null,
@@ -321,7 +320,66 @@
           panel.classList.toggle("hidden");
         },
 
-        init: async () => {
+        getUserData: async function () {
+          const token = localStorage.getItem("token");
+          if (!token) {
+            this.addDebugLog("No token found");
+            return null;
+          }
+
+          // Try to get from localStorage first
+          try {
+            const storedUser = localStorage.getItem("user");
+            if (storedUser) {
+              const user = JSON.parse(storedUser);
+              this.addDebugLog("User loaded from localStorage", user);
+              return {
+                userId: user.id || user._id,
+                name: `${user.firstName} ${user.lastName ? user.lastName.charAt(0) + "." : ""}`,
+                grade: user.grade || "9",
+                avatar: user.avatar,
+              };
+            }
+          } catch (e) {
+            this.addDebugLog("Error parsing stored user", e.message);
+          }
+
+          // If not in localStorage, fetch from API
+          try {
+            this.addDebugLog("Fetching user data from API...");
+            const response = await fetch("/profile", {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              if (data.success && data.user) {
+                const userData = {
+                  userId: data.user.id,
+                  name: `${data.user.firstName} ${data.user.lastName ? data.user.lastName.charAt(0) + "." : ""}`,
+                  grade: data.user.grade || "9",
+                  avatar: data.user.avatar,
+                };
+                // Save to localStorage for future use
+                localStorage.setItem("user", JSON.stringify(data.user));
+                this.addDebugLog("User loaded from API", userData);
+                return userData;
+              }
+            }
+            this.addDebugLog("API returned error", response.status);
+          } catch (err) {
+            this.addDebugLog("API fetch failed", err.message);
+          }
+
+          return null;
+        },
+
+        init: async function () {
+          this.addDebugLog("Initializing video chat...");
+
           const token = localStorage.getItem("token");
           if (!token) {
             this.showToast("Please login to use video chat", "error");
@@ -329,29 +387,17 @@
             return;
           }
 
-          // Get user data from localStorage
-          try {
-            const storedUser = localStorage.getItem("user");
-            if (storedUser) {
-              const user = JSON.parse(storedUser);
-              this.userData = {
-                userId: user.id || user._id,
-                name: `${user.firstName} ${user.lastName ? user.lastName.charAt(0) + "." : ""}`,
-                grade: user.grade || "9",
-                avatar: user.avatar,
-              };
-              this.addDebugLog("User loaded", this.userData);
-            }
-          } catch (e) {
-            this.addDebugLog("Error parsing user", e.message);
-          }
+          // Get user data
+          this.userData = await this.getUserData();
 
           if (!this.userData) {
-            this.addDebugLog("CRITICAL: No user data found!");
+            this.addDebugLog("No user data found!");
             this.showToast("Please login again", "error");
             setTimeout(() => (window.location.href = "login.html"), 2000);
             return;
           }
+
+          this.addDebugLog("User data ready", this.userData);
 
           // Initialize socket connection
           this.socket = io("https://e-bundle.onrender.com", {
@@ -539,7 +585,7 @@
           return this.peer;
         },
 
-        initiateCall: (partner, isInitiator) => {
+        initiateCall: function (partner, isInitiator) {
           this.isSearching = false;
           this.partnerSocketId = partner.socketId;
 
@@ -559,9 +605,13 @@
 
         start: async function () {
           if (!this.userData) {
-            this.addDebugLog("No user data");
-            this.showToast("Please refresh the page", "error");
-            return;
+            this.addDebugLog("No user data, fetching...");
+            this.userData = await this.getUserData();
+            if (!this.userData) {
+              this.addDebugLog("Still no user data");
+              this.showToast("Please refresh the page", "error");
+              return;
+            }
           }
 
           if (this.isSearching || this.isConnected) {
@@ -571,7 +621,6 @@
 
           this.isSearching = true;
 
-          // Update waiting screen with cancel button
           const waitingDiv = document.getElementById("waitingScreen");
           waitingDiv.innerHTML = `
             <div class="text-center space-y-4">
@@ -584,7 +633,6 @@
             </div>
           `;
 
-          // Add event listener to cancel button
           const cancelBtn = document.getElementById("cancelSearchBtn");
           if (cancelBtn) {
             cancelBtn.onclick = () => this.cancelSearch();
