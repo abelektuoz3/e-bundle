@@ -329,7 +329,7 @@
             return;
           }
 
-          // Get user data from localStorage directly (faster)
+          // Get user data from localStorage
           try {
             const storedUser = localStorage.getItem("user");
             if (storedUser) {
@@ -400,21 +400,33 @@
               await videoChatApp.initPeer(false);
             }
             if (videoChatApp.peer) {
-              await videoChatApp.peer.signal(data.offer);
+              try {
+                await videoChatApp.peer.signal(data.offer);
+              } catch (err) {
+                videoChatApp.addDebugLog("Error handling offer", err.message);
+              }
             }
           });
 
           videoChatApp.socket.on("answer", (data) => {
             videoChatApp.addDebugLog("📞 Received answer from", data.from);
             if (videoChatApp.peer) {
-              videoChatApp.peer.signal(data.answer);
+              try {
+                videoChatApp.peer.signal(data.answer);
+              } catch (err) {
+                videoChatApp.addDebugLog("Error handling answer", err.message);
+              }
             }
           });
 
           videoChatApp.socket.on("ice-candidate", (data) => {
             videoChatApp.addDebugLog("🧊 Received ICE candidate");
             if (videoChatApp.peer && data.candidate) {
-              videoChatApp.peer.signal(data.candidate);
+              try {
+                videoChatApp.peer.signal(data.candidate);
+              } catch (err) {
+                videoChatApp.addDebugLog("Error handling ICE", err.message);
+              }
             }
           });
 
