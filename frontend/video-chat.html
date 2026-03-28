@@ -303,6 +303,7 @@
         currentRoom: null,
         userData: null,
         debugLogs: [],
+        iceTimeout: null,
 
         addDebugLog: function (message, data) {
           const log = `[${new Date().toLocaleTimeString()}] ${message}${data ? " " + JSON.stringify(data) : ""}`;
@@ -327,7 +328,6 @@
             return null;
           }
 
-          // Try to get from localStorage first
           try {
             const storedUser = localStorage.getItem("user");
             if (storedUser) {
@@ -344,7 +344,6 @@
             this.addDebugLog("Error parsing stored user", e.message);
           }
 
-          // If not in localStorage, fetch from API
           try {
             this.addDebugLog("Fetching user data from API...");
             const response = await fetch("/profile", {
@@ -363,13 +362,11 @@
                   grade: data.user.grade || "9",
                   avatar: data.user.avatar,
                 };
-                // Save to localStorage for future use
                 localStorage.setItem("user", JSON.stringify(data.user));
                 this.addDebugLog("User loaded from API", userData);
                 return userData;
               }
             }
-            this.addDebugLog("API returned error", response.status);
           } catch (err) {
             this.addDebugLog("API fetch failed", err.message);
           }
@@ -387,7 +384,6 @@
             return;
           }
 
-          // Get user data
           this.userData = await this.getUserData();
 
           if (!this.userData) {
@@ -399,7 +395,6 @@
 
           this.addDebugLog("User data ready", this.userData);
 
-          // Initialize socket connection
           this.socket = io("https://e-bundle.onrender.com", {
             transports: ["websocket", "polling"],
             reconnection: true,
@@ -434,7 +429,7 @@
             if (!this.peer) {
               await this.initPeer(false);
             }
-            if (this.peer) {
+            if (this.peer && data.offer) {
               try {
                 await this.peer.signal(data.offer);
               } catch (err) {
@@ -445,7 +440,7 @@
 
           this.socket.on("answer", (data) => {
             this.addDebugLog("📞 Received answer from", data.from);
-            if (this.peer) {
+            if (this.peer && data.answer) {
               try {
                 this.peer.signal(data.answer);
               } catch (err) {
@@ -521,6 +516,8 @@
                 { urls: "stun:stun3.l.google.com:19302" },
                 { urls: "stun:stun4.l.google.com:19302" },
                 { urls: "stun:stun.stunprotocol.org:3478" },
+                { urls: "stun:stun.voipbuster.com" },
+                { urls: "stun:stun.voipstunt.com" },
                 {
                   urls: "turn:openrelay.metered.ca:80",
                   username: "openrelayproject",
@@ -531,7 +528,14 @@
                   username: "openrelayproject",
                   credential: "openrelayproject",
                 },
+                {
+                  urls: "turn:openrelay.metered.ca:443?transport=tcp",
+                  username: "openrelayproject",
+                  credential: "openrelayproject",
+                },
               ],
+              iceTransportPolicy: "all",
+              rtcpMuxPolicy: "require",
             },
           };
 
@@ -556,6 +560,7 @@
           this.peer.on("connect", () => {
             this.addDebugLog("✅ Peer connection established!");
             this.showToast("Connected with study partner!", "success");
+            if (this.iceTimeout) clearTimeout(this.iceTimeout);
           });
 
           this.peer.on("stream", (stream) => {
@@ -581,6 +586,16 @@
             this.showToast("Connection error", "error");
             this.endCall();
           });
+
+          // ICE connection timeout handling
+          this.iceTimeout = setTimeout(() => {
+            if (this.peer && !this.isConnected) {
+              this.addDebugLog("ICE connection timeout - reconnecting");
+              this.showToast("Connection timeout, retrying...", "warning");
+              this.endCall();
+              setTimeout(() => this.start(), 1000);
+            }
+          }, 15000);
 
           return this.peer;
         },
@@ -707,6 +722,10 @@
 
         endCall: function () {
           this.addDebugLog("Ending call");
+          if (this.iceTimeout) {
+            clearTimeout(this.iceTimeout);
+            this.iceTimeout = null;
+          }
           if (this.peer) {
             this.peer.destroy();
             this.peer = null;
