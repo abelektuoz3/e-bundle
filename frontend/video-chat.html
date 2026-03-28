@@ -328,24 +328,109 @@
             return;
           }
 
+          // Try to get user data from API first
           try {
+            videoChatApp.addDebugLog("Fetching user profile...");
             const response = await fetch("/profile", {
-              headers: { Authorization: `Bearer ${token}` },
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
             });
-            const data = await response.json();
-            if (data.success) {
-              videoChatApp.userData = {
-                userId: data.user.id,
-                name: `${data.user.firstName} ${data.user.lastName ? data.user.lastName.charAt(0) + "." : ""}`,
-                grade: data.user.grade || "9",
-                avatar: data.user.avatar,
-              };
-              videoChatApp.addDebugLog("User loaded", videoChatApp.userData);
+
+            if (response.ok) {
+              const data = await response.json();
+              if (data.success && data.user) {
+                videoChatApp.userData = {
+                  userId: data.user.id,
+                  name: `${data.user.firstName} ${data.user.lastName ? data.user.lastName.charAt(0) + "." : ""}`,
+                  grade: data.user.grade || "9",
+                  avatar: data.user.avatar,
+                };
+                videoChatApp.addDebugLog(
+                  "User loaded from API",
+                  videoChatApp.userData,
+                );
+                // Store in localStorage for fallback
+                localStorage.setItem(
+                  "videoChatUser",
+                  JSON.stringify(videoChatApp.userData),
+                );
+              }
+            } else {
+              videoChatApp.addDebugLog("API returned error", response.status);
             }
           } catch (err) {
-            console.error("Failed to fetch user data:", err);
-            videoChatApp.addDebugLog("Failed to fetch user data", err.message);
+            videoChatApp.addDebugLog("API fetch failed", err.message);
           }
+
+          // Fallback to localStorage if API failed
+          if (!videoChatApp.userData) {
+            try {
+              // Try from videoChatUser first
+              const storedVideoUser = localStorage.getItem("videoChatUser");
+              if (storedVideoUser) {
+                videoChatApp.userData = JSON.parse(storedVideoUser);
+                videoChatApp.addDebugLog(
+                  "User loaded from videoChatUser",
+                  videoChatApp.userData,
+                );
+              } else {
+                // Try from regular user storage
+                const storedUser = localStorage.getItem("user");
+                if (storedUser) {
+                  const user = JSON.parse(storedUser);
+                  videoChatApp.userData = {
+                    userId: user.id || user._id,
+                    name: `${user.firstName} ${user.lastName ? user.lastName.charAt(0) + "." : ""}`,
+                    grade: user.grade || "9",
+                    avatar: user.avatar,
+                  };
+                  videoChatApp.addDebugLog(
+                    "User loaded from localStorage user",
+                    videoChatApp.userData,
+                  );
+                }
+              }
+            } catch (e) {
+              videoChatApp.addDebugLog("Error parsing stored user", e.message);
+            }
+          }
+
+          // Try sessionStorage as last resort
+          if (!videoChatApp.userData) {
+            try {
+              const sessionUser = sessionStorage.getItem("user");
+              if (sessionUser) {
+                const user = JSON.parse(sessionUser);
+                videoChatApp.userData = {
+                  userId: user.id || user._id,
+                  name: `${user.firstName} ${user.lastName ? user.lastName.charAt(0) + "." : ""}`,
+                  grade: user.grade || "9",
+                  avatar: user.avatar,
+                };
+                videoChatApp.addDebugLog(
+                  "User loaded from sessionStorage",
+                  videoChatApp.userData,
+                );
+              }
+            } catch (e) {
+              videoChatApp.addDebugLog("Error parsing session user", e.message);
+            }
+          }
+
+          // If still no user data, show error
+          if (!videoChatApp.userData) {
+            videoChatApp.addDebugLog("CRITICAL: No user data found!");
+            videoChatApp.showToast(
+              "Please login again to use video chat",
+              "error",
+            );
+            setTimeout(() => (window.location.href = "login.html"), 2000);
+            return;
+          }
+
+          videoChatApp.addDebugLog("Final user data", videoChatApp.userData);
 
           // Initialize socket connection
           videoChatApp.socket = io("https://e-bundle.onrender.com", {
@@ -514,6 +599,15 @@
         },
 
         start: async () => {
+          if (!videoChatApp.userData) {
+            videoChatApp.addDebugLog("No user data, cannot start");
+            videoChatApp.showToast(
+              "Please refresh the page and try again",
+              "error",
+            );
+            return;
+          }
+
           if (videoChatApp.isSearching || videoChatApp.isConnected) {
             videoChatApp.addDebugLog("Already searching or connected", {
               isSearching: videoChatApp.isSearching,
