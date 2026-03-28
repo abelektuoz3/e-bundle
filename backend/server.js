@@ -2698,14 +2698,16 @@ io.on("connection", (socket) => {
     }
   });
 
+  // Replace this section (around line 2700)
   socket.on("end-call", (data) => {
-    if (data.target) {
+    if (data && data.target) {
       const targetSocket = io.sockets.sockets.get(data.target);
       if (targetSocket) {
         targetSocket.emit("call-ended", { from: socket.id });
       }
     }
 
+    // Clean up room
     if (currentRoom) {
       socket.leave(currentRoom);
       currentRoom = null;
