@@ -2667,28 +2667,50 @@ io.on("connection", (socket) => {
     }
   });
 
+  // ================= FIXED WEBRTC SIGNALING HANDLERS =================
   socket.on("offer", (data) => {
+    if (!data || !data.target) {
+      console.log("Invalid offer data received");
+      return;
+    }
+    console.log("📤 Offer received from", socket.id, "to", data.target);
     const targetSocket = io.sockets.sockets.get(data.target);
     if (targetSocket) {
+      console.log("✅ Forwarding offer to", data.target);
       targetSocket.emit("offer", {
         offer: data.offer,
         from: socket.id,
         fromUser: data.fromUser,
       });
+    } else {
+      console.log("❌ Target socket not found:", data.target);
     }
   });
 
   socket.on("answer", (data) => {
+    if (!data || !data.target) {
+      console.log("Invalid answer data received");
+      return;
+    }
+    console.log("📤 Answer received from", socket.id, "to", data.target);
     const targetSocket = io.sockets.sockets.get(data.target);
     if (targetSocket) {
+      console.log("✅ Forwarding answer to", data.target);
       targetSocket.emit("answer", {
         answer: data.answer,
         from: socket.id,
       });
+    } else {
+      console.log("❌ Target socket not found for answer");
     }
   });
 
   socket.on("ice-candidate", (data) => {
+    if (!data || !data.target) {
+      console.log("Invalid ICE candidate data received");
+      return;
+    }
+    console.log("🧊 ICE candidate from", socket.id, "to", data.target);
     const targetSocket = io.sockets.sockets.get(data.target);
     if (targetSocket) {
       targetSocket.emit("ice-candidate", {
@@ -2698,8 +2720,8 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Replace this section (around line 2700)
   socket.on("end-call", (data) => {
+    console.log("📞 End call from", socket.id, "target:", data?.target);
     if (data && data.target) {
       const targetSocket = io.sockets.sockets.get(data.target);
       if (targetSocket) {
@@ -2707,7 +2729,6 @@ io.on("connection", (socket) => {
       }
     }
 
-    // Clean up room
     if (currentRoom) {
       socket.leave(currentRoom);
       currentRoom = null;
