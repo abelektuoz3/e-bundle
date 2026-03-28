@@ -388,10 +388,13 @@
           });
 
           videoChatApp.socket.on("matched", (data) => {
-            videoChatApp.addDebugLog("🎉 Matched with partner!", data.partner);
+            videoChatApp.addDebugLog("🎉 Matched with partner!", {
+              partner: data.partner,
+              isInitiator: data.isInitiator,
+            });
             videoChatApp.partnerSocketId = data.partner.socketId;
             videoChatApp.currentRoom = data.room;
-            videoChatApp.initiateCall(data.partner);
+            videoChatApp.initiateCall(data.partner, data.isInitiator);
           });
 
           videoChatApp.socket.on("offer", async (data) => {
@@ -555,7 +558,7 @@
           return videoChatApp.peer;
         },
 
-        initiateCall: (partner) => {
+        initiateCall: (partner, isInitiator) => {
           videoChatApp.isSearching = false;
           videoChatApp.partnerSocketId = partner.socketId;
 
@@ -564,9 +567,12 @@
           document.getElementById("partnerGrade").textContent =
             `Grade ${partner.grade || "?"}`;
           document.getElementById("partnerInfo").classList.remove("hidden");
-          videoChatApp.addDebugLog("Initiating call with", partner);
+          videoChatApp.addDebugLog("Initiating call with", {
+            partner,
+            isInitiator,
+          });
 
-          videoChatApp.initPeer(true).catch(() => {
+          videoChatApp.initPeer(isInitiator).catch(() => {
             videoChatApp.endCall();
           });
         },
