@@ -2770,6 +2770,7 @@ function matchUsers() {
       socket1.currentRoom = roomName;
       socket2.currentRoom = roomName;
 
+      // Designate user1 as initiator (first to send offer)
       socket1.emit("matched", {
         partner: {
           socketId: user2.socketId,
@@ -2777,6 +2778,7 @@ function matchUsers() {
           grade: user2.grade,
         },
         room: roomName,
+        isInitiator: true, // user1 is initiator
       });
 
       socket2.emit("matched", {
@@ -2786,9 +2788,10 @@ function matchUsers() {
           grade: user1.grade,
         },
         room: roomName,
+        isInitiator: false, // user2 waits for offer
       });
 
-      console.log(`Matched ${user1.name} with ${user2.name}`);
+      console.log(`Matched ${user1.name} (initiator) with ${user2.name}`);
     } else {
       if (socket1) waitingUsers.push(user1);
       if (socket2) waitingUsers.push(user2);
