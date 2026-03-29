@@ -2525,7 +2525,7 @@ Guidelines:
 - For math problems, show all work clearly`;
 
     const requestBody = {
-      model: "llama3-70b-8192",
+      model: "llama-3.1-70b-versatile",
       messages: [
         { role: "system", content: systemContent },
         { role: "user", content: message },
@@ -2598,29 +2598,26 @@ app.get("/api/test", async (req, res) => {
   try {
     const GROQ_API_KEY = process.env.GROQ_API_KEY;
     console.log("Testing Groq API...");
-    console.log("API Key exists:", !!GROQ_API_KEY);
 
     if (!GROQ_API_KEY) {
       return res.json({
         success: false,
         error: "GROQ_API_KEY not found in environment variables",
-        envKeys: Object.keys(process.env),
       });
     }
 
-    // Try different models
+    // Only use confirmed active models
     const modelsToTry = [
-      "llama3-70b-8192",
       "llama-3.1-70b-versatile",
+      "llama-3.1-8b-instant",
       "mixtral-8x7b-32768",
-      "gemma2-9b-it",
     ];
 
     let lastError = null;
 
     for (const model of modelsToTry) {
       try {
-        console.log(`Trying model: ${model}`);
+        console.log(`Testing model: ${model}`);
         const response = await axios.post(
           "https://api.groq.com/openai/v1/chat/completions",
           {
@@ -2639,6 +2636,7 @@ app.get("/api/test", async (req, res) => {
           },
         );
 
+        // If we get here, model works
         return res.json({
           success: true,
           message: "Groq API test successful",
@@ -2647,14 +2645,17 @@ app.get("/api/test", async (req, res) => {
         });
       } catch (error) {
         lastError = error;
-        if (error.response) {
-          console.log(`Model ${model} failed:`, error.response.data);
+        if (error.response?.data) {
+          console.log(
+            `Model ${model} failed:`,
+            error.response.data.error?.message,
+          );
         }
       }
     }
 
     // If all models failed
-    if (lastError && lastError.response) {
+    if (lastError?.response?.data) {
       return res.json({
         success: false,
         error: "All models failed",
