@@ -2597,7 +2597,7 @@ Guidelines:
 app.get("/api/test", async (req, res) => {
   try {
     const GROQ_API_KEY = process.env.GROQ_API_KEY;
-    console.log("Testing Groq API...");
+    console.log("Testing Groq API with new models...");
 
     if (!GROQ_API_KEY) {
       return res.json({
@@ -2606,14 +2606,12 @@ app.get("/api/test", async (req, res) => {
       });
     }
 
-    // Only use confirmed active models
+    // ONLY use currently active models (no decommissioned ones)
     const modelsToTry = [
       "llama-3.1-70b-versatile",
       "llama-3.1-8b-instant",
       "mixtral-8x7b-32768",
     ];
-
-    let lastError = null;
 
     for (const model of modelsToTry) {
       try {
@@ -2636,7 +2634,6 @@ app.get("/api/test", async (req, res) => {
           },
         );
 
-        // If we get here, model works
         return res.json({
           success: true,
           message: "Groq API test successful",
@@ -2644,29 +2641,16 @@ app.get("/api/test", async (req, res) => {
           response: response.data.choices[0].message.content,
         });
       } catch (error) {
-        lastError = error;
-        if (error.response?.data) {
-          console.log(
-            `Model ${model} failed:`,
-            error.response.data.error?.message,
-          );
-        }
+        console.log(
+          `Model ${model} failed:`,
+          error.response?.data?.error?.message || error.message,
+        );
       }
     }
 
-    // If all models failed
-    if (lastError?.response?.data) {
-      return res.json({
-        success: false,
-        error: "All models failed",
-        groqError: lastError.response.data,
-        status: lastError.response.status,
-      });
-    }
-
-    res.json({
+    return res.json({
       success: false,
-      error: lastError?.message || "Unknown error",
+      error: "All models failed - check API key and account status",
     });
   } catch (error) {
     console.error("Test endpoint error:", error.message);
