@@ -439,32 +439,72 @@ app.get("/api/media/stream/:id", authenticateToken, async (req, res) => {
   }
 });
 
-// ================= EMAIL CONFIGURATION (Simple Logger - No External Packages) =================
-// This logs emails to console instead of sending them
-// Perfect for development and testing on Render's free tier
+// ================= EMAIL CONFIGURATION WITH BREVO (REAL EMAILS) =================
+const SibApiV3Sdk = require("@getbrevo/brevo");
 
 let sendEmail;
 
-// Simple email logger - no external dependencies
-sendEmail = async (to, subject, htmlContent, textContent) => {
-  console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-  console.log(`📧 EMAIL NOTIFICATION (Development Mode)`);
-  console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-  console.log(`To: ${to}`);
-  console.log(`Subject: ${subject}`);
+// Check if Brevo API key exists
+if (process.env.BREVO_API_KEY) {
+  try {
+    // Configure Brevo client
+    let defaultClient = SibApiV3Sdk.ApiClient.instance;
+    let apiKey = defaultClient.authentications["api-key"];
+    apiKey.apiKey = process.env.BREVO_API_KEY;
+
+    let apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+
+    sendEmail = async (to, subject, htmlContent, textContent) => {
+      try {
+        let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+        sendSmtpEmail.subject = subject;
+        sendSmtpEmail.htmlContent = htmlContent;
+        sendSmtpEmail.textContent = textContent;
+        sendSmtpEmail.sender = {
+          name: "E-Bundle Ethiopia",
+          email: "ebundlelearning@gmail.com",
+        };
+        sendSmtpEmail.to = [{ email: to }];
+
+        console.log(`📧 Sending REAL email to ${to} via Brevo...`);
+        const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
+        console.log(
+          `✅ Email sent successfully! Message ID: ${data.messageId}`,
+        );
+        return true;
+      } catch (error) {
+        console.error(
+          `❌ Failed to send email to ${to}:`,
+          error.response?.body || error.message,
+        );
+        return false;
+      }
+    };
+    console.log("✅✅✅ BREVO CONFIGURED - REAL EMAILS WILL BE SENT! ✅✅✅");
+  } catch (error) {
+    console.error("❌ Failed to initialize Brevo:", error.message);
+    // Fallback to console logger if Brevo fails to initialize
+    sendEmail = async (to, subject, html, text) => {
+      console.log(`📧 [FALLBACK] Would send email to ${to}: ${subject}`);
+      return true;
+    };
+  }
+} else {
+  // Fallback for when API key is missing
+  sendEmail = async (to, subject, html, text) => {
+    console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    console.log(`⚠️ NO BREVO API KEY - Email not sent`);
+    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    console.log(`To: ${to}`);
+    console.log(`Subject: ${subject}`);
+    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
+    console.log("💡 Add BREVO_API_KEY to your Render environment variables");
+    return true;
+  };
   console.log(
-    `Message: ${textContent || htmlContent?.replace(/<[^>]*>/g, "").substring(0, 200)}`,
+    "⚠️ No BREVO_API_KEY found. Add it to Render environment variables to send real emails.",
   );
-  console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
-
-  // Return true to simulate successful email sending
-  return true;
-};
-
-console.log("✅ Email logger initialized (emails will appear in Render logs)");
-console.log(
-  "💡 Production tip: Add Brevo or SendGrid API key to enable real email sending",
-);
+}
 
 // ================= HELPER FUNCTIONS =================
 
