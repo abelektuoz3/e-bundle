@@ -2488,7 +2488,7 @@ app.post("/seed-courses", authenticateToken, async (req, res) => {
   }
 });
 
-// ================= AI TUTOR CHAT (GROQ API) =================
+// ================= AI TUTOR CHAT (DEEPSEEK API) =================
 const axios = require("axios");
 
 app.post("/api/chat", authenticateToken, async (req, res) => {
@@ -2508,10 +2508,10 @@ app.post("/api/chat", authenticateToken, async (req, res) => {
 
     const user = await User.findById(userId).select("firstName grade");
 
-    const GROQ_API_KEY = process.env.GROQ_API_KEY;
+    const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 
-    if (!GROQ_API_KEY) {
-      console.error("❌ GROQ_API_KEY is missing!");
+    if (!DEEPSEEK_API_KEY) {
+      console.error("❌ DEEPSEEK_API_KEY is missing!");
       return res.status(500).json({
         success: false,
         error: "AI service not configured - API key missing",
@@ -2519,8 +2519,8 @@ app.post("/api/chat", authenticateToken, async (req, res) => {
     }
 
     console.log(
-      "✅ API Key found, first 10 chars:",
-      GROQ_API_KEY.substring(0, 10) + "...",
+      "✅ DeepSeek API Key found, first 10 chars:",
+      DEEPSEEK_API_KEY.substring(0, 10) + "...",
     );
     console.log("📝 Message:", message.substring(0, 100));
 
@@ -2543,10 +2543,11 @@ Guidelines:
 - If unsure, admit it and suggest resources
 - Keep responses concise but thorough (under 500 words)
 - Use formatting like **bold** for key terms and *bullet points* for lists
-- For math problems, show all work clearly`;
+- For math problems, show all work clearly
+- Always respond in the same language as the user's question (English or Amharic)`;
 
     const requestBody = {
-      model: "llama3-70b-8192",
+      model: "deepseek-chat",
       messages: [
         { role: "system", content: systemContent },
         { role: "user", content: message },
@@ -2554,17 +2555,18 @@ Guidelines:
       temperature: 0.7,
       max_tokens: 1024,
       top_p: 0.9,
+      stream: false,
     };
 
-    console.log("🚀 Sending request to Groq...");
+    console.log("🚀 Sending request to DeepSeek API...");
     console.log("Model:", requestBody.model);
 
     const response = await axios.post(
-      "https://api.groq.com/openai/v1/chat/completions",
+      "https://api.deepseek.com/v1/chat/completions",
       requestBody,
       {
         headers: {
-          Authorization: `Bearer ${GROQ_API_KEY}`,
+          Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
           "Content-Type": "application/json",
         },
         timeout: 30000,
@@ -2572,7 +2574,7 @@ Guidelines:
     );
 
     const aiResponse = response.data.choices[0].message.content;
-    console.log("✅ AI response received, length:", aiResponse.length);
+    console.log("✅ DeepSeek response received, length:", aiResponse.length);
 
     res.json({
       success: true,
@@ -2584,7 +2586,7 @@ Guidelines:
     // Detailed error logging
     if (error.response) {
       console.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-      console.error("GROQ API ERROR DETAILS:");
+      console.error("DEEPSEEK API ERROR DETAILS:");
       console.error("Status:", error.response.status);
       console.error("Status Text:", error.response.statusText);
       console.error(
@@ -2593,7 +2595,7 @@ Guidelines:
       );
       console.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
-      // Send the actual Groq error to frontend
+      // Send the actual DeepSeek error to frontend
       return res.status(500).json({
         success: false,
         error:
@@ -2601,7 +2603,7 @@ Guidelines:
         details: error.response.data,
       });
     } else if (error.request) {
-      console.error("No response received from Groq API");
+      console.error("No response received from DeepSeek API");
       console.error("Request:", error.request);
     } else {
       console.error("Error setting up request:", error.message);
@@ -2610,6 +2612,61 @@ Guidelines:
     res.status(500).json({
       success: false,
       error: "Failed to get AI response. Please try again later.",
+    });
+  }
+});
+
+// ================= TEST DEEPSEEK ENDPOINT =================
+app.get("/api/test", async (req, res) => {
+  try {
+    const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
+    console.log("Testing DeepSeek API...");
+
+    if (!DEEPSEEK_API_KEY) {
+      return res.json({
+        success: false,
+        error: "DEEPSEEK_API_KEY not found in environment variables",
+      });
+    }
+
+    console.log("Testing DeepSeek connection...");
+    const response = await axios.post(
+      "https://api.deepseek.com/v1/chat/completions",
+      {
+        model: "deepseek-chat",
+        messages: [
+          { role: "user", content: "Say 'Working!' if you receive this." },
+        ],
+        max_tokens: 50,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 10000,
+      },
+    );
+
+    return res.json({
+      success: true,
+      message: "DeepSeek API test successful",
+      model: "deepseek-chat",
+      response: response.data.choices[0].message.content,
+    });
+  } catch (error) {
+    console.error("Test endpoint error:", error.message);
+    if (error.response) {
+      console.error("Error details:", error.response.data);
+      return res.json({
+        success: false,
+        error: error.response.data?.error?.message || error.message,
+        details: error.response.data,
+      });
+    }
+    res.json({
+      success: false,
+      error: error.message,
     });
   }
 });
