@@ -5,7 +5,6 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const path = require("path");
 const crypto = require("crypto");
-const nodemailer = require("nodemailer");
 require("dotenv").config();
 const fs = require("fs");
 const { upload, formatFileSize } = require("./middleware/upload");
@@ -440,51 +439,32 @@ app.get("/api/media/stream/:id", authenticateToken, async (req, res) => {
   }
 });
 
-// ================= EMAIL CONFIGURATION WITH BREVO API =================
-const SibApiV3Sdk = require('@getbrevo/brevo');
+// ================= EMAIL CONFIGURATION (Simple Logger - No External Packages) =================
+// This logs emails to console instead of sending them
+// Perfect for development and testing on Render's free tier
 
 let sendEmail;
 
-// Check for Brevo API key in environment variables
-if (process.env.BREVO_API_KEY) {
-    // Configure Brevo client
-    let defaultClient = SibApiV3Sdk.ApiClient.instance;
-    let apiKey = defaultClient.authentications['api-key'];
-    apiKey.apiKey = process.env.BREVO_API_KEY;
+// Simple email logger - no external dependencies
+sendEmail = async (to, subject, htmlContent, textContent) => {
+  console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+  console.log(`📧 EMAIL NOTIFICATION (Development Mode)`);
+  console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+  console.log(`To: ${to}`);
+  console.log(`Subject: ${subject}`);
+  console.log(
+    `Message: ${textContent || htmlContent?.replace(/<[^>]*>/g, "").substring(0, 200)}`,
+  );
+  console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
 
-    let apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+  // Return true to simulate successful email sending
+  return true;
+};
 
-    sendEmail = async (to, subject, htmlContent, textContent) => {
-        try {
-            let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-            sendSmtpEmail.subject = subject;
-            sendSmtpEmail.htmlContent = htmlContent;
-            sendSmtpEmail.textContent = textContent;
-            sendSmtpEmail.sender = { 
-                name: "E-Bundle Ethiopia", 
-                email: process.env.FROM_EMAIL || "ebundlelearning@gmail.com" 
-            };
-            sendSmtpEmail.to = [{ email: to }];
-
-            console.log(`📧 Attempting to send email to ${to} via Brevo API...`);
-            const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
-            console.log(`✅ Email sent to ${to}. Message ID: ${data.messageId}`);
-            return true;
-        } catch (error) {
-            console.error(`❌ Failed to send email to ${to}:`, error.response?.body || error.message);
-            return false;
-        }
-    };
-    console.log("✅ Brevo email service configured");
-} else {
-    // Fallback for development (no emails actually sent)
-    sendEmail = async (to, subject, html, text) => {
-        console.log(`📧 [DEV MODE] Would send email to ${to}: ${subject}`);
-        console.log(`[DEV MODE] Email content: ${text}`);
-        return true;
-    };
-    console.log("⚠️ No BREVO_API_KEY found. Emails will be logged to console only.");
-}
+console.log("✅ Email logger initialized (emails will appear in Render logs)");
+console.log(
+  "💡 Production tip: Add Brevo or SendGrid API key to enable real email sending",
+);
 
 // ================= HELPER FUNCTIONS =================
 
@@ -2526,7 +2506,7 @@ Guidelines:
 - For math problems, show all work clearly`;
 
     const requestBody = {
-      model: "llama-3.1-8b-instant",
+      model: "llama3-70b-8192",
       messages: [
         { role: "system", content: systemContent },
         { role: "user", content: message },
@@ -2598,7 +2578,7 @@ Guidelines:
 app.get("/api/test", async (req, res) => {
   try {
     const GROQ_API_KEY = process.env.GROQ_API_KEY;
-    console.log("Testing Groq API with new models...");
+    console.log("Testing Groq API...");
 
     if (!GROQ_API_KEY) {
       return res.json({
@@ -2607,54 +2587,44 @@ app.get("/api/test", async (req, res) => {
       });
     }
 
-    // ONLY use currently active models (no decommissioned ones)
-    const modelsToTry = [
-      "llama-3.1-70b-versatile",
-      "llama-3.1-8b-instant",
-      "mixtral-8x7b-32768",
-    ];
+    // Test with confirmed working model
+    const model = "llama3-70b-8192";
 
-    for (const model of modelsToTry) {
-      try {
-        console.log(`Testing model: ${model}`);
-        const response = await axios.post(
-          "https://api.groq.com/openai/v1/chat/completions",
-          {
-            model: model,
-            messages: [
-              { role: "user", content: "Say 'Working!' if you receive this." },
-            ],
-            max_tokens: 50,
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${GROQ_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            timeout: 10000,
-          },
-        );
-
-        return res.json({
-          success: true,
-          message: "Groq API test successful",
-          model: model,
-          response: response.data.choices[0].message.content,
-        });
-      } catch (error) {
-        console.log(
-          `Model ${model} failed:`,
-          error.response?.data?.error?.message || error.message,
-        );
-      }
-    }
+    console.log(`Testing model: ${model}`);
+    const response = await axios.post(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        model: model,
+        messages: [
+          { role: "user", content: "Say 'Working!' if you receive this." },
+        ],
+        max_tokens: 50,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${GROQ_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 10000,
+      },
+    );
 
     return res.json({
-      success: false,
-      error: "All models failed - check API key and account status",
+      success: true,
+      message: "Groq API test successful",
+      model: model,
+      response: response.data.choices[0].message.content,
     });
   } catch (error) {
     console.error("Test endpoint error:", error.message);
+    if (error.response) {
+      console.error("Error details:", error.response.data);
+      return res.json({
+        success: false,
+        error: error.response.data?.error?.message || error.message,
+        details: error.response.data,
+      });
+    }
     res.json({
       success: false,
       error: error.message,
