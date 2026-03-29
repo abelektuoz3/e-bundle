@@ -440,49 +440,50 @@ app.get("/api/media/stream/:id", authenticateToken, async (req, res) => {
   }
 });
 
-// ================= EMAIL TRANSPORTER CONFIGURATION =================
-const { Resend } = require("resend");
+// ================= EMAIL CONFIGURATION WITH BREVO API =================
+const SibApiV3Sdk = require('@getbrevo/brevo');
 
 let sendEmail;
 
-// Initialize Resend if API key exists
-if (process.env.RESEND_API_KEY) {
-  const resend = new Resend(process.env.RESEND_API_KEY);
+// Check for Brevo API key in environment variables
+if (process.env.BREVO_API_KEY) {
+    // Configure Brevo client
+    let defaultClient = SibApiV3Sdk.ApiClient.instance;
+    let apiKey = defaultClient.authentications['api-key'];
+    apiKey.apiKey = process.env.BREVO_API_KEY;
 
-  sendEmail = async (to, subject, html, text) => {
-    try {
-      console.log(`📧 Attempting to send email to ${to}...`);
-      const { data, error } = await resend.emails.send({
-        from: `E-Bundle Ethiopia <${process.env.EMAIL_FROM || "onboarding@resend.dev"}>`,
-        to: [to],
-        subject,
-        html,
-        text,
-      });
+    let apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
 
-      if (error) {
-        console.error(`❌ Resend error:`, error);
-        return false;
-      }
+    sendEmail = async (to, subject, htmlContent, textContent) => {
+        try {
+            let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+            sendSmtpEmail.subject = subject;
+            sendSmtpEmail.htmlContent = htmlContent;
+            sendSmtpEmail.textContent = textContent;
+            sendSmtpEmail.sender = { 
+                name: "E-Bundle Ethiopia", 
+                email: process.env.FROM_EMAIL || "ebundlelearning@gmail.com" 
+            };
+            sendSmtpEmail.to = [{ email: to }];
 
-      console.log(`✅ Email sent to ${to}. ID: ${data?.id}`);
-      return true;
-    } catch (error) {
-      console.error(`❌ Failed to send email to ${to}:`, error.message);
-      return false;
-    }
-  };
-  console.log("✅ Resend email service configured");
+            console.log(`📧 Attempting to send email to ${to} via Brevo API...`);
+            const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
+            console.log(`✅ Email sent to ${to}. Message ID: ${data.messageId}`);
+            return true;
+        } catch (error) {
+            console.error(`❌ Failed to send email to ${to}:`, error.response?.body || error.message);
+            return false;
+        }
+    };
+    console.log("✅ Brevo email service configured");
 } else {
-  // Fallback to console log for local development
-  sendEmail = async (to, subject, html, text) => {
-    console.log(`📧 [DEV] Would send email to ${to}: ${subject}`);
-    console.log(`[DEV] Email content: ${text}`);
-    return true;
-  };
-  console.log(
-    "⚠️ No RESEND_API_KEY found. Emails will be logged to console only.",
-  );
+    // Fallback for development (no emails actually sent)
+    sendEmail = async (to, subject, html, text) => {
+        console.log(`📧 [DEV MODE] Would send email to ${to}: ${subject}`);
+        console.log(`[DEV MODE] Email content: ${text}`);
+        return true;
+    };
+    console.log("⚠️ No BREVO_API_KEY found. Emails will be logged to console only.");
 }
 
 // ================= HELPER FUNCTIONS =================
