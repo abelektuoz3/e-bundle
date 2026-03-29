@@ -2490,11 +2490,18 @@ app.post("/api/chat", authenticateToken, async (req, res) => {
     const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
     if (!GROQ_API_KEY) {
+      console.error("❌ GROQ_API_KEY is missing!");
       return res.status(500).json({
         success: false,
         error: "AI service not configured - API key missing",
       });
     }
+
+    console.log(
+      "✅ API Key found, first 10 chars:",
+      GROQ_API_KEY.substring(0, 10) + "...",
+    );
+    console.log("📝 Message:", message.substring(0, 100));
 
     const systemContent = `You are an AI tutor for Ethiopian students${user ? ` named ${user.firstName}` : ""}${user?.grade ? ` in grade ${user.grade}` : ""}. 
               
@@ -2517,18 +2524,23 @@ Guidelines:
 - Use formatting like **bold** for key terms and *bullet points* for lists
 - For math problems, show all work clearly`;
 
+    const requestBody = {
+      model: "llama3-70b-8192",
+      messages: [
+        { role: "system", content: systemContent },
+        { role: "user", content: message },
+      ],
+      temperature: 0.7,
+      max_tokens: 1024,
+      top_p: 0.9,
+    };
+
+    console.log("🚀 Sending request to Groq...");
+    console.log("Model:", requestBody.model);
+
     const response = await axios.post(
       "https://api.groq.com/openai/v1/chat/completions",
-      {
-        model: "llama3-70b-8192",
-        messages: [
-          { role: "system", content: systemContent },
-          { role: "user", content: message },
-        ],
-        temperature: 0.7,
-        max_tokens: 1024,
-        top_p: 0.9,
-      },
+      requestBody,
       {
         headers: {
           Authorization: `Bearer ${GROQ_API_KEY}`,
@@ -2539,13 +2551,41 @@ Guidelines:
     );
 
     const aiResponse = response.data.choices[0].message.content;
+    console.log("✅ AI response received, length:", aiResponse.length);
 
     res.json({
       success: true,
       response: aiResponse,
     });
   } catch (error) {
-    console.error("Chat error:", error.message);
+    console.error("❌ Chat error:", error.message);
+
+    // Detailed error logging
+    if (error.response) {
+      console.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+      console.error("GROQ API ERROR DETAILS:");
+      console.error("Status:", error.response.status);
+      console.error("Status Text:", error.response.statusText);
+      console.error(
+        "Error Data:",
+        JSON.stringify(error.response.data, null, 2),
+      );
+      console.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+      // Send the actual Groq error to frontend
+      return res.status(500).json({
+        success: false,
+        error:
+          error.response.data?.error?.message || "Failed to get AI response",
+        details: error.response.data,
+      });
+    } else if (error.request) {
+      console.error("No response received from Groq API");
+      console.error("Request:", error.request);
+    } else {
+      console.error("Error setting up request:", error.message);
+    }
+
     res.status(500).json({
       success: false,
       error: "Failed to get AI response. Please try again later.",
@@ -2557,39 +2597,75 @@ Guidelines:
 app.get("/api/test", async (req, res) => {
   try {
     const GROQ_API_KEY = process.env.GROQ_API_KEY;
+    console.log("Testing Groq API...");
+    console.log("API Key exists:", !!GROQ_API_KEY);
 
     if (!GROQ_API_KEY) {
       return res.json({
         success: false,
-        error: "GROQ_API_KEY not found in .env",
+        error: "GROQ_API_KEY not found in environment variables",
+        envKeys: Object.keys(process.env),
       });
     }
 
-    const response = await axios.post(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        model: "llama3-70b-8192",
-        messages: [
+    // Try different models
+    const modelsToTry = [
+      "llama3-70b-8192",
+      "llama-3.1-70b-versatile",
+      "mixtral-8x7b-32768",
+      "gemma2-9b-it",
+    ];
+
+    let lastError = null;
+
+    for (const model of modelsToTry) {
+      try {
+        console.log(`Trying model: ${model}`);
+        const response = await axios.post(
+          "https://api.groq.com/openai/v1/chat/completions",
           {
-            role: "user",
-            content: "Say 'API is working!' if you receive this.",
+            model: model,
+            messages: [
+              { role: "user", content: "Say 'Working!' if you receive this." },
+            ],
+            max_tokens: 50,
           },
-        ],
-        max_tokens: 50,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${GROQ_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        timeout: 10000,
-      },
-    );
+          {
+            headers: {
+              Authorization: `Bearer ${GROQ_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            timeout: 10000,
+          },
+        );
+
+        return res.json({
+          success: true,
+          message: "Groq API test successful",
+          model: model,
+          response: response.data.choices[0].message.content,
+        });
+      } catch (error) {
+        lastError = error;
+        if (error.response) {
+          console.log(`Model ${model} failed:`, error.response.data);
+        }
+      }
+    }
+
+    // If all models failed
+    if (lastError && lastError.response) {
+      return res.json({
+        success: false,
+        error: "All models failed",
+        groqError: lastError.response.data,
+        status: lastError.response.status,
+      });
+    }
 
     res.json({
-      success: true,
-      message: "Groq API test successful",
-      response: response.data.choices[0].message.content,
+      success: false,
+      error: lastError?.message || "Unknown error",
     });
   } catch (error) {
     console.error("Test endpoint error:", error.message);
