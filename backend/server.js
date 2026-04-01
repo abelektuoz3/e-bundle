@@ -13,22 +13,76 @@ const User = require("./models/User");
 const Activity = require("./models/Activity");
 const Course = require("./models/Course");
 const Progress = require("./models/Progress");
+const sgMail = require("@sendgrid/mail");
 
 const app = express();
 
-// ✅ FIXED: Better CORS configuration - allow all origins for development
+// ================= ENVIRONMENT VARIABLES VALIDATION =================
+const requiredEnvVars = ["MONGO_URI", "JWT_SECRET", "SENDGRID_API_KEY"];
+
+const missingEnvVars = requiredEnvVars.filter(
+  (varName) => !process.env[varName],
+);
+if (missingEnvVars.length > 0) {
+  console.error(
+    `❌ Missing required environment variables: ${missingEnvVars.join(", ")}`,
+  );
+  console.error(
+    "Please set these variables in your Render environment variables.",
+  );
+  if (process.env.NODE_ENV === "production") {
+    process.exit(1);
+  }
+}
+
+// Initialize SendGrid with API key
+if (process.env.SENDGRID_API_KEY) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  console.log("✅ SendGrid initialized");
+} else {
+  console.warn("⚠️ SENDGRID_API_KEY not found in environment variables");
+}
+
+// ================= CORS CONFIGURATION =================
+const allowedOrigins =
+  process.env.ALLOWED_ORIGINS ?
+    process.env.ALLOWED_ORIGINS.split(",")
+  : [
+      "http://localhost:3000",
+      "http://localhost:5000",
+      "https://your-render-app.onrender.com",
+    ];
+
 app.use(
   cors({
-    origin: true,
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      if (
+        allowedOrigins.indexOf(origin) !== -1 ||
+        process.env.NODE_ENV !== "production"
+      ) {
+        callback(null, true);
+      } else {
+        console.warn(`Origin ${origin} not allowed by CORS`);
+        callback(null, true); // Still allow but log warning in production
+      }
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
 
-// ✅ Add CORS headers manually as backup
+// Add CORS headers as backup
 app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
+  const origin = req.headers.origin;
+  if (
+    allowedOrigins.includes(origin) ||
+    process.env.NODE_ENV !== "production"
+  ) {
+    res.header("Access-Control-Allow-Origin", origin || "*");
+  }
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   res.header(
     "Access-Control-Allow-Headers",
@@ -41,16 +95,49 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
-// ✅ SERVE STATIC HTML FILES
-app.use(express.static(path.join(__dirname)));
+// ================= STATIC FILE SERVING =================
+// Serve static files from uploads directory if it exists
+const uploadsDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  const mediaDir = path.join(uploadsDir, "media");
+  if (!fs.existsSync(mediaDir)) {
+    fs.mkdirSync(mediaDir, { recursive: true });
+  }
+}
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use(express.static(path.join(__dirname, "public")));
 
-// Connect MongoDB
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB Connected"))
-  .catch((err) => console.log("MongoDB Error:", err));
+// ================= MONGODB CONNECTION WITH RETRY LOGIC =================
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    });
+    console.log("✅ MongoDB Connected Successfully");
+  } catch (err) {
+    console.error("❌ MongoDB Connection Error:", err.message);
+    console.log("Retrying connection in 5 seconds...");
+    setTimeout(connectDB, 5000);
+  }
+};
+
+connectDB();
+
+mongoose.connection.on("error", (err) => {
+  console.error("MongoDB connection error:", err);
+});
+
+mongoose.connection.on("disconnected", () => {
+  console.log("MongoDB disconnected. Attempting to reconnect...");
+  setTimeout(connectDB, 5000);
+});
 
 // ================= MIDDLEWARE DEFINITIONS =================
 
@@ -134,7 +221,9 @@ app.post(
       const { title, category, description } = req.body;
 
       if (!title) {
-        fs.unlinkSync(req.file.path);
+        if (fs.existsSync(req.file.path)) {
+          fs.unlinkSync(req.file.path);
+        }
         return res.status(400).json({
           success: false,
           message: "Title is required",
@@ -439,141 +528,143 @@ app.get("/api/media/stream/:id", authenticateToken, async (req, res) => {
   }
 });
 
-// ================= EMAIL CONFIGURATION WITH BREVO (REAL EMAILS) =================
-const SibApiV3Sdk = require("@getbrevo/brevo");
+// ================= SENDGRID EMAIL FUNCTIONS =================
 
-let sendEmail;
+const FROM_EMAIL =
+  process.env.EMAIL_FROM ||
+  process.env.EMAIL_USER ||
+  "noreply@ebundleethiopia.com";
 
-// Check if Brevo API key exists
-if (process.env.BREVO_API_KEY) {
-  try {
-    // Configure Brevo client
-    let defaultClient = SibApiV3Sdk.ApiClient.instance;
-    let apiKey = defaultClient.authentications["api-key"];
-    apiKey.apiKey = process.env.BREVO_API_KEY;
-
-    let apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-
-    sendEmail = async (to, subject, htmlContent, textContent) => {
-      try {
-        let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-        sendSmtpEmail.subject = subject;
-        sendSmtpEmail.htmlContent = htmlContent;
-        sendSmtpEmail.textContent = textContent;
-        sendSmtpEmail.sender = {
-          name: "E-Bundle Ethiopia",
-          email: "ebundlelearning@gmail.com",
-        };
-        sendSmtpEmail.to = [{ email: to }];
-
-        console.log(`📧 Sending REAL email to ${to} via Brevo...`);
-        const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
-        console.log(
-          `✅ Email sent successfully! Message ID: ${data.messageId}`,
-        );
-        return true;
-      } catch (error) {
-        console.error(
-          `❌ Failed to send email to ${to}:`,
-          error.response?.body || error.message,
-        );
-        return false;
-      }
-    };
-    console.log("✅✅✅ BREVO CONFIGURED - REAL EMAILS WILL BE SENT! ✅✅✅");
-  } catch (error) {
-    console.error("❌ Failed to initialize Brevo:", error.message);
-    // Fallback to console logger if Brevo fails to initialize
-    sendEmail = async (to, subject, html, text) => {
-      console.log(`📧 [FALLBACK] Would send email to ${to}: ${subject}`);
-      return true;
-    };
-  }
-} else {
-  // Fallback for when API key is missing
-  sendEmail = async (to, subject, html, text) => {
-    console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-    console.log(`⚠️ NO BREVO API KEY - Email not sent`);
-    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-    console.log(`To: ${to}`);
-    console.log(`Subject: ${subject}`);
-    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
-    console.log("💡 Add BREVO_API_KEY to your Render environment variables");
-    return true;
+const sendAdminResetEmail = async (email, otp, firstName) => {
+  const msg = {
+    to: email,
+    from: FROM_EMAIL,
+    subject: "Admin Password Reset Code - E-Bundle Ethiopia",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
+        <div style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 24px;">E-Bundle Ethiopia</h1>
+          <p style="color: #e0e0e0; margin: 10px 0 0 0;">Admin Portal - Password Reset</p>
+        </div>
+        <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <h2 style="color: #333; margin-top: 0;">Hello ${firstName || "Admin"},</h2>
+          <p style="color: #666; font-size: 16px; line-height: 1.6;">
+            You requested a password reset for your admin account. Use the following verification code to complete the process:
+          </p>
+          <div style="text-align: center; margin: 30px 0;">
+            <div style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; font-size: 32px; font-weight: bold; letter-spacing: 10px; padding: 20px; border-radius: 10px; display: inline-block;">
+              ${otp}
+            </div>
+          </div>
+          <p style="color: #666; font-size: 14px; text-align: center;">
+            This code will expire in <strong>10 minutes</strong>.
+          </p>
+          <p style="color: #999; font-size: 12px; text-align: center; margin-top: 30px;">
+            If you didn't request this code, please ignore this email or contact support immediately.
+          </p>
+        </div>
+      </div>
+    `,
+    text: `Your E-Bundle Ethiopia admin password reset code is: ${otp}. This code will expire in 10 minutes.`,
   };
-  console.log(
-    "⚠️ No BREVO_API_KEY found. Add it to Render environment variables to send real emails.",
-  );
-}
 
-// ================= HELPER FUNCTIONS =================
+  try {
+    await sgMail.send(msg);
+    console.log(`✅ Admin reset email sent to ${email}`);
+    return true;
+  } catch (error) {
+    console.error(
+      `❌ Failed to send admin reset email to ${email}:`,
+      error.response?.body || error.message,
+    );
+    return false;
+  }
+};
+
+const sendOTPEmail = async (email, otp, firstName) => {
+  const msg = {
+    to: email,
+    from: FROM_EMAIL,
+    subject: "Your Email Verification Code - E-Bundle Ethiopia",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
+        <div style="background: linear-gradient(135deg, #4F46E5, #7C3AED); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 24px;">E-Bundle Ethiopia</h1>
+          <p style="color: #e0e0e0; margin: 10px 0 0 0;">Email Verification</p>
+        </div>
+        <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <h2 style="color: #333; margin-top: 0;">Hello ${firstName || "Student"},</h2>
+          <p style="color: #666; font-size: 16px; line-height: 1.6;">
+            Thank you for signing up with E-Bundle Ethiopia! To complete your registration, please use the following verification code:
+          </p>
+          <div style="text-align: center; margin: 30px 0;">
+            <div style="background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; font-size: 32px; font-weight: bold; letter-spacing: 10px; padding: 20px; border-radius: 10px; display: inline-block;">
+              ${otp}
+            </div>
+          </div>
+          <p style="color: #666; font-size: 14px; text-align: center;">
+            This code will expire in <strong>10 minutes</strong>.
+          </p>
+          <p style="color: #999; font-size: 12px; text-align: center; margin-top: 30px;">
+            If you didn't request this code, please ignore this email.
+          </p>
+        </div>
+      </div>
+    `,
+    text: `Your E-Bundle Ethiopia verification code is: ${otp}. This code will expire in 10 minutes.`,
+  };
+
+  try {
+    await sgMail.send(msg);
+    console.log(`✅ OTP email sent to ${email}`);
+    return true;
+  } catch (error) {
+    console.error(
+      `❌ Failed to send OTP email to ${email}:`,
+      error.response?.body || error.message,
+    );
+    return false;
+  }
+};
+
+const sendResetLinkEmail = async (email, resetLink, firstName) => {
+  const msg = {
+    to: email,
+    from: FROM_EMAIL,
+    subject: "Reset Your Password - E-Bundle Ethiopia",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
+        <div style="background: linear-gradient(135deg, #4F46E5, #7C3AED); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="color: white; margin: 0;">E-Bundle Ethiopia</h1>
+        </div>
+        <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px;">
+          <h2 style="color: #333;">Password Reset Request</h2>
+          <p style="color: #666;">Hello ${firstName || "Student"},</p>
+          <p style="color: #666;">Click the link below to reset your password:</p>
+          <a href="${resetLink}" style="display: inline-block; background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; margin: 20px 0;">Reset Password</a>
+          <p style="color: #999; font-size: 12px;">This link expires in 1 hour.</p>
+          <p style="color: #999; font-size: 12px; margin-top: 20px;">If you didn't request this, please ignore this email.</p>
+        </div>
+      </div>
+    `,
+    text: `Hello ${firstName || "Student"},\n\nClick the link below to reset your password:\n${resetLink}\n\nThis link expires in 1 hour.`,
+  };
+
+  try {
+    await sgMail.send(msg);
+    console.log(`✅ Reset link email sent to ${email}`);
+    return true;
+  } catch (error) {
+    console.error(
+      `❌ Failed to send reset link email to ${email}:`,
+      error.response?.body || error.message,
+    );
+    return false;
+  }
+};
 
 const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
-};
-
-// Send OTP Email for Admin Password Reset
-const sendAdminResetEmail = async (email, otp, firstName) => {
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
-      <div style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 24px;">E-Bundle Ethiopia</h1>
-        <p style="color: #e0e0e0; margin: 10px 0 0 0;">Admin Portal - Password Reset</p>
-      </div>
-      <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-        <h2 style="color: #333; margin-top: 0;">Hello ${firstName || "Admin"},</h2>
-        <p style="color: #666; font-size: 16px; line-height: 1.6;">
-          You requested a password reset for your admin account. Use the following verification code to complete the process:
-        </p>
-        <div style="text-align: center; margin: 30px 0;">
-          <div style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; font-size: 32px; font-weight: bold; letter-spacing: 10px; padding: 20px; border-radius: 10px; display: inline-block;">
-            ${otp}
-          </div>
-        </div>
-        <p style="color: #666; font-size: 14px; text-align: center;">
-          This code will expire in <strong>10 minutes</strong>.
-        </p>
-        <p style="color: #999; font-size: 12px; text-align: center; margin-top: 30px;">
-          If you didn't request this code, please ignore this email or contact support immediately.
-        </p>
-      </div>
-    </div>
-  `;
-  const text = `Your E-Bundle Ethiopia admin password reset code is: ${otp}. This code will expire in 10 minutes.`;
-
-  return await sendEmail(email, "Admin Password Reset Code", html, text);
-};
-
-// Send OTP Email for User Verification
-const sendOTPEmail = async (email, otp, firstName) => {
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
-      <div style="background-color: #4F46E5; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 24px;">E-Bundle Ethiopia</h1>
-        <p style="color: #e0e0e0; margin: 10px 0 0 0;">Email Verification</p>
-      </div>
-      <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-        <h2 style="color: #333; margin-top: 0;">Hello ${firstName || "Student"},</h2>
-        <p style="color: #666; font-size: 16px; line-height: 1.6;">
-          Thank you for signing up with E-Bundle Ethiopia! To complete your registration, please use the following verification code:
-        </p>
-        <div style="text-align: center; margin: 30px 0;">
-          <div style="background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; font-size: 32px; font-weight: bold; letter-spacing: 10px; padding: 20px; border-radius: 10px; display: inline-block;">
-            ${otp}
-          </div>
-        </div>
-        <p style="color: #666; font-size: 14px; text-align: center;">
-          This code will expire in <strong>10 minutes</strong>.
-        </p>
-        <p style="color: #999; font-size: 12px; text-align: center; margin-top: 30px;">
-          If you didn't request this code, please ignore this email.
-        </p>
-      </div>
-    </div>
-  `;
-  const text = `Your E-Bundle Ethiopia verification code is: ${otp}. This code will expire in 10 minutes.`;
-
-  return await sendEmail(email, "Your Email Verification Code", html, text);
 };
 
 // ================= ADMIN AUTHENTICATION SCHEMA =================
@@ -612,7 +703,6 @@ const Admin = mongoose.model("Admin", adminSchema);
 
 // ================= ADMIN AUTHENTICATION ENDPOINTS =================
 
-// Admin Signup
 app.post("/api/admin/signup", async (req, res) => {
   try {
     const { firstName, lastName, email, password } = req.body;
@@ -675,7 +765,6 @@ app.post("/api/admin/signup", async (req, res) => {
   }
 });
 
-// Admin Login
 app.post("/api/admin/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -760,7 +849,6 @@ app.post("/api/admin/login", async (req, res) => {
   }
 });
 
-// Get Current Admin Profile
 app.get("/api/admin/profile", authenticateAdmin, async (req, res) => {
   try {
     const admin = await Admin.findById(req.admin.id).select(
@@ -789,7 +877,6 @@ app.get("/api/admin/profile", authenticateAdmin, async (req, res) => {
   }
 });
 
-// Update Admin Profile
 app.put("/api/admin/profile", authenticateAdmin, async (req, res) => {
   try {
     const { firstName, lastName, email } = req.body;
@@ -831,7 +918,6 @@ app.put("/api/admin/profile", authenticateAdmin, async (req, res) => {
   }
 });
 
-// Change Admin Password
 app.post("/api/admin/change-password", authenticateAdmin, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
@@ -876,7 +962,6 @@ app.post("/api/admin/change-password", authenticateAdmin, async (req, res) => {
   }
 });
 
-// Admin Forgot Password
 app.post("/api/admin/forgot-password", async (req, res) => {
   try {
     const { email } = req.body;
@@ -926,7 +1011,6 @@ app.post("/api/admin/forgot-password", async (req, res) => {
   }
 });
 
-// Verify Reset OTP Code
 app.post("/api/admin/verify-reset-code", async (req, res) => {
   try {
     const { email, code } = req.body;
@@ -987,7 +1071,6 @@ app.post("/api/admin/verify-reset-code", async (req, res) => {
   }
 });
 
-// Reset Password with Token
 app.post("/api/admin/reset-password", async (req, res) => {
   try {
     const { email, code, newPassword } = req.body;
@@ -1052,7 +1135,6 @@ app.post("/api/admin/reset-password", async (req, res) => {
   }
 });
 
-// Admin Logout
 app.post("/api/admin/logout", authenticateAdmin, async (req, res) => {
   try {
     res.json({
@@ -1070,7 +1152,6 @@ app.post("/api/admin/logout", authenticateAdmin, async (req, res) => {
 
 // ================= USER ENDPOINTS (Students) =================
 
-// User Signup with OTP
 app.post("/signup", async (req, res) => {
   try {
     const { email, studentId, password, firstName, lastName, grade, school } =
@@ -1126,7 +1207,6 @@ app.post("/signup", async (req, res) => {
   }
 });
 
-// Verify OTP
 app.post("/verify-otp", async (req, res) => {
   try {
     const { email, otp } = req.body;
@@ -1206,7 +1286,6 @@ app.post("/verify-otp", async (req, res) => {
   }
 });
 
-// Resend OTP
 app.post("/resend-otp", async (req, res) => {
   try {
     const { email } = req.body;
@@ -1263,7 +1342,6 @@ app.post("/resend-otp", async (req, res) => {
   }
 });
 
-// User Login
 app.post("/login", async (req, res) => {
   try {
     const { loginId, password } = req.body;
@@ -1312,7 +1390,6 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// Get Profile
 app.get("/profile", authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select(
@@ -1349,7 +1426,6 @@ app.get("/profile", authenticateToken, async (req, res) => {
   }
 });
 
-// Update Profile
 app.put("/profile", authenticateToken, async (req, res) => {
   try {
     const { firstName, lastName, email, grade, school, bio, avatar } = req.body;
@@ -1417,7 +1493,6 @@ app.put("/profile", authenticateToken, async (req, res) => {
   }
 });
 
-// Track media progress
 app.post("/api/track-media", authenticateToken, async (req, res) => {
   try {
     const { mediaId, mediaType, courseId, progress, completed, timeSpent } =
@@ -1488,7 +1563,6 @@ app.post("/api/track-media", authenticateToken, async (req, res) => {
   }
 });
 
-// Get media progress
 app.get("/api/media-progress", authenticateToken, async (req, res) => {
   try {
     const progressRecords = await Progress.find({ userId: req.user.id });
@@ -1513,7 +1587,6 @@ app.get("/api/media-progress", authenticateToken, async (req, res) => {
   }
 });
 
-// Change Password
 app.post("/change-password", authenticateToken, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
@@ -1554,7 +1627,6 @@ app.post("/change-password", authenticateToken, async (req, res) => {
   }
 });
 
-// User Forgot Password
 app.post("/forgot-password", async (req, res) => {
   try {
     const { email } = req.body;
@@ -1569,27 +1641,16 @@ app.post("/forgot-password", async (req, res) => {
     user.resetTokenExpire = Date.now() + 3600000;
     await user.save();
 
-    const resetLink = `${process.env.BASE_URL || "http://localhost:5000"}/change-password.html?token=${token}`;
+    const resetLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/change-password.html?token=${token}`;
 
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
-        <div style="background-color: #4F46E5; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0;">E-Bundle Ethiopia</h1>
-        </div>
-        <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px;">
-          <h2 style="color: #333;">Password Reset Request</h2>
-          <p style="color: #666;">Click the link below to reset your password:</p>
-          <a href="${resetLink}" style="display: inline-block; background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; margin: 20px 0;">Reset Password</a>
-          <p style="color: #999; font-size: 12px;">This link expires in 1 hour.</p>
-        </div>
-      </div>
-    `;
-    const text = `Click the link to reset your password: ${resetLink}`;
-
-    const emailSent = await sendEmail(email, "Reset Your Password", html, text);
+    const emailSent = await sendResetLinkEmail(
+      email,
+      resetLink,
+      user.firstName,
+    );
 
     if (!emailSent) {
-      return res.status(500).json({ message: "Error sending email" });
+      return res.status(500).json({ message: "Failed to send reset email" });
     }
 
     res.json({ message: "Reset link sent to your email" });
@@ -1599,7 +1660,6 @@ app.post("/forgot-password", async (req, res) => {
   }
 });
 
-// User Reset Password
 app.post("/reset-password", async (req, res) => {
   try {
     const { token, newPassword } = req.body;
@@ -1626,7 +1686,6 @@ app.post("/reset-password", async (req, res) => {
   }
 });
 
-// Delete Account
 app.delete("/delete-account", authenticateToken, async (req, res) => {
   try {
     const { password, confirmation } = req.body;
@@ -1670,7 +1729,6 @@ app.delete("/delete-account", authenticateToken, async (req, res) => {
 
 // ================= DASHBOARD ENDPOINTS =================
 
-// Get Dashboard Data
 app.get("/dashboard", authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select(
@@ -1784,7 +1842,6 @@ app.get("/dashboard", authenticateToken, async (req, res) => {
   }
 });
 
-// Update Streak
 app.post("/update-streak", authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -1841,7 +1898,6 @@ app.post("/update-streak", authenticateToken, async (req, res) => {
   }
 });
 
-// Log Activity
 app.post("/log-activity", authenticateToken, async (req, res) => {
   try {
     const { type, title, description, xp, courseId, timeSpent } = req.body;
@@ -1875,7 +1931,6 @@ app.post("/log-activity", authenticateToken, async (req, res) => {
   }
 });
 
-// Get User Stats
 app.get("/user-stats", authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select(
@@ -1908,7 +1963,6 @@ app.get("/user-stats", authenticateToken, async (req, res) => {
   }
 });
 
-// Update Course Progress
 app.post("/update-progress", authenticateToken, async (req, res) => {
   try {
     const { courseId, completedLessons, totalLessons, timeSpent } = req.body;
@@ -2127,7 +2181,7 @@ app.get("/api/study-groups", authenticateToken, async (req, res) => {
   }
 });
 
-// ================= MESSAGE SCHEMA =================
+// ================= MESSAGE SCHEMA FOR PERSISTENT CHAT =================
 const messageSchema = new mongoose.Schema({
   groupId: { type: String, required: true, index: true },
   userId: {
@@ -2147,7 +2201,6 @@ const messageSchema = new mongoose.Schema({
 
 const Message = mongoose.model("Message", messageSchema);
 
-// Get Messages
 app.get("/api/messages", authenticateToken, async (req, res) => {
   try {
     const { group, limit = 100, before } = req.query;
@@ -2199,7 +2252,6 @@ app.get("/api/messages", authenticateToken, async (req, res) => {
   }
 });
 
-// Send Message
 app.post("/api/messages", authenticateToken, async (req, res) => {
   try {
     const { groupId, text } = req.body;
@@ -2274,7 +2326,6 @@ app.post("/api/messages", authenticateToken, async (req, res) => {
   }
 });
 
-// Edit Message
 app.put("/api/messages/:messageId", authenticateToken, async (req, res) => {
   try {
     const { messageId } = req.params;
@@ -2323,7 +2374,6 @@ app.put("/api/messages/:messageId", authenticateToken, async (req, res) => {
   }
 });
 
-// Delete Message
 app.delete("/api/messages/:messageId", authenticateToken, async (req, res) => {
   try {
     const { messageId } = req.params;
@@ -2355,7 +2405,6 @@ app.delete("/api/messages/:messageId", authenticateToken, async (req, res) => {
   }
 });
 
-// Get Direct Messages
 app.get("/api/direct-messages", authenticateToken, async (req, res) => {
   try {
     const messages = [
@@ -2387,7 +2436,6 @@ app.get("/api/direct-messages", authenticateToken, async (req, res) => {
   }
 });
 
-// Seed Courses
 app.post("/seed-courses", authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -2488,7 +2536,7 @@ app.post("/seed-courses", authenticateToken, async (req, res) => {
   }
 });
 
-// ================= AI TUTOR CHAT (DEEPSEEK API) =================
+// ================= AI TUTOR CHAT (GROQ API) =================
 const axios = require("axios");
 
 app.post("/api/chat", authenticateToken, async (req, res) => {
@@ -2508,21 +2556,14 @@ app.post("/api/chat", authenticateToken, async (req, res) => {
 
     const user = await User.findById(userId).select("firstName grade");
 
-    const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
+    const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
-    if (!DEEPSEEK_API_KEY) {
-      console.error("❌ DEEPSEEK_API_KEY is missing!");
+    if (!GROQ_API_KEY) {
       return res.status(500).json({
         success: false,
         error: "AI service not configured - API key missing",
       });
     }
-
-    console.log(
-      "✅ DeepSeek API Key found, first 10 chars:",
-      DEEPSEEK_API_KEY.substring(0, 10) + "...",
-    );
-    console.log("📝 Message:", message.substring(0, 100));
 
     const systemContent = `You are an AI tutor for Ethiopian students${user ? ` named ${user.firstName}` : ""}${user?.grade ? ` in grade ${user.grade}` : ""}. 
               
@@ -2543,30 +2584,23 @@ Guidelines:
 - If unsure, admit it and suggest resources
 - Keep responses concise but thorough (under 500 words)
 - Use formatting like **bold** for key terms and *bullet points* for lists
-- For math problems, show all work clearly
-- Always respond in the same language as the user's question (English or Amharic)`;
-
-    const requestBody = {
-      model: "deepseek-chat",
-      messages: [
-        { role: "system", content: systemContent },
-        { role: "user", content: message },
-      ],
-      temperature: 0.7,
-      max_tokens: 1024,
-      top_p: 0.9,
-      stream: false,
-    };
-
-    console.log("🚀 Sending request to DeepSeek API...");
-    console.log("Model:", requestBody.model);
+- For math problems, show all work clearly`;
 
     const response = await axios.post(
-      "https://api.deepseek.com/v1/chat/completions",
-      requestBody,
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        model: process.env.GROQ_MODEL || "llama3-70b-8192",
+        messages: [
+          { role: "system", content: systemContent },
+          { role: "user", content: message },
+        ],
+        temperature: 0.7,
+        max_tokens: 1024,
+        top_p: 0.9,
+      },
       {
         headers: {
-          Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+          Authorization: `Bearer ${GROQ_API_KEY}`,
           "Content-Type": "application/json",
         },
         timeout: 30000,
@@ -2574,99 +2608,16 @@ Guidelines:
     );
 
     const aiResponse = response.data.choices[0].message.content;
-    console.log("✅ DeepSeek response received, length:", aiResponse.length);
 
     res.json({
       success: true,
       response: aiResponse,
     });
   } catch (error) {
-    console.error("❌ Chat error:", error.message);
-
-    // Detailed error logging
-    if (error.response) {
-      console.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-      console.error("DEEPSEEK API ERROR DETAILS:");
-      console.error("Status:", error.response.status);
-      console.error("Status Text:", error.response.statusText);
-      console.error(
-        "Error Data:",
-        JSON.stringify(error.response.data, null, 2),
-      );
-      console.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-
-      // Send the actual DeepSeek error to frontend
-      return res.status(500).json({
-        success: false,
-        error:
-          error.response.data?.error?.message || "Failed to get AI response",
-        details: error.response.data,
-      });
-    } else if (error.request) {
-      console.error("No response received from DeepSeek API");
-      console.error("Request:", error.request);
-    } else {
-      console.error("Error setting up request:", error.message);
-    }
-
+    console.error("Chat error:", error.message);
     res.status(500).json({
       success: false,
       error: "Failed to get AI response. Please try again later.",
-    });
-  }
-});
-
-// ================= TEST DEEPSEEK ENDPOINT =================
-app.get("/api/test", async (req, res) => {
-  try {
-    const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-    console.log("Testing DeepSeek API...");
-
-    if (!DEEPSEEK_API_KEY) {
-      return res.json({
-        success: false,
-        error: "DEEPSEEK_API_KEY not found in environment variables",
-      });
-    }
-
-    console.log("Testing DeepSeek connection...");
-    const response = await axios.post(
-      "https://api.deepseek.com/v1/chat/completions",
-      {
-        model: "deepseek-chat",
-        messages: [
-          { role: "user", content: "Say 'Working!' if you receive this." },
-        ],
-        max_tokens: 50,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        timeout: 10000,
-      },
-    );
-
-    return res.json({
-      success: true,
-      message: "DeepSeek API test successful",
-      model: "deepseek-chat",
-      response: response.data.choices[0].message.content,
-    });
-  } catch (error) {
-    console.error("Test endpoint error:", error.message);
-    if (error.response) {
-      console.error("Error details:", error.response.data);
-      return res.json({
-        success: false,
-        error: error.response.data?.error?.message || error.message,
-        details: error.response.data,
-      });
-    }
-    res.json({
-      success: false,
-      error: error.message,
     });
   }
 });
@@ -2675,25 +2626,23 @@ app.get("/api/test", async (req, res) => {
 app.get("/api/test", async (req, res) => {
   try {
     const GROQ_API_KEY = process.env.GROQ_API_KEY;
-    console.log("Testing Groq API...");
 
     if (!GROQ_API_KEY) {
       return res.json({
         success: false,
-        error: "GROQ_API_KEY not found in environment variables",
+        error: "GROQ_API_KEY not found in .env",
       });
     }
 
-    // Test with confirmed working model
-    const model = "llama3-70b-8192";
-
-    console.log(`Testing model: ${model}`);
     const response = await axios.post(
       "https://api.groq.com/openai/v1/chat/completions",
       {
-        model: model,
+        model: process.env.GROQ_MODEL || "llama3-70b-8192",
         messages: [
-          { role: "user", content: "Say 'Working!' if you receive this." },
+          {
+            role: "user",
+            content: "Say 'API is working!' if you receive this.",
+          },
         ],
         max_tokens: 50,
       },
@@ -2706,27 +2655,37 @@ app.get("/api/test", async (req, res) => {
       },
     );
 
-    return res.json({
+    res.json({
       success: true,
       message: "Groq API test successful",
-      model: model,
       response: response.data.choices[0].message.content,
     });
   } catch (error) {
     console.error("Test endpoint error:", error.message);
-    if (error.response) {
-      console.error("Error details:", error.response.data);
-      return res.json({
-        success: false,
-        error: error.response.data?.error?.message || error.message,
-        details: error.response.data,
-      });
-    }
     res.json({
       success: false,
       error: error.message,
     });
   }
+});
+
+// ================= HEALTH CHECK ENDPOINT =================
+app.get("/health", (req, res) => {
+  const dbState = mongoose.connection.readyState;
+  const dbStatus = {
+    0: "disconnected",
+    1: "connected",
+    2: "connecting",
+    3: "disconnecting",
+  }[dbState];
+
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    mongodb: dbStatus,
+    environment: process.env.NODE_ENV || "development",
+  });
 });
 
 // ================= ERROR HANDLING =================
@@ -2796,50 +2755,28 @@ io.on("connection", (socket) => {
     }
   });
 
-  // ================= FIXED WEBRTC SIGNALING HANDLERS =================
   socket.on("offer", (data) => {
-    if (!data || !data.target) {
-      console.log("Invalid offer data received");
-      return;
-    }
-    console.log("📤 Offer received from", socket.id, "to", data.target);
     const targetSocket = io.sockets.sockets.get(data.target);
     if (targetSocket) {
-      console.log("✅ Forwarding offer to", data.target);
       targetSocket.emit("offer", {
         offer: data.offer,
         from: socket.id,
         fromUser: data.fromUser,
       });
-    } else {
-      console.log("❌ Target socket not found:", data.target);
     }
   });
 
   socket.on("answer", (data) => {
-    if (!data || !data.target) {
-      console.log("Invalid answer data received");
-      return;
-    }
-    console.log("📤 Answer received from", socket.id, "to", data.target);
     const targetSocket = io.sockets.sockets.get(data.target);
     if (targetSocket) {
-      console.log("✅ Forwarding answer to", data.target);
       targetSocket.emit("answer", {
         answer: data.answer,
         from: socket.id,
       });
-    } else {
-      console.log("❌ Target socket not found for answer");
     }
   });
 
   socket.on("ice-candidate", (data) => {
-    if (!data || !data.target) {
-      console.log("Invalid ICE candidate data received");
-      return;
-    }
-    console.log("🧊 ICE candidate from", socket.id, "to", data.target);
     const targetSocket = io.sockets.sockets.get(data.target);
     if (targetSocket) {
       targetSocket.emit("ice-candidate", {
@@ -2850,8 +2787,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("end-call", (data) => {
-    console.log("📞 End call from", socket.id, "target:", data?.target);
-    if (data && data.target) {
+    if (data.target) {
       const targetSocket = io.sockets.sockets.get(data.target);
       if (targetSocket) {
         targetSocket.emit("call-ended", { from: socket.id });
@@ -2860,7 +2796,6 @@ io.on("connection", (socket) => {
 
     if (currentRoom) {
       socket.leave(currentRoom);
-      currentRoom = null;
     }
   });
 
@@ -2896,10 +2831,6 @@ function matchUsers() {
       socket1.join(roomName);
       socket2.join(roomName);
 
-      socket1.currentRoom = roomName;
-      socket2.currentRoom = roomName;
-
-      // Designate user1 as initiator (first to send offer)
       socket1.emit("matched", {
         partner: {
           socketId: user2.socketId,
@@ -2907,7 +2838,6 @@ function matchUsers() {
           grade: user2.grade,
         },
         room: roomName,
-        isInitiator: true, // user1 is initiator
       });
 
       socket2.emit("matched", {
@@ -2917,27 +2847,24 @@ function matchUsers() {
           grade: user1.grade,
         },
         room: roomName,
-        isInitiator: false, // user2 waits for offer
       });
 
-      console.log(`Matched ${user1.name} (initiator) with ${user2.name}`);
-    } else {
-      if (socket1) waitingUsers.push(user1);
-      if (socket2) waitingUsers.push(user2);
+      console.log(`Matched ${user1.name} with ${user2.name}`);
     }
   }
 }
 
 // ================= START SERVER =================
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, "0.0.0.0", () => {
+server.listen(PORT, () => {
   console.log(`\n✅ Server running on http://localhost:${PORT}`);
-  console.log(`📧 OTP Verification endpoints ready`);
+  console.log(`📧 SendGrid email service ready (From: ${FROM_EMAIL})`);
   console.log(`📊 Dashboard endpoints ready`);
   console.log(`📚 Library endpoints ready`);
   console.log(`💬 Community endpoints ready`);
   console.log(`🤖 AI Chat endpoint: http://localhost:${PORT}/api/chat`);
   console.log(`📹 WebRTC signaling server ready`);
+  console.log(`🏥 Health check: http://localhost:${PORT}/health`);
   console.log(`👨‍💼 Admin endpoints:`);
   console.log(`   - POST /api/admin/signup`);
   console.log(`   - POST /api/admin/login`);
