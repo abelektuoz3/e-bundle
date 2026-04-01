@@ -608,13 +608,17 @@ const sendResetLinkEmail = async (email, resetLink, firstName) => {
           <h2 style="color: #333;">Password Reset Request</h2>
           <p style="color: #666;">Hello ${firstName || "Student"},</p>
           <p style="color: #666;">Click the link below to reset your password:</p>
-          <a href="${resetLink}" style="display: inline-block; background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; margin: 20px 0;">Reset Password</a>
-          <p style="color: #999; font-size: 12px;">This link expires in 1 hour.</p>
-          <p style="color: #999; font-size: 12px; margin-top: 20px;">If you didn't request this, please ignore this email.</p>
+          <div style="text-align: center; margin: 20px 0;">
+            <a href="${resetLink}" style="display: inline-block; background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">Reset Password</a>
+          </div>
+          <p style="color: #666; font-size: 14px;">Or copy and paste this link into your browser:</p>
+          <p style="color: #4F46E5; font-size: 12px; word-break: break-all;">${resetLink}</p>
+          <p style="color: #999; font-size: 12px; margin-top: 20px;">This link expires in 1 hour.</p>
+          <p style="color: #999; font-size: 12px;">If you didn't request this, please ignore this email.</p>
         </div>
       </div>
     `,
-    text: `Hello ${firstName || "Student"},\n\nClick the link below to reset your password:\n${resetLink}\n\nThis link expires in 1 hour.`,
+    text: `Hello ${firstName || "Student"},\n\nClick the link below to reset your password:\n${resetLink}\n\nThis link expires in 1 hour.\n\nIf you didn't request this, please ignore this email.`,
   };
 
   try {
@@ -1595,6 +1599,7 @@ app.post("/change-password", authenticateToken, async (req, res) => {
 });
 
 // ================= FIXED FORGOT PASSWORD ENDPOINT =================
+// This now points to your frontend route instead of an HTML file
 app.post("/forgot-password", async (req, res) => {
   try {
     const { email } = req.body;
@@ -1610,13 +1615,15 @@ app.post("/forgot-password", async (req, res) => {
 
     const token = crypto.randomBytes(32).toString("hex");
     user.resetToken = token;
-    user.resetTokenExpire = Date.now() + 3600000;
+    user.resetTokenExpire = Date.now() + 3600000; // 1 hour
     await user.save();
 
     // Use FRONTEND_URL from environment or fallback to your Render URL
     const frontendUrl =
       process.env.FRONTEND_URL || "https://e-bundle.onrender.com";
-    const resetLink = `${frontendUrl}/change-password.html?token=${token}`;
+
+    // Point to your frontend's forgot-password page with the token
+    const resetLink = `${frontendUrl}/forgot-password?token=${token}`;
 
     console.log(`Sending reset link to ${email}: ${resetLink}`);
 
