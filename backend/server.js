@@ -18,7 +18,7 @@ const sgMail = require("@sendgrid/mail");
 const app = express();
 
 // ================= ENVIRONMENT VARIABLES VALIDATION =================
-const requiredEnvVars = ["MONGO_URI", "JWT_SECRET", "SENDGRID_API_KEY"];
+const requiredEnvVars = ["MONGO_URI", "JWT_SECRET"];
 
 const missingEnvVars = requiredEnvVars.filter(
   (varName) => !process.env[varName],
@@ -27,11 +27,10 @@ if (missingEnvVars.length > 0) {
   console.error(
     `❌ Missing required environment variables: ${missingEnvVars.join(", ")}`,
   );
-  console.error(
-    "Please set these variables in your Render environment variables.",
-  );
   if (process.env.NODE_ENV === "production") {
-    process.exit(1);
+    console.error(
+      "Please set these variables in your Render environment variables.",
+    );
   }
 }
 
@@ -50,13 +49,12 @@ const allowedOrigins =
   : [
       "http://localhost:3000",
       "http://localhost:5000",
-      "https://your-render-app.onrender.com",
+      "https://e-bundle.onrender.com",
     ];
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
       if (
         allowedOrigins.indexOf(origin) !== -1 ||
@@ -65,7 +63,7 @@ app.use(
         callback(null, true);
       } else {
         console.warn(`Origin ${origin} not allowed by CORS`);
-        callback(null, true); // Still allow but log warning in production
+        callback(null, true);
       }
     },
     credentials: true,
@@ -74,32 +72,10 @@ app.use(
   }),
 );
 
-// Add CORS headers as backup
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (
-    allowedOrigins.includes(origin) ||
-    process.env.NODE_ENV !== "production"
-  ) {
-    res.header("Access-Control-Allow-Origin", origin || "*");
-  }
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization",
-  );
-
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-  next();
-});
-
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // ================= STATIC FILE SERVING =================
-// Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -109,8 +85,7 @@ if (!fs.existsSync(uploadsDir)) {
   }
 }
 
-// ================= MONGODB CONNECTION - FIXED =================
-// REMOVED all deprecated options - using mongoose 8+ which doesn't need them
+// ================= MONGODB CONNECTION =================
 const connectDB = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI);
@@ -135,7 +110,6 @@ mongoose.connection.on("disconnected", () => {
 
 // ================= MIDDLEWARE DEFINITIONS =================
 
-// Authentication Middleware
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const tokenFromQuery = req.query.token;
@@ -154,7 +128,6 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// Admin Authentication Middleware
 async function authenticateAdmin(req, res, next) {
   try {
     const authHeader = req.headers["authorization"];
@@ -1621,9 +1594,14 @@ app.post("/change-password", authenticateToken, async (req, res) => {
   }
 });
 
+// ================= FIXED FORGOT PASSWORD ENDPOINT =================
 app.post("/forgot-password", async (req, res) => {
   try {
     const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
 
     const user = await User.findOne({ email });
     if (!user) {
@@ -1635,7 +1613,12 @@ app.post("/forgot-password", async (req, res) => {
     user.resetTokenExpire = Date.now() + 3600000;
     await user.save();
 
-    const resetLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/change-password.html?token=${token}`;
+    // Use FRONTEND_URL from environment or fallback to your Render URL
+    const frontendUrl =
+      process.env.FRONTEND_URL || "https://e-bundle.onrender.com";
+    const resetLink = `${frontendUrl}/change-password.html?token=${token}`;
+
+    console.log(`Sending reset link to ${email}: ${resetLink}`);
 
     const emailSent = await sendResetLinkEmail(
       email,
@@ -1647,9 +1630,12 @@ app.post("/forgot-password", async (req, res) => {
       return res.status(500).json({ message: "Failed to send reset email" });
     }
 
-    res.json({ message: "Reset link sent to your email" });
+    res.json({
+      success: true,
+      message: "Reset link sent to your email",
+    });
   } catch (err) {
-    console.error(err);
+    console.error("Forgot password error:", err);
     res.status(500).json({ message: "Error sending email" });
   }
 });
@@ -1673,7 +1659,10 @@ app.post("/reset-password", async (req, res) => {
     user.resetTokenExpire = undefined;
     await user.save();
 
-    res.json({ message: "Password reset successful" });
+    res.json({
+      success: true,
+      message: "Password reset successful",
+    });
   } catch (err) {
     console.error("Reset password error:", err);
     res.status(500).json({ message: "Server error" });
