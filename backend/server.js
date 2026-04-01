@@ -1620,10 +1620,10 @@ app.post("/forgot-password", async (req, res) => {
 
     // Use FRONTEND_URL from environment or fallback to your Render URL
     const frontendUrl =
-      process.env.FRONTEND_URL || "https://e-bundle.onrender.com";
+      process.env.FRONTEND_URL || "https://ebundle-ethiopianetlify.app";
 
     // Point to your frontend's forgot-password page with the token
-    const resetLink = `${frontendUrl}/forgot-password?token=${token}`;
+    const resetLink = `${frontendUrl}/forgot-pass?token=${token}`;
 
     console.log(`Sending reset link to ${email}: ${resetLink}`);
 
