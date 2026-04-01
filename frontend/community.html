@@ -15,7 +15,7 @@
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Ethiopic:wght@400;500;700&display=swap"
       rel="stylesheet" />
-
+    <link rel="stylesheet" href="style/community.css" />
     <script>
       tailwind.config = {
         theme: {
@@ -30,106 +30,6 @@
         },
       };
     </script>
-
-    <style>
-      /* Custom Styles */
-      .glass {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-      }
-      .glass-card {
-        background: linear-gradient(
-          135deg,
-          rgba(255, 255, 255, 0.05) 0%,
-          rgba(255, 255, 255, 0.01) 100%
-        );
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        transition: all 0.3s ease;
-      }
-      .glass-card:hover {
-        border-color: rgba(79, 70, 229, 0.3);
-      }
-      .messages-container {
-        scroll-behavior: smooth;
-      }
-      .message-bubble {
-        animation: fadeInUp 0.3s ease-out;
-      }
-      @keyframes fadeInUp {
-        from {
-          opacity: 0;
-          transform: translateY(10px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-      .unread-badge {
-        min-width: 20px;
-        height: 20px;
-        border-radius: 10px;
-        background: #4f46e5;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 10px;
-        font-weight: bold;
-        padding: 0 6px;
-      }
-      .typing-indicator {
-        display: inline-flex;
-        align-items: center;
-      }
-      .typing-dot {
-        width: 4px;
-        height: 4px;
-        border-radius: 50%;
-        background-color: #9ca3af;
-        margin: 0 2px;
-        animation: typingAnimation 1.4s infinite ease-in-out;
-      }
-      .typing-dot:nth-child(1) {
-        animation-delay: -0.32s;
-      }
-      .typing-dot:nth-child(2) {
-        animation-delay: -0.16s;
-      }
-      @keyframes typingAnimation {
-        0%,
-        80%,
-        100% {
-          transform: scale(0.8);
-          opacity: 0.5;
-        }
-        40% {
-          transform: scale(1.2);
-          opacity: 1;
-        }
-      }
-      .blob {
-        position: absolute;
-        filter: blur(80px);
-        opacity: 0.3;
-        animation: blob 7s infinite;
-      }
-      @keyframes blob {
-        0% {
-          transform: translate(0px, 0px) scale(1);
-        }
-        33% {
-          transform: translate(30px, -50px) scale(1.1);
-        }
-        66% {
-          transform: translate(-20px, 20px) scale(0.9);
-        }
-        100% {
-          transform: translate(0px, 0px) scale(1);
-        }
-      }
-    </style>
   </head>
   <body class="antialiased relative selection:bg-primary selection:text-white">
     <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">

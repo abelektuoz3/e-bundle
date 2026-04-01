@@ -287,3 +287,64 @@ button,
 .resend-btn:not(:disabled):hover {
   color: #4f46e5;
 }
+
+/* RESPONSIVE DESIGN - Mobile First */
+@media (max-width: 639px) {
+  body {
+    padding: 1rem !important;
+    font-size: 16px;
+  }
+
+  .glass-card {
+    max-width: 100% !important;
+    margin: 0 0.5rem;
+    padding: 1.5rem !important;
+  }
+
+  /* Critical: Smaller OTP inputs for mobile */
+  .otp-input {
+    width: 35px !important;
+    height: 50px !important;
+    font-size: 1.25rem !important;
+  }
+
+  /* Allow wrapping on very small screens */
+  .flex.justify-center.space-x-3 {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+
+  input,
+  button {
+    font-size: 16px !important;
+  }
+
+  .w-16,
+  .h-16 {
+    width: 3rem !important;
+    height: 3rem !important;
+  }
+
+  .text-2xl {
+    font-size: 1.5rem !important;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .glass-card {
+    max-width: 28rem !important;
+    padding: 2rem !important;
+  }
+
+  .otp-input {
+    width: 45px !important;
+    height: 60px !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .glass-card {
+    padding: 2.5rem !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  }
+}

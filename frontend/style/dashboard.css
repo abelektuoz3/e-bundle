@@ -267,3 +267,19 @@ button,
 .progress-bar-fill.in-progress {
   background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%);
 }
+
+/* Enhanced Responsive Styles */
+@media (max-width: 640px) {
+  h1 {
+    font-size: 1.875rem !important;
+    line-height: 2.25rem;
+  }
+
+  .glass-card {
+    padding: 1rem;
+  }
+
+  main {
+    padding: 1rem;
+  }
+}

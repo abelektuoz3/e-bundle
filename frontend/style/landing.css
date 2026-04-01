@@ -127,3 +127,107 @@ button,
   cursor: pointer;
   touch-action: manipulation;
 }
+
+/* ========================================
+   RESPONSIVE DESIGN - Mobile First
+   ======================================== */
+
+/* Mobile: 320px - 640px */
+@media (max-width: 640px) {
+  /* Hero Section */
+  section.flex-1 {
+    padding-top: 3rem !important;
+    padding-bottom: 3rem !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  h1 {
+    font-size: 2.25rem !important;
+    line-height: 1.1 !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .text-xl {
+    font-size: 1.1rem !important;
+  }
+
+  /* Buttons */
+  .flex.flex-wrap.gap-4 > a {
+    flex: 1 1 100% !important;
+    min-width: 100% !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  /* Features Grid */
+  /* Features Grid */
+  [class*="grid md:grid-cols-2 lg:grid-cols-4"] {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  /* Navbar */
+  nav {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  .glass-card {
+    padding: 1.25rem !important;
+  }
+
+  /* Section padding */
+  section.py-20 {
+    padding-top: 3rem !important;
+    padding-bottom: 3rem !important;
+  }
+}
+
+/* Tablet: 641px - 1023px */
+@media (min-width: 641px) and (max-width: 1023px) {
+  h1 {
+    font-size: 3rem !important;
+  }
+
+  [class*="grid md:grid-cols-2 lg:grid-cols-4"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* Large screens */
+@media (min-width: 1280px) {
+  .max-w-6xl {
+    max-width: 1200px !important;
+  }
+}
+
+/* Motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .blob,
+  .hover-scale,
+  [class*="animate-"] {
+    animation: none !important;
+    transform: none !important;
+  }
+}
+
+/* Mobile Menu Animation */
+#mobile-menu:not(.hidden) {
+  animation: slideDown 0.25s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Ensure mobile menu closes properly */
+#mobile-menu {
+  will-change: transform;
+}

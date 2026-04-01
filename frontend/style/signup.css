@@ -305,3 +305,81 @@ button,
   background: rgba(255, 255, 255, 0.1);
   margin: 14px 0;
 }
+
+/* RESPONSIVE DESIGN - Mobile First */
+@media (max-width: 639px) {
+  body {
+    padding: 1rem !important;
+    font-size: 16px;
+  }
+
+  .glass-card {
+    max-width: 100% !important;
+    margin: 0 0.5rem;
+    padding: 1.5rem !important;
+    max-height: 90vh !important;
+  }
+
+  input,
+  select {
+    padding: 0.875rem 1rem !important;
+    font-size: 16px !important;
+  }
+
+  button {
+    padding: 0.875rem 1rem !important;
+    font-size: 16px;
+  }
+
+  /* Step indicator - stack vertically */
+  .step-indicator {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 1rem;
+  }
+
+  .step {
+    width: 2.5rem !important;
+    height: 2.5rem !important;
+  }
+
+  .step-line {
+    width: 2px !important;
+    height: 1.5rem !important;
+    transform: rotate(90deg) !important;
+  }
+
+  /* Grid layouts - single column */
+  .grid-cols-2 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Smaller headers */
+  .text-2xl {
+    font-size: 1.5rem !important;
+  }
+
+  .w-16,
+  .h-16 {
+    width: 3rem !important;
+    height: 3rem !important;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .glass-card {
+    max-width: 32rem !important;
+    padding: 2rem !important;
+  }
+
+  .step-indicator {
+    gap: 0.75rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .glass-card {
+    padding: 2.5rem !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  }
+}
