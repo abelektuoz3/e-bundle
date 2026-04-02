@@ -517,7 +517,15 @@
             console.log("✅ Partner joined room:", data);
             videoChatApp.currentPartner = data.partner;
             videoChatApp.currentRoomId = data.room;
+            videoChatApp.showCallUI();
             document.getElementById("roomControls").style.display = "none";
+            document.getElementById("partnerName").textContent =
+              `${data.partner.name} (Grade ${data.partner.grade})`;
+            document.getElementById("partnerInfo").classList.remove("hidden");
+            console.log(
+              "🎥 Starting call with partner:",
+              data.partner.socketId,
+            );
             await videoChatApp.startCallWithPartner();
           });
 
@@ -572,14 +580,15 @@
 
           const btn = document.getElementById("createRoomBtn");
           btn.disabled = true;
-          btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Creating Room...';
+          btn.innerHTML =
+            '<i class="fas fa-spinner fa-spin mr-2"></i>Creating Room...';
 
           videoChatApp.socket.emit("create-room", videoChatApp.userData);
         },
 
         joinRoom: async () => {
           const pin = document.getElementById("roomPinInput").value.trim();
-          
+
           if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
             videoChatApp.showToast("Enter valid 4-digit PIN", "error");
             return;
@@ -587,24 +596,27 @@
 
           const joinBtn = document.getElementById("joinRoomBtn");
           const pinInput = document.getElementById("roomPinInput");
-          
+
           joinBtn.disabled = true;
           joinBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
           pinInput.disabled = true;
 
-          videoChatApp.socket.emit("join-room", { 
+          videoChatApp.socket.emit("join-room", {
             pin: pin.toUpperCase(),
-            userData: videoChatApp.userData 
+            userData: videoChatApp.userData,
           });
         },
 
         copyPin: () => {
           if (videoChatApp.roomPin) {
-            navigator.clipboard.writeText(videoChatApp.roomPin).then(() => {
-              videoChatApp.showToast("PIN copied to clipboard!", "success");
-            }).catch(() => {
-              videoChatApp.showToast("Failed to copy PIN", "error");
-            });
+            navigator.clipboard
+              .writeText(videoChatApp.roomPin)
+              .then(() => {
+                videoChatApp.showToast("PIN copied to clipboard!", "success");
+              })
+              .catch(() => {
+                videoChatApp.showToast("Failed to copy PIN", "error");
+              });
           }
         },
 
@@ -635,18 +647,19 @@
 
             // Handle remote stream
             videoChatApp.peerConnection.ontrack = (event) => {
+              console.log("📹 Remote stream received:", event.streams[0]);
               const remoteVideo = document.getElementById("remoteVideo");
-              if (remoteVideo.srcObject !== event.streams[0]) {
-                remoteVideo.srcObject = event.streams[0];
-                document
-                  .getElementById("remotePlaceholder")
-                  .classList.add("hidden");
-              }
+              remoteVideo.srcObject = event.streams[0];
+              document
+                .getElementById("remotePlaceholder")
+                .classList.add("hidden");
+              console.log("Remote video assigned:", remoteVideo.srcObject);
             };
 
             // Handle ICE candidates
             videoChatApp.peerConnection.onicecandidate = (event) => {
               if (event.candidate && videoChatApp.currentPartner) {
+                console.log("🧊 Sending ICE candidate to", videoChatApp.currentPartner.socketId);
                 videoChatApp.socket.emit("ice-candidate", {
                   target: videoChatApp.currentPartner.socketId,
                   candidate: event.candidate,

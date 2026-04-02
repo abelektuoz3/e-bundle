@@ -2823,6 +2823,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("offer", (data) => {
+    console.log("📨 Offer received from", socket.id, "to", data.target);
     const targetSocket = io.sockets.sockets.get(data.target);
     if (targetSocket) {
       targetSocket.emit("offer", {
@@ -2830,6 +2831,9 @@ io.on("connection", (socket) => {
         from: socket.id,
         fromUser: data.fromUser,
       });
+      console.log("✅ Offer forwarded");
+    } else {
+      console.log("❌ Target socket not found:", data.target);
     }
   });
 
