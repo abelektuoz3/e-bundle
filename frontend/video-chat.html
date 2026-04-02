@@ -287,7 +287,7 @@
     <!-- Toast Container -->
     <div id="toastContainer" class="fixed top-20 right-4 z-50 space-y-2"></div>
 
-    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script>
       const videoChatApp = {
         socket: null,
@@ -301,7 +301,7 @@
         userId: null,
         userData: null,
 
-        // Get the correct server URL
+        // Get the correct server URL for Render
         getServerUrl: () => {
           // For local development
           if (
@@ -310,8 +310,8 @@
           ) {
             return "http://localhost:5000";
           }
-          // For production (Render)
-          return window.location.origin;
+          // For production on Render - use your actual backend URL
+          return "https://e-bundle.onrender.com";
         },
 
         configuration: {
@@ -321,6 +321,17 @@
             { urls: "stun:stun2.l.google.com:19302" },
             { urls: "stun:stun3.l.google.com:19302" },
             { urls: "stun:stun4.l.google.com:19302" },
+            // Add TURN servers for better connectivity (optional but recommended)
+            {
+              urls: "turn:openrelay.metered.ca:80",
+              username: "openrelayproject",
+              credential: "openrelayproject",
+            },
+            {
+              urls: "turn:openrelay.metered.ca:443",
+              username: "openrelayproject",
+              credential: "openrelayproject",
+            },
           ],
         },
 
