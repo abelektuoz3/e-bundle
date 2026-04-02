@@ -52,6 +52,8 @@ const allowedOrigins =
       "http://127.0.0.1:5500", // Add this line for local development
       "http://localhost:5500", // Add this line for local development
       "https://e-bundle.onrender.com",
+      "https://ebundle-ethiopia.netlify.app", // Add your Netlify URL
+      "https://ebundle-ethiopia.netlify.app",
     ];
 
 app.use(
