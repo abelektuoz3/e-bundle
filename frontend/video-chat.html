@@ -303,15 +303,24 @@
 
         // Get the correct server URL for Render
         getServerUrl: () => {
-          // For local development
+          // Check URL parameter first ?server=
+          const urlParams = new URLSearchParams(window.location.search);
+          const serverParam = urlParams.get("server");
+          if (serverParam) {
+            console.log("Using server from URL param:", serverParam);
+            return serverParam;
+          }
+
+          // Local development
           if (
             window.location.hostname === "localhost" ||
             window.location.hostname === "127.0.0.1"
           ) {
             return "http://localhost:5000";
           }
-          // For production on Render - use your actual backend URL
-          return "https://e-bundle.onrender.com";
+          // Production: UPDATE with your actual backend Render URL!
+          console.warn("Using default prod URL - UPDATE for Render backend");
+          return "https://e-bundle.onrender.com"; // TODO: Replace with backend URL
         },
 
         configuration: {
