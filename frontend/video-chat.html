@@ -301,6 +301,19 @@
         userId: null,
         userData: null,
 
+        // Get the correct server URL
+        getServerUrl: () => {
+          // For local development
+          if (
+            window.location.hostname === "localhost" ||
+            window.location.hostname === "127.0.0.1"
+          ) {
+            return "http://localhost:5000";
+          }
+          // For production (Render)
+          return window.location.origin;
+        },
+
         configuration: {
           iceServers: [
             { urls: "stun:stun.l.google.com:19302" },
@@ -353,30 +366,46 @@
           }
 
           // Connect to socket server
-          const serverUrl = window.location.origin;
+          const serverUrl = videoChatApp.getServerUrl();
+          console.log("Connecting to server:", serverUrl);
+
           videoChatApp.socket = io(serverUrl, {
             transports: ["websocket", "polling"],
             reconnection: true,
             reconnectionAttempts: 5,
+            timeout: 10000,
           });
 
           videoChatApp.socket.on("connect", () => {
-            console.log("Connected to signaling server");
+            console.log("✅ Connected to signaling server");
+            videoChatApp.showToast("Connected to server!", "success");
             videoChatApp.socket.emit("register", videoChatApp.userData);
+          });
+
+          videoChatApp.socket.on("connect_error", (error) => {
+            console.error("❌ Connection error:", error);
+            videoChatApp.showToast(
+              "Failed to connect to server. Please refresh the page.",
+              "error",
+            );
           });
 
           videoChatApp.socket.on("disconnect", () => {
             console.log("Disconnected from server");
             if (videoChatApp.isInCall()) {
               videoChatApp.showToast(
-                "Connection lost. Reconnecting...",
+                "Connection lost. Please refresh the page.",
                 "error",
               );
             }
           });
 
+          videoChatApp.socket.on("registered", (data) => {
+            console.log("Registered with server:", data);
+          });
+
           videoChatApp.socket.on("matched", async (data) => {
-            console.log("Matched with partner:", data);
+            console.log("✅ Matched with partner:", data);
             videoChatApp.hideMatchingIndicator();
             videoChatApp.currentPartner = data.partner;
             videoChatApp.currentRoom = data.room;
@@ -415,7 +444,15 @@
         findPartner: async () => {
           if (!videoChatApp.socket || !videoChatApp.socket.connected) {
             videoChatApp.showToast("Connecting to server...", "info");
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+            // Wait for connection
+            await new Promise((resolve) => {
+              const checkConnection = setInterval(() => {
+                if (videoChatApp.socket && videoChatApp.socket.connected) {
+                  clearInterval(checkConnection);
+                  resolve();
+                }
+              }, 100);
+            });
           }
 
           videoChatApp.isMatching = true;
@@ -434,17 +471,7 @@
         },
 
         createRoom: () => {
-          // For private rooms, generate a room code and share
-          const roomCode = Math.random()
-            .toString(36)
-            .substring(2, 8)
-            .toUpperCase();
-          videoChatApp.showToast(
-            `Room created! Share code: ${roomCode}`,
-            "success",
-          );
-          // This would need additional implementation for room-based joining
-          // For now, just find a random partner
+          // For private rooms, just find a random partner for now
           videoChatApp.findPartner();
         },
 
