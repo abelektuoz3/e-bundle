@@ -49,6 +49,8 @@ const allowedOrigins =
   : [
       "http://localhost:3000",
       "http://localhost:5000",
+      "http://127.0.0.1:5500", // Add this line for local development
+      "http://localhost:5500", // Add this line for local development
       "https://e-bundle.onrender.com",
     ];
 
@@ -2695,11 +2697,12 @@ const socketIo = require("socket.io");
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: true,
+    origin: "*", // Allow all origins for development
     credentials: true,
     methods: ["GET", "POST"],
   },
   transports: ["websocket", "polling"],
+  allowEIO3: true,
 });
 
 // Store connected users
@@ -2722,6 +2725,9 @@ io.on("connection", (socket) => {
       avatar: userData.avatar,
     });
     console.log(`User ${userData.name} (${userData.grade}) registered`);
+    
+    // Send confirmation
+    socket.emit('registered', { success: true });
   });
 
   socket.on("find-random-partner", (userData) => {
