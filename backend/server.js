@@ -2709,6 +2709,9 @@ const io = socketIo(server, {
 const connectedUsers = new Map();
 const waitingUsers = [];
 
+// PIN Rooms registry: PIN → {roomId, creator}
+const pinRooms = new Map();
+
 // Socket.io connection handling
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
@@ -2725,9 +2728,71 @@ io.on("connection", (socket) => {
       avatar: userData.avatar,
     });
     console.log(`User ${userData.name} (${userData.grade}) registered`);
-    
+
     // Send confirmation
-    socket.emit('registered', { success: true });
+    socket.emit("registered", { success: true });
+  });
+
+  // PIN Room Handlers
+  socket.on("create-room", (userData) => {
+    const pin = Math.floor(1000 + Math.random() * 9000).toString();
+    const roomId = `room_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    pinRooms.set(pin, {
+      roomId,
+      creatorId: currentUserId,
+      creatorSocket: socket.id,
+      creatorData: userData,
+      joined: false,
+    });
+
+    console.log(`📱 Room created PIN:${pin} by ${userData.name}`);
+
+    socket.emit("room-created", { pin, room: roomId });
+  });
+
+  socket.on("join-room", (data) => {
+    const roomInfo = pinRooms.get(data.pin);
+
+    if (!roomInfo) {
+      socket.emit("room-error", { message: "Room not found or expired" });
+      return;
+    }
+
+    if (roomInfo.joined) {
+      socket.emit("room-error", { message: "Room full" });
+      return;
+    }
+
+    roomInfo.joined = true;
+
+    const creatorSocket = io.sockets.sockets.get(roomInfo.creatorSocket);
+
+    // Notify creator
+    if (creatorSocket) {
+      creatorSocket.emit("room-joined", {
+        partner: {
+          socketId: socket.id,
+          name: data.userData.name,
+          grade: data.userData.grade,
+        },
+        room: roomInfo.roomId,
+      });
+    }
+
+    // Notify joiner
+    socket.emit("room-joined", {
+      partner: {
+        socketId: roomInfo.creatorSocket,
+        name: roomInfo.creatorData.name,
+        grade: roomInfo.creatorData.grade,
+      },
+      room: roomInfo.roomId,
+    });
+
+    console.log(
+      `✅ ${data.userData.name} joined PIN:${data.pin} (${roomInfo.creatorData.name})`,
+    );
   });
 
   socket.on("find-random-partner", (userData) => {
@@ -2796,6 +2861,14 @@ io.on("connection", (socket) => {
 
     if (currentRoom) {
       socket.leave(currentRoom);
+    }
+
+    // Clean up PIN room
+    for (let [pin, roomInfo] of pinRooms.entries()) {
+      if (roomInfo.creatorSocket === socket.id || roomInfo.joined) {
+        pinRooms.delete(pin);
+        console.log(`🧹 Cleaned PIN room ${pin}`);
+      }
     }
   });
 
