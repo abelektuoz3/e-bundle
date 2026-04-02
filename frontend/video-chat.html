@@ -621,13 +621,35 @@
         },
 
         startCallWithPartner: async () => {
+          console.log(
+            "🚀 startCallWithPartner - partner:",
+            videoChatApp.currentPartner,
+          );
+          if (
+            !videoChatApp.currentPartner ||
+            !videoChatApp.currentPartner.socketId
+          ) {
+            console.error("❌ No partner socketId - cannot send offer");
+            videoChatApp.showToast("Partner disconnected", "error");
+            return;
+          }
           try {
+            console.log("📹 Requesting camera/mic permissions...");
             // Get user media
             videoChatApp.localStream =
               await navigator.mediaDevices.getUserMedia({
-                video: true,
+                video: {
+                  width: { ideal: 1280 },
+                  height: { ideal: 720 },
+                  frameRate: { ideal: 30 },
+                },
                 audio: true,
               });
+            console.log(
+              "✅ Local stream obtained:",
+              videoChatApp.localStream.getVideoTracks().length,
+              "video tracks",
+            );
 
             const localVideo = document.getElementById("localVideo");
             localVideo.srcObject = videoChatApp.localStream;
@@ -659,7 +681,10 @@
             // Handle ICE candidates
             videoChatApp.peerConnection.onicecandidate = (event) => {
               if (event.candidate && videoChatApp.currentPartner) {
-                console.log("🧊 Sending ICE candidate to", videoChatApp.currentPartner.socketId);
+                console.log(
+                  "🧊 Sending ICE candidate to",
+                  videoChatApp.currentPartner.socketId,
+                );
                 videoChatApp.socket.emit("ice-candidate", {
                   target: videoChatApp.currentPartner.socketId,
                   candidate: event.candidate,
@@ -670,17 +695,40 @@
             // Handle connection state
             videoChatApp.peerConnection.onconnectionstatechange = () => {
               console.log(
-                "Connection state:",
+                "🔌 Connection state:",
                 videoChatApp.peerConnection.connectionState,
               );
-              if (
-                videoChatApp.peerConnection.connectionState ===
-                  "disconnected" ||
-                videoChatApp.peerConnection.connectionState === "failed"
+              if (videoChatApp.peerConnection.connectionState === "failed") {
+                console.log("🔴 Connection FAILED - retrying ICE...");
+                videoChatApp.peerConnection.restartIce();
+              } else if (
+                videoChatApp.peerConnection.connectionState === "disconnected"
               ) {
                 videoChatApp.showToast("Connection lost", "error");
                 videoChatApp.endCall();
+              } else if (
+                videoChatApp.peerConnection.connectionState === "connected"
+              ) {
+                console.log("✅ WebRTC CONNECTED - video should appear!");
+                videoChatApp.showToast(
+                  "Connected! Video loading...",
+                  "success",
+                );
               }
+            };
+
+            videoChatApp.peerConnection.oniceconnectionstatechange = () => {
+              console.log(
+                "🧊 ICE state:",
+                videoChatApp.peerConnection.iceConnectionState,
+              );
+            };
+
+            videoChatApp.peerConnection.onicegatheringstatechange = () => {
+              console.log(
+                "❄️ ICE gathering:",
+                videoChatApp.peerConnection.iceGatheringState,
+              );
             };
 
             // Create and send offer
