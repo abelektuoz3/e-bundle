@@ -2526,7 +2526,7 @@ app.post("/seed-courses", authenticateToken, async (req, res) => {
   }
 });
 
-// ================= AI TUTOR CHAT (GROQ API) =================
+// ================= AI TUTOR CHAT (NVIDIA NIM API) =================
 const axios = require("axios");
 
 app.post("/api/chat", authenticateToken, async (req, res) => {
@@ -2546,12 +2546,18 @@ app.post("/api/chat", authenticateToken, async (req, res) => {
 
     const user = await User.findById(userId).select("firstName grade");
 
-    const GROQ_API_KEY = process.env.GROQ_API_KEY;
+    // NVIDIA NIM API Configuration
+    const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
+    const NVIDIA_API_URL =
+      process.env.NVIDIA_API_URL ||
+      "https://integrate.api.nvidia.com/v1/chat/completions";
+    const NVIDIA_MODEL = process.env.NVIDIA_MODEL || "meta/llama3-70b-instruct";
 
-    if (!GROQ_API_KEY) {
+    if (!NVIDIA_API_KEY) {
+      console.error("❌ NVIDIA_API_KEY not found in environment variables");
       return res.status(500).json({
         success: false,
-        error: "AI service not configured - API key missing",
+        error: "AI service not configured - NVIDIA API key missing",
       });
     }
 
@@ -2576,10 +2582,12 @@ Guidelines:
 - Use formatting like **bold** for key terms and *bullet points* for lists
 - For math problems, show all work clearly`;
 
+    console.log("Sending request to NVIDIA NIM API...");
+
     const response = await axios.post(
-      "https://api.groq.com/openai/v1/chat/completions",
+      NVIDIA_API_URL,
       {
-        model: process.env.GROQ_MODEL || "llama3-70b-8192",
+        model: NVIDIA_MODEL,
         messages: [
           { role: "system", content: systemContent },
           { role: "user", content: message },
@@ -2587,27 +2595,101 @@ Guidelines:
         temperature: 0.7,
         max_tokens: 1024,
         top_p: 0.9,
+        stream: false,
       },
       {
         headers: {
-          Authorization: `Bearer ${GROQ_API_KEY}`,
+          Authorization: `Bearer ${NVIDIA_API_KEY}`,
           "Content-Type": "application/json",
         },
         timeout: 30000,
       },
     );
 
+    // NVIDIA NIM API response format might be slightly different
     const aiResponse = response.data.choices[0].message.content;
+
+    console.log("✅ AI response received successfully");
 
     res.json({
       success: true,
       response: aiResponse,
     });
   } catch (error) {
-    console.error("Chat error:", error.message);
+    console.error("❌ Chat error:", error.message);
+
+    // Log more details about the error
+    if (error.response) {
+      console.error("Response status:", error.response.status);
+      console.error(
+        "Response data:",
+        JSON.stringify(error.response.data, null, 2),
+      );
+    } else if (error.request) {
+      console.error("No response received from NVIDIA API");
+    }
+
     res.status(500).json({
       success: false,
       error: "Failed to get AI response. Please try again later.",
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// Test endpoint for NVIDIA NIM API
+app.get("/api/test-nvidia", authenticateToken, async (req, res) => {
+  try {
+    const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
+
+    if (!NVIDIA_API_KEY) {
+      return res.status(500).json({
+        success: false,
+        error: "NVIDIA_API_KEY not found in environment variables",
+      });
+    }
+
+    const NVIDIA_API_URL =
+      process.env.NVIDIA_API_URL ||
+      "https://integrate.api.nvidia.com/v1/chat/completions";
+
+    const response = await axios.post(
+      NVIDIA_API_URL,
+      {
+        model: process.env.NVIDIA_MODEL || "meta/llama3-70b-instruct",
+        messages: [
+          {
+            role: "user",
+            content: "Say 'NVIDIA NIM API is working!' if you receive this.",
+          },
+        ],
+        max_tokens: 50,
+        stream: false,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${NVIDIA_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 10000,
+      },
+    );
+
+    res.json({
+      success: true,
+      message: "NVIDIA NIM API test successful",
+      response: response.data.choices[0].message.content,
+    });
+  } catch (error) {
+    console.error("NVIDIA test error:", error.message);
+    if (error.response) {
+      console.error("Response:", error.response.data);
+    }
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      details: error.response?.data || "No additional details",
     });
   }
 });
@@ -2723,7 +2805,7 @@ io.on("connection", (socket) => {
       name: userData.name,
       grade: userData.grade,
       avatar: userData.avatar,
-      socket: socket
+      socket: socket,
     });
     console.log(`User registered: ${userData.name} (Grade ${userData.grade})`);
   });
@@ -2732,28 +2814,32 @@ io.on("connection", (socket) => {
   socket.on("join-room", (roomId) => {
     socket.join(roomId);
     currentRoom = roomId;
-    
+
     // Check if room has other users
     const room = io.sockets.adapter.rooms.get(roomId);
     if (room && room.size === 2) {
       // Room has 2 people, they can start calling each other
       const sockets = Array.from(room);
-      const otherSocketId = sockets.find(id => id !== socket.id);
+      const otherSocketId = sockets.find((id) => id !== socket.id);
       const otherSocket = io.sockets.sockets.get(otherSocketId);
-      
+
       if (otherSocket) {
-        const otherUser = Array.from(connectedUsers.values()).find(u => u.socketId === otherSocketId);
-        const thisUser = Array.from(connectedUsers.values()).find(u => u.socketId === socket.id);
-        
+        const otherUser = Array.from(connectedUsers.values()).find(
+          (u) => u.socketId === otherSocketId,
+        );
+        const thisUser = Array.from(connectedUsers.values()).find(
+          (u) => u.socketId === socket.id,
+        );
+
         if (otherUser && thisUser) {
           // Notify both users they can start the call
           socket.emit("matched", {
             partner: otherUser,
-            room: roomId
+            room: roomId,
           });
           otherSocket.emit("matched", {
             partner: thisUser,
-            room: roomId
+            room: roomId,
           });
         }
       }
@@ -2763,50 +2849,59 @@ io.on("connection", (socket) => {
   // Find random partner
   socket.on("find-random-partner", (userData) => {
     currentUserId = userData.userId;
-    
+
     // Remove from waiting if already there
-    const existingIndex = waitingUsers.findIndex(u => u.socketId === socket.id);
+    const existingIndex = waitingUsers.findIndex(
+      (u) => u.socketId === socket.id,
+    );
     if (existingIndex !== -1) {
       waitingUsers.splice(existingIndex, 1);
     }
 
     // Try to find match with same grade
-    const sameGradeIndex = waitingUsers.findIndex(u => u.grade === userData.grade);
-    
-    if (sameGradeIndex !== -1 && waitingUsers[sameGradeIndex].socketId !== socket.id) {
+    const sameGradeIndex = waitingUsers.findIndex(
+      (u) => u.grade === userData.grade,
+    );
+
+    if (
+      sameGradeIndex !== -1 &&
+      waitingUsers[sameGradeIndex].socketId !== socket.id
+    ) {
       // Found match
       const partner = waitingUsers[sameGradeIndex];
       waitingUsers.splice(sameGradeIndex, 1);
-      
+
       const user = {
         socketId: socket.id,
         name: userData.name,
         grade: userData.grade,
-        userId: userData.userId
+        userId: userData.userId,
       };
-      
+
       // Create room
       const roomName = `random_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       socket.join(roomName);
       partner.socket.join(roomName);
       currentRoom = roomName;
-      
+
       // Store in active rooms
       activeRooms.set(roomName, [socket.id, partner.socketId]);
       isInCall = true;
-      
+
       // Notify both
       socket.emit("matched", {
         partner: partner,
-        room: roomName
+        room: roomName,
       });
-      
+
       io.to(partner.socketId).emit("matched", {
         partner: user,
-        room: roomName
+        room: roomName,
       });
-      
-      console.log(`Matched ${user.name} with ${partner.name} in room ${roomName}`);
+
+      console.log(
+        `Matched ${user.name} with ${partner.name} in room ${roomName}`,
+      );
     } else {
       // No match, add to waiting
       waitingUsers.push({
@@ -2814,9 +2909,11 @@ io.on("connection", (socket) => {
         userId: userData.userId,
         name: userData.name,
         grade: userData.grade,
-        socket: socket
+        socket: socket,
       });
-      console.log(`${userData.name} added to waiting queue. Size: ${waitingUsers.length}`);
+      console.log(
+        `${userData.name} added to waiting queue. Size: ${waitingUsers.length}`,
+      );
     }
   });
 
@@ -2830,14 +2927,14 @@ io.on("connection", (socket) => {
   });
 
   // WebRTC Signaling Events
-  
+
   socket.on("offer", (data) => {
     const targetSocket = io.sockets.sockets.get(data.target);
     if (targetSocket) {
       targetSocket.emit("offer", {
         offer: data.offer,
         from: socket.id,
-        fromUser: data.fromUser
+        fromUser: data.fromUser,
       });
       console.log(`Offer sent from ${socket.id} to ${data.target}`);
     }
@@ -2848,7 +2945,7 @@ io.on("connection", (socket) => {
     if (targetSocket) {
       targetSocket.emit("answer", {
         answer: data.answer,
-        from: socket.id
+        from: socket.id,
       });
       console.log(`Answer sent from ${socket.id} to ${data.target}`);
     }
@@ -2859,7 +2956,7 @@ io.on("connection", (socket) => {
     if (targetSocket) {
       targetSocket.emit("ice-candidate", {
         candidate: data.candidate,
-        from: socket.id
+        from: socket.id,
       });
     }
   });
@@ -2871,7 +2968,7 @@ io.on("connection", (socket) => {
         targetSocket.emit("call-ended", { from: socket.id });
       }
     }
-    
+
     if (currentRoom) {
       // Clean up room
       activeRooms.delete(currentRoom);
@@ -2900,7 +2997,7 @@ io.on("connection", (socket) => {
     if (currentRoom && isInCall) {
       const room = activeRooms.get(currentRoom);
       if (room) {
-        const partnerId = room.find(id => id !== socket.id);
+        const partnerId = room.find((id) => id !== socket.id);
         if (partnerId) {
           const partnerSocket = io.sockets.sockets.get(partnerId);
           if (partnerSocket) {
