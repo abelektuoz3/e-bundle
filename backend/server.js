@@ -2526,7 +2526,7 @@ app.post("/seed-courses", authenticateToken, async (req, res) => {
   }
 });
 
-// ================= AI TUTOR CHAT (NVIDIA NIM API) =================
+// ================= AI TUTOR CHAT (GROQ API) =================
 const axios = require("axios");
 
 app.post("/api/chat", authenticateToken, async (req, res) => {
@@ -2546,24 +2546,28 @@ app.post("/api/chat", authenticateToken, async (req, res) => {
 
     const user = await User.findById(userId).select("firstName grade");
 
-    // NVIDIA NIM API Configuration
-    const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
-    const NVIDIA_API_URL =
-      process.env.NVIDIA_API_URL ||
-      "https://integrate.api.nvidia.com/v1/chat/completions";
-    const NVIDIA_MODEL = process.env.NVIDIA_MODEL || "meta/llama3-70b-instruct";
+    // Get Groq API key from environment variables
+    const GROQ_API_KEY = process.env.GROQ_API_KEY;
+    const GROQ_MODEL = process.env.GROQ_MODEL || "llama3-70b-8192";
 
-    if (!NVIDIA_API_KEY) {
-      console.error("❌ NVIDIA_API_KEY not found");
+    // Check if API key is configured
+    if (!GROQ_API_KEY) {
+      console.error("❌ GROQ_API_KEY not found in environment variables");
       return res.status(500).json({
         success: false,
-        error: "AI service not configured - API key missing",
+        error: "AI service not configured. Please contact support.",
+        details: "API key missing",
       });
     }
 
-    console.log("API URL:", NVIDIA_API_URL);
-    console.log("Model:", NVIDIA_MODEL);
-    console.log("API Key prefix:", NVIDIA_API_KEY.substring(0, 15) + "...");
+    console.log("Using Groq API with model:", GROQ_MODEL);
+    console.log(
+      "User:",
+      user?.firstName || "Unknown",
+      "Grade:",
+      user?.grade || "Not set",
+    );
+    console.log("Message preview:", message.substring(0, 100) + "...");
 
     const systemContent = `You are an AI tutor for Ethiopian students${user ? ` named ${user.firstName}` : ""}${user?.grade ? ` in grade ${user.grade}` : ""}. 
               
@@ -2586,12 +2590,10 @@ Guidelines:
 - Use formatting like **bold** for key terms and *bullet points* for lists
 - For math problems, show all work clearly`;
 
-    console.log("Sending request to NVIDIA NIM API...");
-
     const response = await axios.post(
-      NVIDIA_API_URL,
+      "https://api.groq.com/openai/v1/chat/completions",
       {
-        model: NVIDIA_MODEL,
+        model: GROQ_MODEL,
         messages: [
           { role: "system", content: systemContent },
           { role: "user", content: message },
@@ -2603,7 +2605,7 @@ Guidelines:
       },
       {
         headers: {
-          Authorization: `Bearer ${NVIDIA_API_KEY}`,
+          Authorization: `Bearer ${GROQ_API_KEY}`,
           "Content-Type": "application/json",
         },
         timeout: 30000,
@@ -2611,7 +2613,9 @@ Guidelines:
     );
 
     const aiResponse = response.data.choices[0].message.content;
+
     console.log("✅ AI response received successfully");
+    console.log("Response length:", aiResponse.length, "characters");
 
     res.json({
       success: true,
@@ -2620,82 +2624,81 @@ Guidelines:
   } catch (error) {
     console.error("❌ Chat error:", error.message);
 
-    // Detailed error logging
+    // Detailed error logging for debugging
     if (error.response) {
+      // The request was made and the server responded with a status code
+      // outside of the range of 2xx
       console.error("Response status:", error.response.status);
-      console.error("Response headers:", error.response.headers);
       console.error(
         "Response data:",
         JSON.stringify(error.response.data, null, 2),
       );
 
-      // Check for specific error types
       if (error.response.status === 401) {
         return res.status(500).json({
           success: false,
           error:
-            "Invalid NVIDIA API key. Please check your API key configuration.",
+            "Invalid Groq API key. Please check your API key configuration.",
         });
-      } else if (error.response.status === 403) {
+      } else if (error.response.status === 429) {
         return res.status(500).json({
           success: false,
-          error:
-            "Access denied. Your API key may not have access to this model or service.",
+          error: "Rate limit exceeded. Please try again in a few moments.",
         });
       }
     } else if (error.request) {
-      console.error("No response received from NVIDIA API");
+      // The request was made but no response was received
+      console.error("No response received from Groq API");
+      console.error("Request:", error.request);
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      console.error("Error setting up request:", error.message);
     }
 
     res.status(500).json({
       success: false,
       error: "Failed to get AI response. Please try again later.",
-      details:
-        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
 
-// Enhanced test endpoint for NVIDIA
-app.get("/api/test-nvidia", authenticateToken, async (req, res) => {
+// Test endpoint for Groq API
+app.get("/api/test-groq", authenticateToken, async (req, res) => {
   try {
-    const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
+    const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
-    if (!NVIDIA_API_KEY) {
+    if (!GROQ_API_KEY) {
       return res.status(500).json({
         success: false,
-        error: "NVIDIA_API_KEY not found in environment variables",
+        error: "GROQ_API_KEY not found in environment variables",
         solution:
-          "Please add NVIDIA_API_KEY to your Render environment variables",
+          "Please add GROQ_API_KEY to your .env file or Render environment variables",
       });
     }
 
+    const GROQ_MODEL = process.env.GROQ_MODEL || "llama3-70b-8192";
+
     console.log(
-      "Testing NVIDIA API with key:",
-      NVIDIA_API_KEY.substring(0, 15) + "...",
+      "Testing Groq API with key:",
+      GROQ_API_KEY.substring(0, 10) + "...",
     );
 
-    const NVIDIA_API_URL =
-      process.env.NVIDIA_API_URL ||
-      "https://integrate.api.nvidia.com/v1/chat/completions";
-
     const response = await axios.post(
-      NVIDIA_API_URL,
+      "https://api.groq.com/openai/v1/chat/completions",
       {
-        model: process.env.NVIDIA_MODEL || "meta/llama3-70b-instruct",
+        model: GROQ_MODEL,
         messages: [
           {
             role: "user",
-            content: "Say 'NVIDIA NIM API is working!' if you receive this.",
+            content: "Say 'Groq API is working!' if you receive this.",
           },
         ],
         max_tokens: 50,
         temperature: 0.5,
-        stream: false,
       },
       {
         headers: {
-          Authorization: `Bearer ${NVIDIA_API_KEY}`,
+          Authorization: `Bearer ${GROQ_API_KEY}`,
           "Content-Type": "application/json",
         },
         timeout: 10000,
@@ -2704,12 +2707,12 @@ app.get("/api/test-nvidia", authenticateToken, async (req, res) => {
 
     res.json({
       success: true,
-      message: "NVIDIA NIM API test successful",
+      message: "Groq API test successful",
+      model: GROQ_MODEL,
       response: response.data.choices[0].message.content,
-      model: process.env.NVIDIA_MODEL,
     });
   } catch (error) {
-    console.error("NVIDIA test error:");
+    console.error("Groq test error:");
 
     if (error.response) {
       console.error("Status:", error.response.status);
@@ -2718,11 +2721,7 @@ app.get("/api/test-nvidia", authenticateToken, async (req, res) => {
       res.status(500).json({
         success: false,
         error: `API Error: ${error.response.status}`,
-        message:
-          error.response.data?.error?.message ||
-          error.response.data?.message ||
-          "Access denied",
-        suggestion: getNvidiaErrorMessage(error.response.status),
+        details: error.response.data?.error?.message || "Unknown error",
       });
     } else {
       res.status(500).json({
@@ -2733,74 +2732,20 @@ app.get("/api/test-nvidia", authenticateToken, async (req, res) => {
   }
 });
 
-function getNvidiaErrorMessage(status) {
-  switch (status) {
-    case 401:
-      return "Invalid API key. Please check your NVIDIA_API_KEY environment variable.";
-    case 403:
-      return "Access denied. Make sure you've accepted the model terms at build.nvidia.com and your API key has the correct permissions.";
-    case 429:
-      return "Rate limit exceeded. Please try again later or upgrade your plan.";
-    case 404:
-      return "Model not found. Check your NVIDIA_MODEL setting.";
-    default:
-      return "Please verify your NVIDIA API credentials and model access.";
-  }
-}
-// Test endpoint for NVIDIA NIM API
-app.get("/api/test-nvidia", authenticateToken, async (req, res) => {
-  try {
-    const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
+// Check Groq configuration endpoint
+app.get("/api/groq-status", authenticateToken, async (req, res) => {
+  const hasKey = !!process.env.GROQ_API_KEY;
+  const model = process.env.GROQ_MODEL || "llama3-70b-8192 (default)";
 
-    if (!NVIDIA_API_KEY) {
-      return res.status(500).json({
-        success: false,
-        error: "NVIDIA_API_KEY not found in environment variables",
-      });
-    }
-
-    const NVIDIA_API_URL =
-      process.env.NVIDIA_API_URL ||
-      "https://integrate.api.nvidia.com/v1/chat/completions";
-
-    const response = await axios.post(
-      NVIDIA_API_URL,
-      {
-        model: process.env.NVIDIA_MODEL || "meta/llama3-70b-instruct",
-        messages: [
-          {
-            role: "user",
-            content: "Say 'NVIDIA NIM API is working!' if you receive this.",
-          },
-        ],
-        max_tokens: 50,
-        stream: false,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${NVIDIA_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        timeout: 10000,
-      },
-    );
-
-    res.json({
-      success: true,
-      message: "NVIDIA NIM API test successful",
-      response: response.data.choices[0].message.content,
-    });
-  } catch (error) {
-    console.error("NVIDIA test error:", error.message);
-    if (error.response) {
-      console.error("Response:", error.response.data);
-    }
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      details: error.response?.data || "No additional details",
-    });
-  }
+  res.json({
+    configured: hasKey,
+    model: model,
+    message:
+      hasKey ?
+        "Groq API is configured and ready"
+      : "GROQ_API_KEY is missing. Please add it to your environment variables.",
+    howToGetKey: "Get your free API key from https://console.groq.com",
+  });
 });
 
 // ================= TEST ENDPOINT =================
