@@ -2529,9 +2529,11 @@ app.post("/seed-courses", authenticateToken, async (req, res) => {
 // ================= AI TUTOR CHAT (GROQ API) =================
 const axios = require("axios");
 
+// Make sure this endpoint is BEFORE any wildcard routes or static file handlers
 app.post("/api/chat", authenticateToken, async (req, res) => {
   console.log("\n========== NEW CHAT REQUEST ==========");
   console.log("Timestamp:", new Date().toISOString());
+  console.log("Request body:", req.body);
 
   try {
     const { message } = req.body;
@@ -2546,28 +2548,20 @@ app.post("/api/chat", authenticateToken, async (req, res) => {
 
     const user = await User.findById(userId).select("firstName grade");
 
-    // Get Groq API key from environment variables
     const GROQ_API_KEY = process.env.GROQ_API_KEY;
     const GROQ_MODEL = process.env.GROQ_MODEL || "llama3-70b-8192";
 
-    // Check if API key is configured
     if (!GROQ_API_KEY) {
-      console.error("❌ GROQ_API_KEY not found in environment variables");
+      console.error("❌ GROQ_API_KEY not found");
       return res.status(500).json({
         success: false,
-        error: "AI service not configured. Please contact support.",
-        details: "API key missing",
+        error: "AI service not configured - API key missing",
       });
     }
 
     console.log("Using Groq API with model:", GROQ_MODEL);
-    console.log(
-      "User:",
-      user?.firstName || "Unknown",
-      "Grade:",
-      user?.grade || "Not set",
-    );
-    console.log("Message preview:", message.substring(0, 100) + "...");
+    console.log("User:", user?.firstName, "Grade:", user?.grade);
+    console.log("Message:", message.substring(0, 100));
 
     const systemContent = `You are an AI tutor for Ethiopian students${user ? ` named ${user.firstName}` : ""}${user?.grade ? ` in grade ${user.grade}` : ""}. 
               
@@ -2614,8 +2608,8 @@ Guidelines:
 
     const aiResponse = response.data.choices[0].message.content;
 
-    console.log("✅ AI response received successfully");
-    console.log("Response length:", aiResponse.length, "characters");
+    console.log("✅ AI response sent successfully");
+    console.log("Response length:", aiResponse.length);
 
     res.json({
       success: true,
@@ -2624,35 +2618,9 @@ Guidelines:
   } catch (error) {
     console.error("❌ Chat error:", error.message);
 
-    // Detailed error logging for debugging
     if (error.response) {
-      // The request was made and the server responded with a status code
-      // outside of the range of 2xx
-      console.error("Response status:", error.response.status);
-      console.error(
-        "Response data:",
-        JSON.stringify(error.response.data, null, 2),
-      );
-
-      if (error.response.status === 401) {
-        return res.status(500).json({
-          success: false,
-          error:
-            "Invalid Groq API key. Please check your API key configuration.",
-        });
-      } else if (error.response.status === 429) {
-        return res.status(500).json({
-          success: false,
-          error: "Rate limit exceeded. Please try again in a few moments.",
-        });
-      }
-    } else if (error.request) {
-      // The request was made but no response was received
-      console.error("No response received from Groq API");
-      console.error("Request:", error.request);
-    } else {
-      // Something happened in setting up the request that triggered an Error
-      console.error("Error setting up request:", error.message);
+      console.error("Status:", error.response.status);
+      console.error("Data:", error.response.data);
     }
 
     res.status(500).json({
@@ -2662,89 +2630,12 @@ Guidelines:
   }
 });
 
-// Test endpoint for Groq API
-app.get("/api/test-groq", authenticateToken, async (req, res) => {
-  try {
-    const GROQ_API_KEY = process.env.GROQ_API_KEY;
-
-    if (!GROQ_API_KEY) {
-      return res.status(500).json({
-        success: false,
-        error: "GROQ_API_KEY not found in environment variables",
-        solution:
-          "Please add GROQ_API_KEY to your .env file or Render environment variables",
-      });
-    }
-
-    const GROQ_MODEL = process.env.GROQ_MODEL || "llama3-70b-8192";
-
-    console.log(
-      "Testing Groq API with key:",
-      GROQ_API_KEY.substring(0, 10) + "...",
-    );
-
-    const response = await axios.post(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        model: GROQ_MODEL,
-        messages: [
-          {
-            role: "user",
-            content: "Say 'Groq API is working!' if you receive this.",
-          },
-        ],
-        max_tokens: 50,
-        temperature: 0.5,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${GROQ_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        timeout: 10000,
-      },
-    );
-
-    res.json({
-      success: true,
-      message: "Groq API test successful",
-      model: GROQ_MODEL,
-      response: response.data.choices[0].message.content,
-    });
-  } catch (error) {
-    console.error("Groq test error:");
-
-    if (error.response) {
-      console.error("Status:", error.response.status);
-      console.error("Data:", error.response.data);
-
-      res.status(500).json({
-        success: false,
-        error: `API Error: ${error.response.status}`,
-        details: error.response.data?.error?.message || "Unknown error",
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        error: error.message,
-      });
-    }
-  }
-});
-
-// Check Groq configuration endpoint
-app.get("/api/groq-status", authenticateToken, async (req, res) => {
-  const hasKey = !!process.env.GROQ_API_KEY;
-  const model = process.env.GROQ_MODEL || "llama3-70b-8192 (default)";
-
+// Add a test endpoint to verify the route is working
+app.get("/api/chat-test", authenticateToken, (req, res) => {
   res.json({
-    configured: hasKey,
-    model: model,
-    message:
-      hasKey ?
-        "Groq API is configured and ready"
-      : "GROQ_API_KEY is missing. Please add it to your environment variables.",
-    howToGetKey: "Get your free API key from https://console.groq.com",
+    success: true,
+    message: "Chat endpoint is reachable",
+    groqConfigured: !!process.env.GROQ_API_KEY,
   });
 });
 
