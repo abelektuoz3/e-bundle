@@ -2529,7 +2529,33 @@ app.post("/seed-courses", authenticateToken, async (req, res) => {
 // ================= AI TUTOR CHAT (GROQ API) =================
 const axios = require("axios");
 
-// Make sure this endpoint is BEFORE any wildcard routes or static file handlers
+// Test endpoint to verify Groq configuration
+app.get("/api/groq-status", authenticateToken, async (req, res) => {
+  const hasKey = !!process.env.GROQ_API_KEY;
+  const model = process.env.GROQ_MODEL || "llama3-70b-8192";
+
+  res.json({
+    configured: hasKey,
+    model: model,
+    message:
+      hasKey ?
+        "Groq API is configured and ready"
+      : "GROQ_API_KEY is missing. Please add it to your environment variables.",
+    howToGetKey: "Get your free API key from https://console.groq.com",
+  });
+});
+
+// Test endpoint to verify the route is working
+app.get("/api/chat-test", authenticateToken, (req, res) => {
+  res.json({
+    success: true,
+    message: "Chat endpoint is reachable",
+    groqConfigured: !!process.env.GROQ_API_KEY,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Main chat endpoint
 app.post("/api/chat", authenticateToken, async (req, res) => {
   console.log("\n========== NEW CHAT REQUEST ==========");
   console.log("Timestamp:", new Date().toISOString());
@@ -2552,16 +2578,22 @@ app.post("/api/chat", authenticateToken, async (req, res) => {
     const GROQ_MODEL = process.env.GROQ_MODEL || "llama3-70b-8192";
 
     if (!GROQ_API_KEY) {
-      console.error("❌ GROQ_API_KEY not found");
+      console.error("❌ GROQ_API_KEY not found in environment variables");
       return res.status(500).json({
         success: false,
-        error: "AI service not configured - API key missing",
+        error:
+          "AI service not configured - API key missing. Please add GROQ_API_KEY to your environment variables.",
       });
     }
 
     console.log("Using Groq API with model:", GROQ_MODEL);
-    console.log("User:", user?.firstName, "Grade:", user?.grade);
-    console.log("Message:", message.substring(0, 100));
+    console.log(
+      "User:",
+      user?.firstName || "Unknown",
+      "Grade:",
+      user?.grade || "Not set",
+    );
+    console.log("Message preview:", message.substring(0, 100) + "...");
 
     const systemContent = `You are an AI tutor for Ethiopian students${user ? ` named ${user.firstName}` : ""}${user?.grade ? ` in grade ${user.grade}` : ""}. 
               
@@ -2609,7 +2641,7 @@ Guidelines:
     const aiResponse = response.data.choices[0].message.content;
 
     console.log("✅ AI response sent successfully");
-    console.log("Response length:", aiResponse.length);
+    console.log("Response length:", aiResponse.length, "characters");
 
     res.json({
       success: true,
@@ -2618,9 +2650,28 @@ Guidelines:
   } catch (error) {
     console.error("❌ Chat error:", error.message);
 
+    // Detailed error logging for debugging
     if (error.response) {
-      console.error("Status:", error.response.status);
-      console.error("Data:", error.response.data);
+      console.error("Response status:", error.response.status);
+      console.error(
+        "Response data:",
+        JSON.stringify(error.response.data, null, 2),
+      );
+
+      if (error.response.status === 401) {
+        return res.status(500).json({
+          success: false,
+          error:
+            "Invalid Groq API key. Please check your API key configuration.",
+        });
+      } else if (error.response.status === 429) {
+        return res.status(500).json({
+          success: false,
+          error: "Rate limit exceeded. Please try again in a few moments.",
+        });
+      }
+    } else if (error.request) {
+      console.error("No response received from Groq API");
     }
 
     res.status(500).json({
@@ -2628,15 +2679,6 @@ Guidelines:
       error: "Failed to get AI response. Please try again later.",
     });
   }
-});
-
-// Add a test endpoint to verify the route is working
-app.get("/api/chat-test", authenticateToken, (req, res) => {
-  res.json({
-    success: true,
-    message: "Chat endpoint is reachable",
-    groqConfigured: !!process.env.GROQ_API_KEY,
-  });
 });
 
 // ================= TEST ENDPOINT =================
