@@ -874,19 +874,9 @@
           currentVideoElement = null;
           await trackMediaProgress(id, 50, false);
 
-          fetch(`${API_URL}/api/media/stream/${id}`, {
-            headers: { Authorization: `Bearer ${authToken}` },
-          })
-            .then((res) => {
-              if (!res.ok) throw new Error(`HTTP ${res.status}`);
-              return res.blob();
-            })
-            .then((blob) => {
-              const url = URL.createObjectURL(blob);
-              document.getElementById("pdf-container").innerHTML =
-                `<iframe src="${url}" class="w-full h-full rounded-xl" type="application/pdf"></iframe>`;
-            })
-            .catch((err) => showError(`Error loading PDF: ${err.message}`));
+          const blobUrl = `${streamUrl}&download=1`;
+            document.getElementById("pdf-container").innerHTML =
+              `<iframe src="${blobUrl}" class="w-full h-full rounded-xl" type="application/pdf"></iframe>`;
         }
 
         modal.classList.remove("hidden");
