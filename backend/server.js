@@ -2554,12 +2554,16 @@ app.post("/api/chat", authenticateToken, async (req, res) => {
     const NVIDIA_MODEL = process.env.NVIDIA_MODEL || "meta/llama3-70b-instruct";
 
     if (!NVIDIA_API_KEY) {
-      console.error("❌ NVIDIA_API_KEY not found in environment variables");
+      console.error("❌ NVIDIA_API_KEY not found");
       return res.status(500).json({
         success: false,
-        error: "AI service not configured - NVIDIA API key missing",
+        error: "AI service not configured - API key missing",
       });
     }
+
+    console.log("API URL:", NVIDIA_API_URL);
+    console.log("Model:", NVIDIA_MODEL);
+    console.log("API Key prefix:", NVIDIA_API_KEY.substring(0, 15) + "...");
 
     const systemContent = `You are an AI tutor for Ethiopian students${user ? ` named ${user.firstName}` : ""}${user?.grade ? ` in grade ${user.grade}` : ""}. 
               
@@ -2606,9 +2610,7 @@ Guidelines:
       },
     );
 
-    // NVIDIA NIM API response format might be slightly different
     const aiResponse = response.data.choices[0].message.content;
-
     console.log("✅ AI response received successfully");
 
     res.json({
@@ -2618,13 +2620,29 @@ Guidelines:
   } catch (error) {
     console.error("❌ Chat error:", error.message);
 
-    // Log more details about the error
+    // Detailed error logging
     if (error.response) {
       console.error("Response status:", error.response.status);
+      console.error("Response headers:", error.response.headers);
       console.error(
         "Response data:",
         JSON.stringify(error.response.data, null, 2),
       );
+
+      // Check for specific error types
+      if (error.response.status === 401) {
+        return res.status(500).json({
+          success: false,
+          error:
+            "Invalid NVIDIA API key. Please check your API key configuration.",
+        });
+      } else if (error.response.status === 403) {
+        return res.status(500).json({
+          success: false,
+          error:
+            "Access denied. Your API key may not have access to this model or service.",
+        });
+      }
     } else if (error.request) {
       console.error("No response received from NVIDIA API");
     }
@@ -2638,6 +2656,97 @@ Guidelines:
   }
 });
 
+// Enhanced test endpoint for NVIDIA
+app.get("/api/test-nvidia", authenticateToken, async (req, res) => {
+  try {
+    const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
+
+    if (!NVIDIA_API_KEY) {
+      return res.status(500).json({
+        success: false,
+        error: "NVIDIA_API_KEY not found in environment variables",
+        solution:
+          "Please add NVIDIA_API_KEY to your Render environment variables",
+      });
+    }
+
+    console.log(
+      "Testing NVIDIA API with key:",
+      NVIDIA_API_KEY.substring(0, 15) + "...",
+    );
+
+    const NVIDIA_API_URL =
+      process.env.NVIDIA_API_URL ||
+      "https://integrate.api.nvidia.com/v1/chat/completions";
+
+    const response = await axios.post(
+      NVIDIA_API_URL,
+      {
+        model: process.env.NVIDIA_MODEL || "meta/llama3-70b-instruct",
+        messages: [
+          {
+            role: "user",
+            content: "Say 'NVIDIA NIM API is working!' if you receive this.",
+          },
+        ],
+        max_tokens: 50,
+        temperature: 0.5,
+        stream: false,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${NVIDIA_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 10000,
+      },
+    );
+
+    res.json({
+      success: true,
+      message: "NVIDIA NIM API test successful",
+      response: response.data.choices[0].message.content,
+      model: process.env.NVIDIA_MODEL,
+    });
+  } catch (error) {
+    console.error("NVIDIA test error:");
+
+    if (error.response) {
+      console.error("Status:", error.response.status);
+      console.error("Data:", error.response.data);
+
+      res.status(500).json({
+        success: false,
+        error: `API Error: ${error.response.status}`,
+        message:
+          error.response.data?.error?.message ||
+          error.response.data?.message ||
+          "Access denied",
+        suggestion: getNvidiaErrorMessage(error.response.status),
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: error.message,
+      });
+    }
+  }
+});
+
+function getNvidiaErrorMessage(status) {
+  switch (status) {
+    case 401:
+      return "Invalid API key. Please check your NVIDIA_API_KEY environment variable.";
+    case 403:
+      return "Access denied. Make sure you've accepted the model terms at build.nvidia.com and your API key has the correct permissions.";
+    case 429:
+      return "Rate limit exceeded. Please try again later or upgrade your plan.";
+    case 404:
+      return "Model not found. Check your NVIDIA_MODEL setting.";
+    default:
+      return "Please verify your NVIDIA API credentials and model access.";
+  }
+}
 // Test endpoint for NVIDIA NIM API
 app.get("/api/test-nvidia", authenticateToken, async (req, res) => {
   try {
