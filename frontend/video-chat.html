@@ -7,6 +7,19 @@
       content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <title>Video Chat | E-Bundle Ethiopia</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: "#4F46E5",
+              secondary: "#7C3AED",
+              dark: "#0f172a",
+            },
+          },
+        },
+      };
+    </script>
     <link
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
       rel="stylesheet" />
@@ -32,97 +45,156 @@
         backdrop-filter: blur(10px);
         border: 1px solid rgba(255, 255, 255, 0.05);
       }
-      #localVideo,
-      #remoteVideo {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-      }
       .video-container {
         position: relative;
+        width: 100%;
+        height: 100%;
         background: #000;
         border-radius: 1rem;
         overflow: hidden;
       }
-      .remote-video-container {
-        flex: 1;
-        min-height: 500px;
+      .video-grid {
+        display: grid;
+        gap: 1rem;
+        height: 100%;
+        padding: 1rem;
       }
-      .local-video-container {
-        position: absolute;
-        bottom: 20px;
-        right: 20px;
-        width: 160px;
-        height: 120px;
-        border-radius: 12px;
+      .video-grid.solo {
+        grid-template-columns: 1fr;
+      }
+      .video-grid.duo {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .video-item {
+        position: relative;
+        background: #1a1a2e;
+        border-radius: 0.75rem;
         overflow: hidden;
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        z-index: 10;
-        cursor: pointer;
-        transition: all 0.3s ease;
-      }
-      .local-video-container:hover {
-        transform: scale(1.02);
-        border-color: #3b82f6;
-      }
-      .call-controls {
-        position: absolute;
-        bottom: 30px;
-        left: 50%;
-        transform: translateX(-50%);
-        display: flex;
-        gap: 20px;
-        z-index: 20;
-        background: rgba(0, 0, 0, 0.6);
-        padding: 12px 24px;
-        border-radius: 60px;
-        backdrop-filter: blur(10px);
-      }
-      .control-btn {
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
+      }
+      .video-item video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .video-item .avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #4f46e5, #7c3aed);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: white;
+      }
+      .video-item .info {
+        position: absolute;
+        bottom: 1rem;
+        left: 1rem;
+        background: rgba(0, 0, 0, 0.6);
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        color: white;
+        font-size: 0.875rem;
+      }
+      .controls {
+        position: absolute;
+        bottom: 2rem;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 1rem;
+        z-index: 10;
+      }
+      .control-btn {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        border: none;
         cursor: pointer;
-        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+      }
+      .control-btn:hover {
+        transform: scale(1.1);
+      }
+      .control-btn.mute {
         background: rgba(255, 255, 255, 0.2);
         color: white;
       }
-      .control-btn:hover {
-        transform: scale(1.05);
-      }
-      .control-btn.active {
-        background: #3b82f6;
-      }
-      .control-btn.end-call {
+      .control-btn.mute.active {
         background: #ef4444;
       }
-      .control-btn.end-call:hover {
-        background: #dc2626;
+      .control-btn.video {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
       }
-      .matching-indicator {
+      .control-btn.video.active {
+        background: #ef4444;
+      }
+      .control-btn.end {
+        background: #ef4444;
+        color: white;
+      }
+      .control-btn.screen {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+      }
+      .waiting-overlay {
         position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        text-align: center;
-        z-index: 15;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 20;
+        color: white;
       }
       .spinner {
-        width: 60px;
-        height: 60px;
-        border: 4px solid rgba(255, 255, 255, 0.2);
-        border-top-color: #3b82f6;
+        width: 64px;
+        height: 64px;
+        border: 4px solid rgba(255, 255, 255, 0.1);
+        border-top-color: #4f46e5;
         border-radius: 50%;
         animation: spin 1s linear infinite;
-        margin: 0 auto 16px;
       }
       @keyframes spin {
         to {
           transform: rotate(360deg);
         }
+      }
+      .toast {
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        padding: 1rem 1.5rem;
+        border-radius: 0.75rem;
+        color: white;
+        font-weight: 500;
+        z-index: 100;
+        transform: translateX(400px);
+        transition: transform 0.3s ease;
+        max-width: 350px;
+      }
+      .toast.show {
+        transform: translateX(0);
+      }
+      .toast.success {
+        background: #10b981;
+      }
+      .toast.error {
+        background: #ef4444;
+      }
+      .toast.info {
+        background: #3b82f6;
       }
     </style>
   </head>
@@ -134,10 +206,10 @@
         class="flex items-center space-x-3 cursor-pointer"
         onclick="window.location.href = 'dashboard.html'">
         <div
-          class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+          class="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center">
           <i class="fas fa-graduation-cap text-white text-lg"></i>
         </div>
-        <span class="text-xl font-bold">E-Bundle</span>
+        <span class="text-xl font-bold text-white">E-Bundle</span>
       </div>
       <div class="hidden md:flex items-center space-x-1">
         <a
@@ -177,213 +249,172 @@
     <main class="p-4 max-w-7xl mx-auto h-[calc(100vh-5rem)]">
       <div
         class="h-full glass-card rounded-2xl overflow-hidden border border-white/10 relative">
-        <!-- Waiting / Matching Screen -->
-        <div
-          id="waitingScreen"
-          class="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-gray-900 to-black z-30">
-          <div class="text-center space-y-4">
-            <div class="w-24 h-24 relative mx-auto">
-              <div
-                class="absolute inset-0 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-              <i
-                class="fas fa-video text-4xl text-blue-500 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></i>
-            </div>
-            <h2 class="text-2xl font-bold">Study Together</h2>
-            <p class="text-gray-400 max-w-md">
-              Connect with fellow Ethiopian students for collaborative learning
-              sessions
-            </p>
-            <div class="flex gap-2 justify-center mt-4">
-              <span class="px-3 py-1 bg-white/10 rounded-full text-sm"
-                ><i class="fas fa-video mr-1"></i> Video Chat</span
-              >
-              <span class="px-3 py-1 bg-white/10 rounded-full text-sm"
-                ><i class="fas fa-users mr-1"></i> Study Groups</span
-              >
-              <span class="px-3 py-1 bg-white/10 rounded-full text-sm"
-                ><i class="fas fa-chalkboard-user mr-1"></i> Grade 9-12</span
-              >
-            </div>
-            <!-- PIN Room Controls -->
-            <div id="roomControls" class="space-y-4 w-full max-w-md">
-              <button
-                id="createRoomBtn"
-                onclick="videoChatApp.createRoom()"
-                class="w-full px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl font-bold hover:scale-105 transition-all shadow-lg">
-                <i class="fas fa-plus mr-2"></i> Create Study Room
-              </button>
-              <div class="flex space-x-2">
-                <input
-                  id="roomPinInput"
-                  type="text"
-                  maxlength="4"
-                  placeholder="Enter PIN"
-                  class="flex-1 px-4 py-3 glass rounded-l-xl text-white placeholder-gray-400 text-lg font-mono tracking-wider text-center" />
-                <button
-                  id="joinRoomBtn"
-                  onclick="videoChatApp.joinRoom()"
-                  class="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-r-xl font-bold hover:scale-105 transition-all shadow-lg">
-                  <i class="fas fa-sign-in-alt"></i>
-                </button>
+        <!-- Video Container -->
+        <div id="videoContainer" class="video-container">
+          <div id="videoGrid" class="video-grid solo">
+            <!-- Local Video -->
+            <div class="video-item" id="localVideoContainer">
+              <video id="localVideo" autoplay playsinline muted></video>
+              <div class="avatar hidden" id="localAvatar">
+                <i class="fas fa-user"></i>
               </div>
-              <!-- PIN Display -->
-              <div
-                id="roomPinDisplay"
-                class="hidden text-center p-4 glass rounded-xl bg-green-500/20 border border-green-500/50">
-                <i class="fas fa-key text-2xl text-green-400 mb-2"></i>
-                <h3 class="text-xl font-bold text-green-300 mb-1">
-                  Your Room PIN
-                </h3>
+              <div class="info">
+                <span id="localName">You</span>
+                <span id="localGrade" class="ml-2 text-gray-300"></span>
+              </div>
+            </div>
+            <!-- Remote Video (hidden initially) -->
+            <div class="video-item hidden" id="remoteVideoContainer">
+              <video id="remoteVideo" autoplay playsinline></video>
+              <div class="avatar" id="remoteAvatar">
+                <i class="fas fa-user"></i>
+              </div>
+              <div class="info">
+                <span id="remoteName">Partner</span>
+                <span id="remoteGrade" class="ml-2 text-gray-300"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Waiting Screen -->
+          <div id="waitingScreen" class="waiting-overlay">
+            <div class="text-center space-y-6 max-w-md px-4">
+              <div class="w-24 h-24 relative mx-auto">
                 <div
-                  id="roomPin"
-                  class="text-3xl font-mono tracking-widest bg-black/50 px-6 py-3 rounded-lg mx-auto w-32"></div>
-                <p class="text-sm text-green-200 mt-2">
-                  Share this PIN with your study partner
+                  class="absolute inset-0 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                <i
+                  class="fas fa-video text-4xl text-primary absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></i>
+              </div>
+              <div>
+                <h2 class="text-2xl font-bold mb-2">Study Together</h2>
+                <p class="text-gray-400">
+                  Connect with fellow Ethiopian students for collaborative
+                  learning sessions
                 </p>
+              </div>
+              <div class="flex gap-2 justify-center flex-wrap">
+                <span class="px-3 py-1 bg-white/10 rounded-full text-sm"
+                  ><i class="fas fa-video mr-1"></i> Video Chat</span
+                >
+                <span class="px-3 py-1 bg-white/10 rounded-full text-sm"
+                  ><i class="fas fa-users mr-1"></i> Study Groups</span
+                >
+                <span class="px-3 py-1 bg-white/10 rounded-full text-sm"
+                  ><i class="fas fa-chalkboard-user mr-1"></i> Grade 9-12</span
+                >
+              </div>
+              <div class="space-y-3">
                 <button
-                  onclick="videoChatApp.copyPin()"
-                  class="mt-3 px-4 py-1 bg-white/20 rounded-lg hover:bg-white/30 transition-all">
-                  📋 Copy PIN
+                  onclick="videoChat.joinRandom()"
+                  class="w-full px-8 py-3 bg-gradient-to-r from-primary to-secondary rounded-xl font-bold hover:scale-105 transition-all shadow-lg">
+                  <i class="fas fa-random mr-2"></i> Join Random Study Session
                 </button>
+                <div class="flex gap-2">
+                  <input
+                    type="text"
+                    id="roomInput"
+                    placeholder="Enter room name..."
+                    class="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-primary" />
+                  <button
+                    onclick="videoChat.joinRoom()"
+                    class="px-6 py-2 glass rounded-xl hover:bg-white/10 transition-all">
+                    <i class="fas fa-door-open"></i>
+                  </button>
+                </div>
               </div>
+              <p id="statusText" class="text-sm text-gray-400 mt-4">
+                Click to start studying together
+              </p>
             </div>
           </div>
-        </div>
 
-        <!-- Matching Indicator (shown while finding partner) -->
-        <div
-          id="matchingIndicator"
-          class="absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-20 hidden">
-          <div class="text-center">
-            <div class="spinner"></div>
-            <h3 class="text-xl font-semibold mb-2">
-              Finding a study partner...
-            </h3>
-            <p class="text-gray-400">Please wait while we connect you</p>
+          <!-- Searching Overlay -->
+          <div id="searchingOverlay" class="waiting-overlay hidden">
+            <div class="text-center space-y-4">
+              <div class="spinner mx-auto"></div>
+              <h3 class="text-xl font-semibold">Finding a study partner...</h3>
+              <p class="text-gray-400">
+                Connecting you with a student in your grade level
+              </p>
+              <button
+                onclick="videoChat.cancelSearch()"
+                class="px-6 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-all">
+                Cancel
+              </button>
+            </div>
+          </div>
+
+          <!-- Controls -->
+          <div id="controls" class="controls hidden">
             <button
-              onclick="videoChatApp.cancelMatching()"
-              class="mt-6 px-6 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-all">
-              <i class="fas fa-times mr-2"></i> Cancel
+              onclick="videoChat.toggleMute()"
+              id="muteBtn"
+              class="control-btn mute"
+              title="Mute/Unmute">
+              <i class="fas fa-microphone"></i>
             </button>
-          </div>
-        </div>
-
-        <!-- Video Call Container -->
-        <div id="callContainer" class="relative w-full h-full hidden">
-          <div class="remote-video-container w-full h-full video-container">
-            <video id="remoteVideo" autoplay playsinline></video>
-            <div
-              id="remotePlaceholder"
-              class="absolute inset-0 flex items-center justify-center bg-gray-900 hidden">
-              <div class="text-center">
-                <i class="fas fa-user-circle text-6xl text-gray-600 mb-3"></i>
-                <p class="text-gray-400">Waiting for partner to connect...</p>
-              </div>
-            </div>
-          </div>
-          <div class="local-video-container">
-            <video id="localVideo" autoplay playsinline muted></video>
-          </div>
-
-          <div class="call-controls">
-            <div
-              id="toggleMic"
-              class="control-btn active"
-              onclick="videoChatApp.toggleMic()">
-              <i class="fas fa-microphone text-xl"></i>
-            </div>
-            <div
-              id="toggleVideo"
-              class="control-btn active"
-              onclick="videoChatApp.toggleVideo()">
-              <i class="fas fa-video text-xl"></i>
-            </div>
-            <div
-              id="endCall"
-              class="control-btn end-call"
-              onclick="videoChatApp.endCall()">
-              <i class="fas fa-phone-slash text-xl"></i>
-            </div>
-          </div>
-
-          <!-- Partner Info -->
-          <div
-            id="partnerInfo"
-            class="absolute top-4 left-4 glass px-4 py-2 rounded-lg z-10 hidden">
-            <i class="fas fa-user-friends mr-2 text-blue-400"></i>
-            <span id="partnerName" class="text-sm font-medium"></span>
+            <button
+              onclick="videoChat.toggleVideo()"
+              id="videoBtn"
+              class="control-btn video"
+              title="Camera On/Off">
+              <i class="fas fa-video"></i>
+            </button>
+            <button
+              onclick="videoChat.toggleScreenShare()"
+              id="screenBtn"
+              class="control-btn screen"
+              title="Share Screen">
+              <i class="fas fa-desktop"></i>
+            </button>
+            <button
+              onclick="videoChat.endCall()"
+              class="control-btn end"
+              title="End Call">
+              <i class="fas fa-phone-slash"></i>
+            </button>
           </div>
         </div>
       </div>
     </main>
 
     <!-- Toast Container -->
-    <div id="toastContainer" class="fixed top-20 right-4 z-50 space-y-2"></div>
+    <div id="toastContainer"></div>
 
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <!-- Socket.io -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
     <script>
-      const videoChatApp = {
+      const videoChat = {
         socket: null,
         localStream: null,
+        remoteStream: null,
         peerConnection: null,
-        currentPartner: null,
-        currentRoom: null,
-        isMatching: false,
-        micEnabled: true,
-        videoEnabled: true,
-        userId: null,
+        room: null,
+        isSearching: false,
+        isCallActive: false,
+        isMuted: false,
+        isVideoOff: false,
+        isScreenSharing: false,
         userData: null,
-        roomPin: null,
-        currentRoomId: null,
-        isRoomCreator: false,
+        partnerData: null,
+        screenStream: null,
 
-        // Get the correct server URL for Render
-        getServerUrl: () => {
-          // Check URL parameter first ?server=
-          const urlParams = new URLSearchParams(window.location.search);
-          const serverParam = urlParams.get("server");
-          if (serverParam) {
-            console.log("Using server from URL param:", serverParam);
-            return serverParam;
-          }
-
-          // Local development
-          if (
-            window.location.hostname === "localhost" ||
-            window.location.hostname === "127.0.0.1"
-          ) {
-            return "http://localhost:5000";
-          }
-          // Production: UPDATE with your actual backend Render URL!
-          console.warn("Using default prod URL - UPDATE for Render backend");
-          return "https://e-bundle.onrender.com"; // TODO: Replace with backend URL
-        },
-
-        configuration: {
+        // STUN/TURN servers for NAT traversal
+        iceServers: {
           iceServers: [
             { urls: "stun:stun.l.google.com:19302" },
             { urls: "stun:stun1.l.google.com:19302" },
             { urls: "stun:stun2.l.google.com:19302" },
             { urls: "stun:stun3.l.google.com:19302" },
             { urls: "stun:stun4.l.google.com:19302" },
-            // Add TURN servers for better connectivity (optional but recommended)
-            {
-              urls: "turn:openrelay.metered.ca:80",
-              username: "openrelayproject",
-              credential: "openrelayproject",
-            },
-            {
-              urls: "turn:openrelay.metered.ca:443",
-              username: "openrelayproject",
-              credential: "openrelayproject",
-            },
           ],
         },
 
         init: async () => {
           const token = localStorage.getItem("token");
           if (!token) {
-            videoChatApp.showToast("Please login to use video chat", "error");
+            videoChat.showToast("Please login to use video chat", "error");
             setTimeout(() => (window.location.href = "login.html"), 2000);
             return;
           }
@@ -392,586 +423,497 @@
           try {
             const storedUser = localStorage.getItem("user");
             if (storedUser) {
-              const user = JSON.parse(storedUser);
-              videoChatApp.userData = {
-                userId: user.id || user._id,
-                name: `${user.firstName} ${user.lastName ? user.lastName.charAt(0) + "." : ""}`,
-                grade: user.grade || "9-12",
-                avatar:
-                  user.avatar ||
-                  `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.firstName}`,
-              };
-              videoChatApp.userId = videoChatApp.userData.userId;
-            } else {
-              videoChatApp.userData = {
-                userId: Date.now().toString(),
-                name: "Student",
-                grade: "9-12",
-                avatar: "",
-              };
-              videoChatApp.userId = videoChatApp.userData.userId;
+              videoChat.userData = JSON.parse(storedUser);
+              document.getElementById("localName").textContent =
+                videoChat.userData.firstName || "You";
+              document.getElementById("localGrade").textContent =
+                `Grade ${videoChat.userData.grade || "?"}`;
             }
           } catch (e) {
-            videoChatApp.userData = {
-              userId: Date.now().toString(),
-              name: "Student",
-              grade: "9-12",
-              avatar: "",
-            };
-            videoChatApp.userId = videoChatApp.userData.userId;
+            videoChat.userData = { firstName: "Student", grade: "?" };
           }
 
-          // Connect to socket server
-          const serverUrl = videoChatApp.getServerUrl();
-          console.log("Connecting to server:", serverUrl);
+          // Connect to signaling server
+          videoChat.connectSocket();
 
-          videoChatApp.socket = io(serverUrl, {
+          // Check URL for room param
+          const urlParams = new URLSearchParams(window.location.search);
+          const room = urlParams.get("room");
+          if (room) {
+            setTimeout(() => videoChat.joinSpecificRoom(room), 1000);
+          }
+        },
+
+        connectSocket: () => {
+          const serverUrl =
+            window.location.hostname === "localhost" ?
+              "http://localhost:5000"
+            : window.location.origin;
+
+          videoChat.socket = io(serverUrl, {
             transports: ["websocket", "polling"],
             reconnection: true,
             reconnectionAttempts: 5,
-            timeout: 10000,
           });
 
-          videoChatApp.socket.on("connect", () => {
-            console.log("✅ Connected to signaling server");
-            videoChatApp.showToast("Connected to server!", "success");
-            videoChatApp.socket.emit("register", videoChatApp.userData);
-          });
-
-          videoChatApp.socket.on("connect_error", (error) => {
-            console.error("❌ Connection error:", error);
-            videoChatApp.showToast(
-              "Failed to connect to server. Please refresh the page.",
-              "error",
-            );
-          });
-
-          videoChatApp.socket.on("disconnect", () => {
-            console.log("Disconnected from server");
-            if (videoChatApp.isInCall()) {
-              videoChatApp.showToast(
-                "Connection lost. Please refresh the page.",
-                "error",
-              );
-            }
-          });
-
-          videoChatApp.socket.on("registered", (data) => {
-            console.log("Registered with server:", data);
-          });
-
-          videoChatApp.socket.on("matched", async (data) => {
-            console.log("✅ Matched with partner:", data);
-            videoChatApp.hideMatchingIndicator();
-            videoChatApp.currentPartner = data.partner;
-            videoChatApp.currentRoom = data.room;
-            await videoChatApp.startCallWithPartner();
-          });
-
-          videoChatApp.socket.on("partner-disconnected", () => {
-            videoChatApp.showToast(
-              "Your study partner has left the session",
-              "info",
-            );
-            videoChatApp.endCall();
-          });
-
-          videoChatApp.socket.on("offer", async (data) => {
-            console.log("Received offer");
-            await videoChatApp.handleOffer(data);
-          });
-
-          videoChatApp.socket.on("answer", async (data) => {
-            console.log("Received answer");
-            await videoChatApp.handleAnswer(data);
-          });
-
-          videoChatApp.socket.on("ice-candidate", async (data) => {
-            console.log("Received ICE candidate");
-            await videoChatApp.handleIceCandidate(data);
-          });
-
-          videoChatApp.socket.on("call-ended", () => {
-            videoChatApp.showToast("Call ended by partner", "info");
-            videoChatApp.endCall();
-          });
-
-          // PIN Room Events
-          videoChatApp.socket.on("room-created", (data) => {
-            console.log("✅ Room created:", data.pin);
-            videoChatApp.roomPin = data.pin;
-            videoChatApp.currentRoomId = data.room;
-            videoChatApp.isRoomCreator = true;
-            document.getElementById("roomPin").textContent = data.pin;
-            document
-              .getElementById("roomPinDisplay")
-              .classList.remove("hidden");
-            const createBtn = document.getElementById("createRoomBtn");
-            createBtn.innerHTML =
-              '<i class="fas fa-spinner fa-spin mr-2"></i>Waiting for partner...';
-            createBtn.disabled = true;
-            videoChatApp.showToast(`Room ready! PIN: ${data.pin}`, "success");
-          });
-
-          videoChatApp.socket.on("room-joined", async (data) => {
-            console.log("✅ Partner joined room:", data);
-            videoChatApp.currentPartner = data.partner;
-            videoChatApp.currentRoomId = data.room;
-            videoChatApp.showCallUI();
-            document.getElementById("roomControls").style.display = "none";
-            document.getElementById("partnerName").textContent =
-              `${data.partner.name} (Grade ${data.partner.grade})`;
-            document.getElementById("partnerInfo").classList.remove("hidden");
-            console.log(
-              "🎥 Starting call with partner:",
-              data.partner.socketId,
-            );
-            await videoChatApp.startCallWithPartner();
-          });
-
-          videoChatApp.socket.on("room-error", (data) => {
-            console.log("Room error:", data);
-            videoChatApp.showToast(data.message || "Room not found", "error");
-            const createBtn = document.getElementById("createRoomBtn");
-            createBtn.disabled = false;
-            createBtn.innerHTML =
-              '<i class="fas fa-plus mr-2"></i> Create Study Room';
-            document.getElementById("roomPinInput").disabled = false;
-            document.getElementById("joinRoomBtn").disabled = false;
-            document.getElementById("joinRoomBtn").innerHTML =
-              '<i class="fas fa-sign-in-alt"></i>';
-          });
-        },
-
-        findPartner: async () => {
-          if (!videoChatApp.socket || !videoChatApp.socket.connected) {
-            videoChatApp.showToast("Connecting to server...", "info");
-            // Wait for connection
-            await new Promise((resolve) => {
-              const checkConnection = setInterval(() => {
-                if (videoChatApp.socket && videoChatApp.socket.connected) {
-                  clearInterval(checkConnection);
-                  resolve();
-                }
-              }, 100);
+          videoChat.socket.on("connect", () => {
+            console.log("Connected to signaling server");
+            videoChat.socket.emit("register", {
+              userId: videoChat.userData?._id || "anonymous",
+              name: videoChat.userData?.firstName || "Student",
+              grade: videoChat.userData?.grade || "?",
+              avatar: videoChat.userData?.avatar || "",
             });
-          }
+          });
 
-          videoChatApp.isMatching = true;
-          videoChatApp.showMatchingIndicator();
-          videoChatApp.socket.emit(
-            "find-random-partner",
-            videoChatApp.userData,
-          );
-        },
+          videoChat.socket.on("matched", (data) => {
+            videoChat.isSearching = false;
+            videoChat.partnerData = data.partner;
+            document.getElementById("searchingOverlay").classList.add("hidden");
+            document.getElementById("waitingScreen").classList.add("hidden");
+            document.getElementById("controls").classList.remove("hidden");
+            videoChat.showToast(
+              `Matched with ${data.partner.name} (Grade ${data.partner.grade})!`,
+              "success",
+            );
+            videoChat.startCall(data.partner.socketId, true);
+          });
 
-        cancelMatching: () => {
-          videoChatApp.isMatching = false;
-          videoChatApp.hideMatchingIndicator();
-          videoChatApp.socket.emit("leave-queue");
-          videoChatApp.showToast("Search cancelled", "info");
-        },
+          videoChat.socket.on("offer", async (data) => {
+            await videoChat.handleOffer(data.offer, data.from, data.fromUser);
+          });
 
-        createRoom: async () => {
-          if (!videoChatApp.socket?.connected) {
-            videoChatApp.showToast("Connect to server first", "error");
-            return;
-          }
+          videoChat.socket.on("answer", async (data) => {
+            await videoChat.handleAnswer(data.answer);
+          });
 
-          const btn = document.getElementById("createRoomBtn");
-          btn.disabled = true;
-          btn.innerHTML =
-            '<i class="fas fa-spinner fa-spin mr-2"></i>Creating Room...';
+          videoChat.socket.on("ice-candidate", async (data) => {
+            await videoChat.handleIceCandidate(data.candidate);
+          });
 
-          videoChatApp.socket.emit("create-room", videoChatApp.userData);
-        },
+          videoChat.socket.on("call-ended", () => {
+            videoChat.showToast("Partner ended the call", "info");
+            videoChat.cleanup();
+          });
 
-        joinRoom: async () => {
-          const pin = document.getElementById("roomPinInput").value.trim();
+          videoChat.socket.on("partner-disconnected", () => {
+            videoChat.showToast("Partner disconnected", "info");
+            videoChat.cleanup();
+          });
 
-          if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
-            videoChatApp.showToast("Enter valid 4-digit PIN", "error");
-            return;
-          }
-
-          const joinBtn = document.getElementById("joinRoomBtn");
-          const pinInput = document.getElementById("roomPinInput");
-
-          joinBtn.disabled = true;
-          joinBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-          pinInput.disabled = true;
-
-          videoChatApp.socket.emit("join-room", {
-            pin: pin.toUpperCase(),
-            userData: videoChatApp.userData,
+          videoChat.socket.on("connect_error", (error) => {
+            console.error("Socket connection error:", error);
+            videoChat.showToast("Connection error. Retrying...", "error");
           });
         },
 
-        copyPin: () => {
-          if (videoChatApp.roomPin) {
-            navigator.clipboard
-              .writeText(videoChatApp.roomPin)
-              .then(() => {
-                videoChatApp.showToast("PIN copied to clipboard!", "success");
-              })
-              .catch(() => {
-                videoChatApp.showToast("Failed to copy PIN", "error");
-              });
-          }
-        },
-
-        startCallWithPartner: async () => {
-          console.log(
-            "🚀 startCallWithPartner - partner:",
-            videoChatApp.currentPartner,
-          );
-          if (
-            !videoChatApp.currentPartner ||
-            !videoChatApp.currentPartner.socketId
-          ) {
-            console.error("❌ No partner socketId - cannot send offer");
-            videoChatApp.showToast("Partner disconnected", "error");
-            return;
-          }
+        getMedia: async () => {
           try {
-            console.log("📹 Requesting camera/mic permissions...");
-            // Get user media
-            videoChatApp.localStream =
-              await navigator.mediaDevices.getUserMedia({
-                video: {
-                  width: { ideal: 1280 },
-                  height: { ideal: 720 },
-                  frameRate: { ideal: 30 },
-                },
-                audio: true,
-              });
-            console.log(
-              "✅ Local stream obtained:",
-              videoChatApp.localStream.getVideoTracks().length,
-              "video tracks",
-            );
+            videoChat.localStream = await navigator.mediaDevices.getUserMedia({
+              video: { width: 1280, height: 720, facingMode: "user" },
+              audio: { echoCancellation: true, noiseSuppression: true },
+            });
 
             const localVideo = document.getElementById("localVideo");
-            localVideo.srcObject = videoChatApp.localStream;
+            localVideo.srcObject = videoChat.localStream;
 
-            // Create peer connection
-            videoChatApp.peerConnection = new RTCPeerConnection(
-              videoChatApp.configuration,
-            );
+            // Show video, hide avatar
+            localVideo.classList.remove("hidden");
+            document.getElementById("localAvatar").classList.add("hidden");
 
-            // Add local tracks
-            videoChatApp.localStream.getTracks().forEach((track) => {
-              videoChatApp.peerConnection.addTrack(
-                track,
-                videoChatApp.localStream,
-              );
-            });
-
-            // Handle remote stream
-            videoChatApp.peerConnection.ontrack = (event) => {
-              console.log("📹 Remote stream received:", event.streams[0]);
-              const remoteVideo = document.getElementById("remoteVideo");
-              remoteVideo.srcObject = event.streams[0];
-              document
-                .getElementById("remotePlaceholder")
-                .classList.add("hidden");
-              console.log("Remote video assigned:", remoteVideo.srcObject);
-            };
-
-            // Handle ICE candidates
-            videoChatApp.peerConnection.onicecandidate = (event) => {
-              if (event.candidate && videoChatApp.currentPartner) {
-                console.log(
-                  "🧊 Sending ICE candidate to",
-                  videoChatApp.currentPartner.socketId,
-                );
-                videoChatApp.socket.emit("ice-candidate", {
-                  target: videoChatApp.currentPartner.socketId,
-                  candidate: event.candidate,
-                });
-              }
-            };
-
-            // Handle connection state
-            videoChatApp.peerConnection.onconnectionstatechange = () => {
-              console.log(
-                "🔌 Connection state:",
-                videoChatApp.peerConnection.connectionState,
-              );
-              if (videoChatApp.peerConnection.connectionState === "failed") {
-                console.log("🔴 Connection FAILED - retrying ICE...");
-                videoChatApp.peerConnection.restartIce();
-              } else if (
-                videoChatApp.peerConnection.connectionState === "disconnected"
-              ) {
-                videoChatApp.showToast("Connection lost", "error");
-                videoChatApp.endCall();
-              } else if (
-                videoChatApp.peerConnection.connectionState === "connected"
-              ) {
-                console.log("✅ WebRTC CONNECTED - video should appear!");
-                videoChatApp.showToast(
-                  "Connected! Video loading...",
-                  "success",
-                );
-              }
-            };
-
-            videoChatApp.peerConnection.oniceconnectionstatechange = () => {
-              console.log(
-                "🧊 ICE state:",
-                videoChatApp.peerConnection.iceConnectionState,
-              );
-            };
-
-            videoChatApp.peerConnection.onicegatheringstatechange = () => {
-              console.log(
-                "❄️ ICE gathering:",
-                videoChatApp.peerConnection.iceGatheringState,
-              );
-            };
-
-            // Create and send offer
-            const offer = await videoChatApp.peerConnection.createOffer();
-            await videoChatApp.peerConnection.setLocalDescription(offer);
-
-            videoChatApp.socket.emit("offer", {
-              target: videoChatApp.currentPartner.socketId,
-              offer: offer,
-              fromUser: videoChatApp.userData,
-            });
-
-            // Show call UI
-            videoChatApp.showCallUI();
-
-            // Update partner info
-            document.getElementById("partnerName").textContent =
-              `${videoChatApp.currentPartner.name} (Grade ${videoChatApp.currentPartner.grade})`;
-            document.getElementById("partnerInfo").classList.remove("hidden");
+            return true;
           } catch (err) {
-            console.error("Error starting call:", err);
-            videoChatApp.showToast(
+            console.error("Media error:", err);
+            videoChat.showToast(
               "Could not access camera/microphone. Please check permissions.",
               "error",
             );
-            videoChatApp.endCall();
+            return false;
           }
         },
 
-        handleOffer: async (data) => {
-          if (!videoChatApp.peerConnection) {
-            // Create peer connection if it doesn't exist
-            videoChatApp.currentPartner = data.fromUser;
-            videoChatApp.peerConnection = new RTCPeerConnection(
-              videoChatApp.configuration,
-            );
+        createPeerConnection: (targetId) => {
+          const pc = new RTCPeerConnection(videoChat.iceServers);
 
-            videoChatApp.peerConnection.ontrack = (event) => {
-              const remoteVideo = document.getElementById("remoteVideo");
-              if (remoteVideo.srcObject !== event.streams[0]) {
-                remoteVideo.srcObject = event.streams[0];
-                document
-                  .getElementById("remotePlaceholder")
-                  .classList.add("hidden");
-              }
-            };
-
-            videoChatApp.peerConnection.onicecandidate = (event) => {
-              if (event.candidate && videoChatApp.currentPartner) {
-                videoChatApp.socket.emit("ice-candidate", {
-                  target: videoChatApp.currentPartner.socketId,
-                  candidate: event.candidate,
-                });
-              }
-            };
-
-            // Get local stream
-            videoChatApp.localStream =
-              await navigator.mediaDevices.getUserMedia({
-                video: true,
-                audio: true,
+          pc.onicecandidate = (event) => {
+            if (event.candidate) {
+              videoChat.socket.emit("ice-candidate", {
+                target: targetId,
+                candidate: event.candidate,
               });
+            }
+          };
 
-            const localVideo = document.getElementById("localVideo");
-            localVideo.srcObject = videoChatApp.localStream;
+          pc.ontrack = (event) => {
+            const remoteVideo = document.getElementById("remoteVideo");
+            if (event.streams && event.streams[0]) {
+              remoteVideo.srcObject = event.streams[0];
+              remoteVideo.classList.remove("hidden");
+              document.getElementById("remoteAvatar").classList.add("hidden");
+              document
+                .getElementById("remoteVideoContainer")
+                .classList.remove("hidden");
+              document.getElementById("videoGrid").classList.remove("solo");
+              document.getElementById("videoGrid").classList.add("duo");
 
-            videoChatApp.localStream.getTracks().forEach((track) => {
-              videoChatApp.peerConnection.addTrack(
-                track,
-                videoChatApp.localStream,
+              // Update partner info
+              if (videoChat.partnerData) {
+                document.getElementById("remoteName").textContent =
+                  videoChat.partnerData.name;
+                document.getElementById("remoteGrade").textContent =
+                  `Grade ${videoChat.partnerData.grade}`;
+              }
+            }
+          };
+
+          pc.onconnectionstatechange = () => {
+            console.log("Connection state:", pc.connectionState);
+            if (pc.connectionState === "connected") {
+              videoChat.showToast("Connected! Happy studying!", "success");
+            } else if (pc.connectionState === "failed") {
+              videoChat.showToast(
+                "Connection failed. Please try again.",
+                "error",
               );
+            }
+          };
+
+          // Add local stream tracks
+          if (videoChat.localStream) {
+            videoChat.localStream.getTracks().forEach((track) => {
+              pc.addTrack(track, videoChat.localStream);
             });
           }
 
-          await videoChatApp.peerConnection.setRemoteDescription(
-            new RTCSessionDescription(data.offer),
-          );
-
-          const answer = await videoChatApp.peerConnection.createAnswer();
-          await videoChatApp.peerConnection.setLocalDescription(answer);
-
-          videoChatApp.socket.emit("answer", {
-            target: data.from,
-            answer: answer,
-          });
-
-          videoChatApp.showCallUI();
-          document.getElementById("partnerName").textContent =
-            `${videoChatApp.currentPartner.name} (Grade ${videoChatApp.currentPartner.grade})`;
-          document.getElementById("partnerInfo").classList.remove("hidden");
+          return pc;
         },
 
-        handleAnswer: async (data) => {
-          if (videoChatApp.peerConnection) {
-            await videoChatApp.peerConnection.setRemoteDescription(
-              new RTCSessionDescription(data.answer),
-            );
+        startCall: async (targetId, isInitiator) => {
+          videoChat.isCallActive = true;
+
+          if (!videoChat.localStream) {
+            const success = await videoChat.getMedia();
+            if (!success) return;
           }
-        },
 
-        handleIceCandidate: async (data) => {
-          if (videoChatApp.peerConnection) {
+          videoChat.peerConnection = videoChat.createPeerConnection(targetId);
+
+          if (isInitiator) {
             try {
-              await videoChatApp.peerConnection.addIceCandidate(
-                new RTCIceCandidate(data.candidate),
-              );
+              const offer = await videoChat.peerConnection.createOffer();
+              await videoChat.peerConnection.setLocalDescription(offer);
+              videoChat.socket.emit("offer", {
+                target: targetId,
+                offer: offer,
+                fromUser: {
+                  name: videoChat.userData?.firstName || "Student",
+                  grade: videoChat.userData?.grade || "?",
+                },
+              });
             } catch (err) {
-              console.error("Error adding ICE candidate:", err);
+              console.error("Error creating offer:", err);
             }
           }
         },
 
-        toggleMic: () => {
-          if (videoChatApp.localStream) {
-            const audioTracks = videoChatApp.localStream.getAudioTracks();
-            audioTracks.forEach((track) => {
-              track.enabled = !track.enabled;
+        handleOffer: async (offer, fromId, fromUser) => {
+          videoChat.partnerData = fromUser;
+
+          if (!videoChat.localStream) {
+            await videoChat.getMedia();
+          }
+
+          document.getElementById("waitingScreen").classList.add("hidden");
+          document.getElementById("controls").classList.remove("hidden");
+
+          videoChat.peerConnection = videoChat.createPeerConnection(fromId);
+
+          try {
+            await videoChat.peerConnection.setRemoteDescription(
+              new RTCSessionDescription(offer),
+            );
+            const answer = await videoChat.peerConnection.createAnswer();
+            await videoChat.peerConnection.setLocalDescription(answer);
+            videoChat.socket.emit("answer", {
+              target: fromId,
+              answer: answer,
             });
-            videoChatApp.micEnabled = !videoChatApp.micEnabled;
-            const micBtn = document.getElementById("toggleMic");
-            if (videoChatApp.micEnabled) {
-              micBtn.classList.add("active");
-              micBtn.innerHTML = '<i class="fas fa-microphone text-xl"></i>';
-            } else {
-              micBtn.classList.remove("active");
-              micBtn.innerHTML =
-                '<i class="fas fa-microphone-slash text-xl"></i>';
+          } catch (err) {
+            console.error("Error handling offer:", err);
+          }
+        },
+
+        handleAnswer: async (answer) => {
+          try {
+            await videoChat.peerConnection.setRemoteDescription(
+              new RTCSessionDescription(answer),
+            );
+          } catch (err) {
+            console.error("Error handling answer:", err);
+          }
+        },
+
+        handleIceCandidate: async (candidate) => {
+          try {
+            await videoChat.peerConnection.addIceCandidate(
+              new RTCIceCandidate(candidate),
+            );
+          } catch (err) {
+            console.error("Error adding ICE candidate:", err);
+          }
+        },
+
+        joinRandom: async () => {
+          if (!videoChat.socket) {
+            videoChat.showToast(
+              "Not connected to server. Please wait...",
+              "error",
+            );
+            return;
+          }
+
+          document.getElementById("waitingScreen").classList.add("hidden");
+          document
+            .getElementById("searchingOverlay")
+            .classList.remove("hidden");
+          videoChat.isSearching = true;
+
+          // Get media first
+          const success = await videoChat.getMedia();
+          if (!success) {
+            document.getElementById("searchingOverlay").classList.add("hidden");
+            document.getElementById("waitingScreen").classList.remove("hidden");
+            return;
+          }
+
+          videoChat.socket.emit("find-random-partner", {
+            userId: videoChat.userData?._id || "anonymous",
+            name: videoChat.userData?.firstName || "Student",
+            grade: videoChat.userData?.grade || "?",
+          });
+        },
+
+        cancelSearch: () => {
+          videoChat.isSearching = false;
+          videoChat.socket.emit("leave-queue");
+          document.getElementById("searchingOverlay").classList.add("hidden");
+          document.getElementById("waitingScreen").classList.remove("hidden");
+
+          // Stop media tracks
+          if (videoChat.localStream) {
+            videoChat.localStream.getTracks().forEach((track) => track.stop());
+            videoChat.localStream = null;
+          }
+        },
+
+        joinRoom: () => {
+          const roomName = document.getElementById("roomInput").value.trim();
+          if (!roomName) {
+            videoChat.showToast("Please enter a room name", "error");
+            return;
+          }
+          videoChat.joinSpecificRoom(roomName);
+        },
+
+        joinSpecificRoom: async (roomName) => {
+          if (!videoChat.socket) {
+            videoChat.showToast("Not connected to server", "error");
+            return;
+          }
+
+          // Get media first
+          const success = await videoChat.getMedia();
+          if (!success) return;
+
+          videoChat.room = roomName;
+          videoChat.socket.emit("join-room", roomName);
+
+          document.getElementById("waitingScreen").classList.add("hidden");
+          document.getElementById("controls").classList.remove("hidden");
+          videoChat.showToast(`Joined room: ${roomName}`, "success");
+        },
+
+        toggleMute: () => {
+          if (videoChat.localStream) {
+            const audioTrack = videoChat.localStream.getAudioTracks()[0];
+            if (audioTrack) {
+              audioTrack.enabled = !audioTrack.enabled;
+              videoChat.isMuted = !audioTrack.enabled;
+              const btn = document.getElementById("muteBtn");
+              btn.innerHTML =
+                videoChat.isMuted ?
+                  '<i class="fas fa-microphone-slash"></i>'
+                : '<i class="fas fa-microphone"></i>';
+              btn.classList.toggle("active", videoChat.isMuted);
             }
           }
         },
 
         toggleVideo: () => {
-          if (videoChatApp.localStream) {
-            const videoTracks = videoChatApp.localStream.getVideoTracks();
-            videoTracks.forEach((track) => {
-              track.enabled = !track.enabled;
-            });
-            videoChatApp.videoEnabled = !videoChatApp.videoEnabled;
-            const videoBtn = document.getElementById("toggleVideo");
-            if (videoChatApp.videoEnabled) {
-              videoBtn.classList.add("active");
-              videoBtn.innerHTML = '<i class="fas fa-video text-xl"></i>';
-            } else {
-              videoBtn.classList.remove("active");
-              videoBtn.innerHTML = '<i class="fas fa-video-slash text-xl"></i>';
+          if (videoChat.localStream) {
+            const videoTrack = videoChat.localStream.getVideoTracks()[0];
+            if (videoTrack) {
+              videoTrack.enabled = !videoTrack.enabled;
+              videoChat.isVideoOff = !videoTrack.enabled;
+              const btn = document.getElementById("videoBtn");
+              btn.innerHTML =
+                videoChat.isVideoOff ?
+                  '<i class="fas fa-video-slash"></i>'
+                : '<i class="fas fa-video"></i>';
+              btn.classList.toggle("active", videoChat.isVideoOff);
+
+              // Toggle avatar visibility
+              const localVideo = document.getElementById("localVideo");
+              const localAvatar = document.getElementById("localAvatar");
+              if (videoChat.isVideoOff) {
+                localVideo.classList.add("hidden");
+                localAvatar.classList.remove("hidden");
+              } else {
+                localVideo.classList.remove("hidden");
+                localAvatar.classList.add("hidden");
+              }
             }
           }
         },
 
+        toggleScreenShare: async () => {
+          if (!videoChat.isScreenSharing) {
+            try {
+              videoChat.screenStream =
+                await navigator.mediaDevices.getDisplayMedia({
+                  video: { cursor: "always" },
+                  audio: true,
+                });
+
+              const screenTrack = videoChat.screenStream.getVideoTracks()[0];
+              const sender = videoChat.peerConnection
+                .getSenders()
+                .find((s) => s.track && s.track.kind === "video");
+
+              if (sender) {
+                await sender.replaceTrack(screenTrack);
+              }
+
+              videoChat.isScreenSharing = true;
+              document.getElementById("screenBtn").classList.add("active");
+              document.getElementById("screenBtn").innerHTML =
+                '<i class="fas fa-stop-circle"></i>';
+
+              screenTrack.onended = () => {
+                videoChat.stopScreenShare();
+              };
+
+              videoChat.showToast("Screen sharing started", "success");
+            } catch (err) {
+              console.error("Screen share error:", err);
+              videoChat.showToast("Could not share screen", "error");
+            }
+          } else {
+            videoChat.stopScreenShare();
+          }
+        },
+
+        stopScreenShare: async () => {
+          if (videoChat.screenStream) {
+            videoChat.screenStream.getTracks().forEach((track) => track.stop());
+          }
+
+          if (videoChat.localStream) {
+            const videoTrack = videoChat.localStream.getVideoTracks()[0];
+            const sender = videoChat.peerConnection
+              .getSenders()
+              .find((s) => s.track && s.track.kind === "video");
+            if (sender && videoTrack) {
+              await sender.replaceTrack(videoTrack);
+            }
+          }
+
+          videoChat.isScreenSharing = false;
+          document.getElementById("screenBtn").classList.remove("active");
+          document.getElementById("screenBtn").innerHTML =
+            '<i class="fas fa-desktop"></i>';
+          videoChat.showToast("Screen sharing stopped", "info");
+        },
+
         endCall: () => {
-          // Notify partner
-          if (videoChatApp.currentPartner && videoChatApp.socket) {
-            videoChatApp.socket.emit("end-call", {
-              target: videoChatApp.currentPartner.socketId,
+          if (videoChat.socket && videoChat.partnerData) {
+            videoChat.socket.emit("end-call", {
+              target: videoChat.partnerData.socketId,
             });
           }
+          videoChat.cleanup();
+          videoChat.showToast("Call ended", "info");
+        },
 
-          // Clean up
-          if (videoChatApp.localStream) {
-            videoChatApp.localStream
-              .getTracks()
-              .forEach((track) => track.stop());
-            videoChatApp.localStream = null;
+        cleanup: () => {
+          videoChat.isCallActive = false;
+          videoChat.isSearching = false;
+
+          if (videoChat.peerConnection) {
+            videoChat.peerConnection.close();
+            videoChat.peerConnection = null;
           }
 
-          if (videoChatApp.peerConnection) {
-            videoChatApp.peerConnection.close();
-            videoChatApp.peerConnection = null;
+          if (videoChat.localStream) {
+            videoChat.localStream.getTracks().forEach((track) => track.stop());
+            videoChat.localStream = null;
           }
 
-          videoChatApp.currentPartner = null;
-          videoChatApp.currentRoom = null;
-          videoChatApp.isMatching = false;
+          if (videoChat.screenStream) {
+            videoChat.screenStream.getTracks().forEach((track) => track.stop());
+            videoChat.screenStream = null;
+          }
 
           // Reset UI
-          videoChatApp.hideCallUI();
-          videoChatApp.showWaitingScreen();
-
-          // Clear video elements
-          const localVideo = document.getElementById("localVideo");
-          const remoteVideo = document.getElementById("remoteVideo");
-          if (localVideo) localVideo.srcObject = null;
-          if (remoteVideo) remoteVideo.srcObject = null;
-        },
-
-        isInCall: () => {
-          return videoChatApp.peerConnection !== null;
-        },
-
-        showMatchingIndicator: () => {
+          document.getElementById("videoGrid").classList.remove("duo");
+          document.getElementById("videoGrid").classList.add("solo");
           document
-            .getElementById("matchingIndicator")
-            .classList.remove("hidden");
-        },
-
-        hideMatchingIndicator: () => {
-          document.getElementById("matchingIndicator").classList.add("hidden");
-        },
-
-        showWaitingScreen: () => {
+            .getElementById("remoteVideoContainer")
+            .classList.add("hidden");
+          document.getElementById("controls").classList.add("hidden");
           document.getElementById("waitingScreen").classList.remove("hidden");
-          document.getElementById("callContainer").classList.add("hidden");
+
+          // Reset buttons
+          document.getElementById("muteBtn").innerHTML =
+            '<i class="fas fa-microphone"></i>';
+          document.getElementById("muteBtn").classList.remove("active");
+          document.getElementById("videoBtn").innerHTML =
+            '<i class="fas fa-video"></i>';
+          document.getElementById("videoBtn").classList.remove("active");
+          document.getElementById("screenBtn").innerHTML =
+            '<i class="fas fa-desktop"></i>';
+          document.getElementById("screenBtn").classList.remove("active");
+
+          videoChat.partnerData = null;
         },
 
-        hideWaitingScreen: () => {
-          document.getElementById("waitingScreen").classList.add("hidden");
-        },
-
-        showCallUI: () => {
-          videoChatApp.hideWaitingScreen();
-          videoChatApp.hideMatchingIndicator();
-          document.getElementById("callContainer").classList.remove("hidden");
-        },
-
-        hideCallUI: () => {
-          document.getElementById("callContainer").classList.add("hidden");
-        },
-
-        showToast: function (message, type = "info") {
-          const toastContainer = document.getElementById("toastContainer");
+        showToast: (message, type = "info") => {
+          const container = document.getElementById("toastContainer");
           const toast = document.createElement("div");
-          const colors =
-            type === "error" ? "bg-red-500/20 border-red-500/50 text-red-400"
-            : type === "success" ?
-              "bg-green-500/20 border-green-500/50 text-green-400"
-            : "bg-blue-500/20 border-blue-500/50 text-blue-400";
-          toast.className = `px-4 py-3 rounded-xl glass border ${colors} text-sm flex items-center space-x-3 transform translate-x-full transition-all duration-300`;
-          const icon =
+          toast.className = `toast ${type}`;
+          toast.innerHTML = `<i class="fas ${
             type === "error" ? "fa-exclamation-circle"
             : type === "success" ? "fa-check-circle"
-            : "fa-info-circle";
-          toast.innerHTML = `<i class="fas ${icon}"></i><span>${message}</span>`;
-          toastContainer.appendChild(toast);
-          setTimeout(() => toast.classList.remove("translate-x-full"), 10);
+            : "fa-info-circle"
+          } mr-2"></i>${message}`;
+          container.appendChild(toast);
+
+          setTimeout(() => toast.classList.add("show"), 10);
           setTimeout(() => {
-            toast.classList.add("translate-x-full");
+            toast.classList.remove("show");
             setTimeout(() => toast.remove(), 300);
           }, 3000);
         },
       };
 
-      document.addEventListener("DOMContentLoaded", () => {
-        videoChatApp.init();
+      // Initialize on load
+      document.addEventListener("DOMContentLoaded", videoChat.init);
+
+      // Handle page unload
+      window.addEventListener("beforeunload", () => {
+        if (videoChat.isCallActive) {
+          videoChat.endCall();
+        }
       });
     </script>
   </body>

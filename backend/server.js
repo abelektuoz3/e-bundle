@@ -49,11 +49,7 @@ const allowedOrigins =
   : [
       "http://localhost:3000",
       "http://localhost:5000",
-      "http://127.0.0.1:5500", // Add this line for local development
-      "http://localhost:5500", // Add this line for local development
       "https://e-bundle.onrender.com",
-      "https://ebundle-ethiopia.netlify.app", // Add your Netlify URL
-      "https://ebundle-ethiopia.netlify.app",
     ];
 
 app.use(
@@ -2699,20 +2695,17 @@ const socketIo = require("socket.io");
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: "*", // Allow all origins for development
+    origin: allowedOrigins,
     credentials: true,
     methods: ["GET", "POST"],
   },
   transports: ["websocket", "polling"],
-  allowEIO3: true,
 });
 
-// Store connected users
+// Store connected users and waiting queue
 const connectedUsers = new Map();
 const waitingUsers = [];
-
-// PIN Rooms registry: PIN → {roomId, creator}
-const pinRooms = new Map();
+const activeRooms = new Map(); // roomId -> [socket1, socket2]
 
 // Socket.io connection handling
 io.on("connection", (socket) => {
@@ -2720,7 +2713,9 @@ io.on("connection", (socket) => {
 
   let currentUserId = null;
   let currentRoom = null;
+  let isInCall = false;
 
+  // Register user info
   socket.on("register", (userData) => {
     currentUserId = userData.userId;
     connectedUsers.set(currentUserId, {
@@ -2728,92 +2723,104 @@ io.on("connection", (socket) => {
       name: userData.name,
       grade: userData.grade,
       avatar: userData.avatar,
+      socket: socket
     });
-    console.log(`User ${userData.name} (${userData.grade}) registered`);
-
-    // Send confirmation
-    socket.emit("registered", { success: true });
+    console.log(`User registered: ${userData.name} (Grade ${userData.grade})`);
   });
 
-  // PIN Room Handlers
-  socket.on("create-room", (userData) => {
-    const pin = Math.floor(1000 + Math.random() * 9000).toString();
-    const roomId = `room_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    pinRooms.set(pin, {
-      roomId,
-      creatorId: currentUserId,
-      creatorSocket: socket.id,
-      creatorData: userData,
-      joined: false,
-    });
-
-    console.log(`📱 Room created PIN:${pin} by ${userData.name}`);
-
-    socket.emit("room-created", { pin, room: roomId });
+  // Join specific room (for named rooms)
+  socket.on("join-room", (roomId) => {
+    socket.join(roomId);
+    currentRoom = roomId;
+    
+    // Check if room has other users
+    const room = io.sockets.adapter.rooms.get(roomId);
+    if (room && room.size === 2) {
+      // Room has 2 people, they can start calling each other
+      const sockets = Array.from(room);
+      const otherSocketId = sockets.find(id => id !== socket.id);
+      const otherSocket = io.sockets.sockets.get(otherSocketId);
+      
+      if (otherSocket) {
+        const otherUser = Array.from(connectedUsers.values()).find(u => u.socketId === otherSocketId);
+        const thisUser = Array.from(connectedUsers.values()).find(u => u.socketId === socket.id);
+        
+        if (otherUser && thisUser) {
+          // Notify both users they can start the call
+          socket.emit("matched", {
+            partner: otherUser,
+            room: roomId
+          });
+          otherSocket.emit("matched", {
+            partner: thisUser,
+            room: roomId
+          });
+        }
+      }
+    }
   });
 
-  socket.on("join-room", (data) => {
-    const roomInfo = pinRooms.get(data.pin);
-
-    if (!roomInfo) {
-      socket.emit("room-error", { message: "Room not found or expired" });
-      return;
-    }
-
-    if (roomInfo.joined) {
-      socket.emit("room-error", { message: "Room full" });
-      return;
-    }
-
-    roomInfo.joined = true;
-
-    const creatorSocket = io.sockets.sockets.get(roomInfo.creatorSocket);
-
-    // Notify creator
-    if (creatorSocket) {
-      creatorSocket.emit("room-joined", {
-        partner: {
-          socketId: socket.id,
-          name: data.userData.name,
-          grade: data.userData.grade,
-        },
-        room: roomInfo.roomId,
-      });
-    }
-
-    // Notify joiner
-    socket.emit("room-joined", {
-      partner: {
-        socketId: roomInfo.creatorSocket,
-        name: roomInfo.creatorData.name,
-        grade: roomInfo.creatorData.grade,
-      },
-      room: roomInfo.roomId,
-    });
-
-    console.log(
-      `✅ ${data.userData.name} joined PIN:${data.pin} (${roomInfo.creatorData.name})`,
-    );
-  });
-
+  // Find random partner
   socket.on("find-random-partner", (userData) => {
     currentUserId = userData.userId;
+    
+    // Remove from waiting if already there
+    const existingIndex = waitingUsers.findIndex(u => u.socketId === socket.id);
+    if (existingIndex !== -1) {
+      waitingUsers.splice(existingIndex, 1);
+    }
 
-    waitingUsers.push({
-      userId: currentUserId,
-      socketId: socket.id,
-      name: userData.name,
-      grade: userData.grade,
-    });
-
-    console.log(
-      `User ${userData.name} looking for partner. Queue size: ${waitingUsers.length}`,
-    );
-
-    matchUsers();
+    // Try to find match with same grade
+    const sameGradeIndex = waitingUsers.findIndex(u => u.grade === userData.grade);
+    
+    if (sameGradeIndex !== -1 && waitingUsers[sameGradeIndex].socketId !== socket.id) {
+      // Found match
+      const partner = waitingUsers[sameGradeIndex];
+      waitingUsers.splice(sameGradeIndex, 1);
+      
+      const user = {
+        socketId: socket.id,
+        name: userData.name,
+        grade: userData.grade,
+        userId: userData.userId
+      };
+      
+      // Create room
+      const roomName = `random_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      socket.join(roomName);
+      partner.socket.join(roomName);
+      currentRoom = roomName;
+      
+      // Store in active rooms
+      activeRooms.set(roomName, [socket.id, partner.socketId]);
+      isInCall = true;
+      
+      // Notify both
+      socket.emit("matched", {
+        partner: partner,
+        room: roomName
+      });
+      
+      io.to(partner.socketId).emit("matched", {
+        partner: user,
+        room: roomName
+      });
+      
+      console.log(`Matched ${user.name} with ${partner.name} in room ${roomName}`);
+    } else {
+      // No match, add to waiting
+      waitingUsers.push({
+        socketId: socket.id,
+        userId: userData.userId,
+        name: userData.name,
+        grade: userData.grade,
+        socket: socket
+      });
+      console.log(`${userData.name} added to waiting queue. Size: ${waitingUsers.length}`);
+    }
   });
 
+  // Leave waiting queue
   socket.on("leave-queue", () => {
     const index = waitingUsers.findIndex((u) => u.socketId === socket.id);
     if (index !== -1) {
@@ -2822,18 +2829,17 @@ io.on("connection", (socket) => {
     }
   });
 
+  // WebRTC Signaling Events
+  
   socket.on("offer", (data) => {
-    console.log("📨 Offer received from", socket.id, "to", data.target);
     const targetSocket = io.sockets.sockets.get(data.target);
     if (targetSocket) {
       targetSocket.emit("offer", {
         offer: data.offer,
         from: socket.id,
-        fromUser: data.fromUser,
+        fromUser: data.fromUser
       });
-      console.log("✅ Offer forwarded");
-    } else {
-      console.log("❌ Target socket not found:", data.target);
+      console.log(`Offer sent from ${socket.id} to ${data.target}`);
     }
   });
 
@@ -2842,8 +2848,9 @@ io.on("connection", (socket) => {
     if (targetSocket) {
       targetSocket.emit("answer", {
         answer: data.answer,
-        from: socket.id,
+        from: socket.id
       });
+      console.log(`Answer sent from ${socket.id} to ${data.target}`);
     }
   });
 
@@ -2852,7 +2859,7 @@ io.on("connection", (socket) => {
     if (targetSocket) {
       targetSocket.emit("ice-candidate", {
         candidate: data.candidate,
-        from: socket.id,
+        from: socket.id
       });
     }
   });
@@ -2864,74 +2871,52 @@ io.on("connection", (socket) => {
         targetSocket.emit("call-ended", { from: socket.id });
       }
     }
-
+    
     if (currentRoom) {
+      // Clean up room
+      activeRooms.delete(currentRoom);
       socket.leave(currentRoom);
     }
-
-    // Clean up PIN room
-    for (let [pin, roomInfo] of pinRooms.entries()) {
-      if (roomInfo.creatorSocket === socket.id || roomInfo.joined) {
-        pinRooms.delete(pin);
-        console.log(`🧹 Cleaned PIN room ${pin}`);
-      }
-    }
+    isInCall = false;
   });
 
+  // Handle disconnect
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
 
+    // Remove from waiting queue
     const queueIndex = waitingUsers.findIndex((u) => u.socketId === socket.id);
     if (queueIndex !== -1) {
       waitingUsers.splice(queueIndex, 1);
+      console.log("Removed from waiting queue");
     }
 
+    // Remove from connected users
     if (currentUserId) {
       connectedUsers.delete(currentUserId);
     }
 
+    // Notify partner if in call
+    if (currentRoom && isInCall) {
+      const room = activeRooms.get(currentRoom);
+      if (room) {
+        const partnerId = room.find(id => id !== socket.id);
+        if (partnerId) {
+          const partnerSocket = io.sockets.sockets.get(partnerId);
+          if (partnerSocket) {
+            partnerSocket.emit("partner-disconnected");
+          }
+        }
+        activeRooms.delete(currentRoom);
+      }
+    }
+
+    // Leave all rooms
     if (currentRoom) {
-      socket.to(currentRoom).emit("partner-disconnected");
+      socket.leave(currentRoom);
     }
   });
 });
-
-function matchUsers() {
-  while (waitingUsers.length >= 2) {
-    const user1 = waitingUsers.shift();
-    const user2 = waitingUsers.shift();
-
-    const socket1 = io.sockets.sockets.get(user1.socketId);
-    const socket2 = io.sockets.sockets.get(user2.socketId);
-
-    if (socket1 && socket2) {
-      const roomName = `room_${user1.userId}_${user2.userId}`;
-
-      socket1.join(roomName);
-      socket2.join(roomName);
-
-      socket1.emit("matched", {
-        partner: {
-          socketId: user2.socketId,
-          name: user2.name,
-          grade: user2.grade,
-        },
-        room: roomName,
-      });
-
-      socket2.emit("matched", {
-        partner: {
-          socketId: user1.socketId,
-          name: user1.name,
-          grade: user1.grade,
-        },
-        room: roomName,
-      });
-
-      console.log(`Matched ${user1.name} with ${user2.name}`);
-    }
-  }
-}
 
 // ================= START SERVER =================
 const PORT = process.env.PORT || 5000;
