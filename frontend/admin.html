@@ -2,711 +2,675 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
-    <title>AI Tutor | E-Bundle Ethiopia</title>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard | E-Bundle Ethiopia</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
       rel="stylesheet" />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Ethiopic:wght@400;500;700&display=swap"
-      rel="stylesheet" />
-
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: { sans: ["Inter", "Noto Sans Ethiopic", "sans-serif"] },
-            colors: {
-              primary: "#4F46E5",
-              secondary: "#7C3AED",
-              accent: "#EC4899",
-            },
-          },
-        },
-      };
-    </script>
-
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="style/admin.css" />
     <style>
-      /* Custom styles */
       body {
-        background-color: #0f172a;
-        color: #f8fafc;
+        background: linear-gradient(
+          135deg,
+          #0f172a 0%,
+          #1e293b 50%,
+          #0f172a 100%
+        );
+        font-family: "Space Grotesk", sans-serif;
       }
-
       .glass {
         background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(10px);
+        backdrop-filter: blur(20px);
         border: 1px solid rgba(255, 255, 255, 0.1);
       }
-
       .glass-card {
         background: linear-gradient(
           135deg,
-          rgba(255, 255, 255, 0.05) 0%,
+          rgba(255, 255, 255, 0.03) 0%,
           rgba(255, 255, 255, 0.01) 100%
         );
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .upload-zone {
+        background: linear-gradient(
+          135deg,
+          rgba(59, 130, 246, 0.1) 0%,
+          rgba(147, 51, 234, 0.1) 100%
+        );
+        border: 2px dashed rgba(59, 130, 246, 0.4);
         transition: all 0.3s ease;
       }
-
-      .glass-card:hover {
-        border-color: rgba(79, 70, 229, 0.3);
+      .upload-zone.dragover {
+        background: linear-gradient(
+          135deg,
+          rgba(59, 130, 246, 0.2) 0%,
+          rgba(147, 51, 234, 0.2) 100%
+        );
+        border-color: #3b82f6;
+        transform: translateY(-2px);
       }
-
-      .blob {
-        position: absolute;
-        filter: blur(100px);
-        opacity: 0.3;
-        animation: blob 7s infinite;
-      }
-
-      @keyframes blob {
-        0% {
-          transform: translate(0px, 0px) scale(1);
-        }
-        33% {
-          transform: translate(30px, -50px) scale(1.1);
-        }
-        66% {
-          transform: translate(-20px, 20px) scale(0.9);
-        }
-        100% {
-          transform: translate(0px, 0px) scale(1);
-        }
-      }
-
-      .nav-btn {
-        transition: all 0.2s ease;
-      }
-
-      .nav-btn:hover {
-        background: rgba(255, 255, 255, 0.1);
-        transform: translateY(-1px);
-      }
-
-      .typing-dot {
-        animation: typing 1.4s infinite;
-      }
-
-      .typing-dot:nth-child(2) {
-        animation-delay: 0.2s;
-      }
-
-      .typing-dot:nth-child(3) {
-        animation-delay: 0.4s;
-      }
-
-      @keyframes typing {
-        0%,
-        60%,
-        100% {
-          transform: translateY(0);
-          opacity: 0.4;
-        }
-        30% {
-          transform: translateY(-10px);
-          opacity: 1;
-        }
-      }
-
-      .markdown-body strong {
-        color: #4f46e5;
-      }
-
-      .markdown-body code {
-        background: rgba(0, 0, 0, 0.3);
-        padding: 2px 6px;
-        border-radius: 6px;
-        font-family: monospace;
-        font-size: 0.9em;
-      }
-
-      .markdown-body pre {
-        background: rgba(0, 0, 0, 0.3);
-        padding: 12px;
-        border-radius: 8px;
-        overflow-x: auto;
-        margin: 12px 0;
-      }
-
-      .markdown-body pre code {
-        background: none;
-        padding: 0;
-      }
-
-      .fade-in {
-        animation: fadeIn 0.5s ease-out;
-      }
-
-      @keyframes fadeIn {
-        from {
-          opacity: 0;
-          transform: translateY(20px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-
-      /* Custom scrollbar */
-      ::-webkit-scrollbar {
-        width: 8px;
-      }
-
-      ::-webkit-scrollbar-track {
+      .table-row:hover {
         background: rgba(255, 255, 255, 0.05);
-        border-radius: 10px;
       }
-
-      ::-webkit-scrollbar-thumb {
-        background: rgba(79, 70, 229, 0.5);
-        border-radius: 10px;
+      .status-online {
+        background: linear-gradient(90deg, #10b981, #34d399);
       }
-
-      ::-webkit-scrollbar-thumb:hover {
-        background: rgba(79, 70, 229, 0.8);
+      .status-uploading {
+        background: linear-gradient(90deg, #f59e0b, #fbbf24);
+      }
+      .pulse-ring {
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+        animation: pulse 2s infinite;
+      }
+      @keyframes pulse {
+        0% {
+          transform: scale(0.95);
+          opacity: 1;
+        }
+        100% {
+          transform: scale(1.1);
+          opacity: 0;
+        }
       }
     </style>
   </head>
-  <body
-    class="antialiased min-h-screen relative selection:bg-primary selection:text-white">
-    <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
-      <div class="blob bg-primary w-72 h-72 rounded-full top-0 left-0"></div>
-      <div
-        class="blob bg-secondary w-96 h-96 rounded-full bottom-0 right-0"></div>
+  <body class="min-h-screen">
+    <!-- Loading Overlay -->
+    <div
+      id="loadingOverlay"
+      class="fixed inset-0 bg-slate-900/90 backdrop-blur-md flex items-center justify-center z-50 hidden">
+      <div class="text-center">
+        <div
+          class="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
+        <p class="text-white font-medium">Loading Dashboard...</p>
+      </div>
     </div>
 
-    <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
+    <!-- Toast Container -->
+    <div id="toastContainer" class="fixed top-20 right-6 z-50 space-y-2"></div>
 
     <!-- Navbar -->
-    <nav
-      class="w-full glass border-b border-white/10 px-6 py-4 flex justify-between items-center sticky top-0 z-50">
-      <div
-        class="flex items-center space-x-3 cursor-pointer"
-        onclick="window.location.href = 'dashboard.html'">
-        <div
-          class="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center">
-          <i class="fas fa-graduation-cap text-white text-lg"></i>
-        </div>
-        <span class="text-xl font-bold hidden sm:block">E-Bundle</span>
-      </div>
-
-      <div class="hidden md:flex items-center space-x-1">
-        <a
-          href="dashboard.html"
-          class="nav-btn px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all flex items-center space-x-2">
-          <i class="fas fa-home"></i><span>Dashboard</span>
-        </a>
-        <a
-          href="library.html"
-          class="nav-btn px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all flex items-center space-x-2">
-          <i class="fas fa-book"></i><span>Library</span>
-        </a>
-        <a
-          href="ai-tutor.html"
-          class="nav-btn px-4 py-2 rounded-lg text-white bg-white/10 transition-all flex items-center space-x-2">
-          <i class="fas fa-robot"></i><span>AI Tutor</span>
-        </a>
-        <a
-          href="community.html"
-          class="nav-btn px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all flex items-center space-x-2">
-          <i class="fas fa-users"></i><span>Community</span>
-        </a>
-        <a
-          href="kahoot.html"
-          class="nav-btn px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all flex items-center space-x-2">
-          <i class="fas fa-gamepad"></i><span>Kahoot</span>
-        </a>
-        <a
-          href="video-chat.html"
-          class="nav-btn px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all flex items-center space-x-2">
-          <i class="fas fa-video"></i><span>Video Chat</span>
-        </a>
-      </div>
-
-      <div class="flex items-center space-x-4">
-        <div
-          class="hidden sm:flex items-center space-x-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
-          <i class="fas fa-fire text-orange-500"></i>
-          <span class="text-sm font-semibold" id="userStreak"
-            >0 Day Streak</span
-          >
-        </div>
-        <div class="relative group">
+    <nav class="glass sticky top-0 z-40 px-6 py-4 border-b border-white/10">
+      <div class="max-w-7xl mx-auto flex items-center justify-between">
+        <div class="flex items-center space-x-4">
           <div
-            class="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-secondary p-[2px] cursor-pointer">
-            <img
-              id="userAvatar"
-              src="https://api.dicebear.com/7.x/avataaars/svg?seed=User"
-              class="w-full h-full rounded-full bg-slate-900 object-cover" />
+            class="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+            <i class="fas fa-shield-alt text-white text-xl"></i>
           </div>
-          <div
-            class="absolute right-0 mt-2 w-48 glass rounded-xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top-right z-50">
-            <div class="p-2">
-              <div
-                class="px-4 py-2 text-sm text-gray-400 border-b border-white/10 mb-1">
-                <span id="userNameDisplay">User</span>
-              </div>
-              <a
-                href="profile.html"
-                class="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-sm transition-colors block"
-                >Profile</a
-              >
-              <a
-                href="settings.html"
-                class="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg text-sm transition-colors block"
-                >Settings</a
-              >
-              <hr class="border-white/10 my-2" />
-              <a
-                href="#"
-                onclick="logout()"
-                class="w-full text-left px-4 py-2 hover:bg-red-500/20 text-red-400 rounded-lg text-sm transition-colors block"
-                >Logout</a
-              >
-            </div>
+          <div>
+            <h1
+              class="text-2xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+              Admin Dashboard
+            </h1>
+            <p class="text-sm text-slate-400" id="pageSubtitle">
+              Manage your E-Bundle platform
+            </p>
           </div>
+        </div>
+        <div class="flex items-center space-x-4">
+          <div class="text-sm text-slate-400">
+            <span id="adminName">Loading...</span> |
+            <span class="font-semibold text-blue-400" id="adminRole"
+              >Admin</span
+            >
+          </div>
+          <button
+            onclick="logout()"
+            class="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-300 rounded-xl text-sm font-medium transition-all flex items-center gap-2">
+            <i class="fas fa-sign-out-alt"></i> Logout
+          </button>
         </div>
       </div>
     </nav>
 
-    <!-- Main Content -->
-    <main class="p-6 max-w-7xl mx-auto relative z-10 h-[calc(100vh-5rem)]">
-      <section class="fade-in h-full">
-        <div
-          class="h-full flex flex-col glass-card rounded-3xl overflow-hidden">
+    <div class="max-w-7xl mx-auto p-6 pb-20">
+      <!-- Stats Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="glass-card p-6 rounded-2xl hover:shadow-2xl transition-all">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-slate-400 text-sm font-medium">Total Media</p>
+              <p class="text-3xl font-bold text-white" id="totalMedia">0</p>
+            </div>
+            <div
+              class="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
+              <i class="fas fa-file-archive text-blue-400 text-xl"></i>
+            </div>
+          </div>
           <div
-            class="p-6 border-b border-white/10 bg-gradient-to-r from-primary/20 to-secondary/20">
-            <div class="flex items-center space-x-4">
-              <div
-                class="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center animate-pulse">
-                <i class="fas fa-robot text-white text-xl"></i>
-              </div>
-              <div>
-                <h2 class="text-xl font-bold">AI Learning Assistant</h2>
-                <p class="text-sm text-gray-400">
-                  Powered by Groq AI - Ask anything about your studies
-                </p>
-              </div>
-              <div class="ml-auto flex items-center space-x-2">
-                <span
-                  class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                <span class="text-xs text-green-400">Online</span>
-              </div>
+            class="mt-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-xl p-3">
+            <div class="flex justify-between text-sm">
+              <span>Videos: <span id="videoCount">0</span></span>
+              <span>Audio: <span id="audioCount">0</span></span>
             </div>
-          </div>
-
-          <div id="aiChatMessages" class="flex-1 overflow-y-auto p-6 space-y-4">
-            <!-- Messages loaded here -->
-          </div>
-
-          <div class="p-4 border-t border-white/10 bg-slate-900/50">
-            <div class="flex flex-wrap gap-2 mb-3">
-              <button
-                onclick="quickAsk('Explain quadratic equations with examples')"
-                class="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-full text-xs transition-colors border border-white/10">
-                Quadratic equations?
-              </button>
-              <button
-                onclick="quickAsk('Explain photosynthesis step by step')"
-                class="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-full text-xs transition-colors border border-white/10">
-                Photosynthesis?
-              </button>
-              <button
-                onclick="quickAsk('What are Newton\'s three laws of motion?')"
-                class="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-full text-xs transition-colors border border-white/10">
-                Newton's laws?
-              </button>
-              <button
-                onclick="quickAsk('Explain periodic table trends')"
-                class="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-full text-xs transition-colors border border-white/10">
-                Periodic table?
-              </button>
-              <button
-                onclick="
-                  quickAsk(
-                    'Tell me about Ethiopian history and the Battle of Adwa',
-                  )
-                "
-                class="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-full text-xs transition-colors border border-white/10">
-                Ethiopian history?
-              </button>
+            <div class="flex justify-between text-sm">
+              <span>PDFs: <span id="pdfCount">0</span></span>
+              <span>Total Size: <span id="totalSize">0 MB</span></span>
             </div>
-            <div class="flex space-x-3">
-              <input
-                type="text"
-                id="aiChatInput"
-                placeholder="Ask your question..."
-                class="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:border-primary text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                onkeypress="if (event.key === 'Enter') sendMessage();" />
-              <button
-                id="sendBtn"
-                onclick="sendMessage()"
-                disabled
-                class="px-6 py-3 bg-primary rounded-xl hover:bg-primary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[60px]">
-                <i class="fas fa-paper-plane" id="sendIcon"></i>
-                <svg
-                  id="sendSpinner"
-                  class="hidden w-5 h-5 animate-spin"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24">
-                  <circle
-                    class="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    stroke-width="4"></circle>
-                  <path
-                    class="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              </button>
-            </div>
-            <p class="text-xs text-gray-500 mt-2 text-center">
-              <i class="fas fa-brain mr-1"></i> Powered by Groq's Llama 3.3 70B
-              • Ask about Mathematics, Physics, Chemistry, Biology, History, and
-              more!
-            </p>
           </div>
         </div>
-      </section>
-    </main>
+
+        <div class="glass-card p-6 rounded-2xl hover:shadow-2xl transition-all">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-slate-400 text-sm font-medium">Total Users</p>
+              <p class="text-3xl font-bold text-white" id="totalUsers">0</p>
+            </div>
+            <div
+              class="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
+              <i class="fas fa-users text-green-400 text-xl"></i>
+            </div>
+          </div>
+          <div class="mt-4 grid grid-cols-2 gap-2 text-sm">
+            <div>
+              Active:
+              <span class="font-semibold text-green-400" id="activeUsers"
+                >0</span
+              >
+            </div>
+            <div>
+              New:
+              <span class="font-semibold text-blue-400" id="newUsers">0</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-card p-6 rounded-2xl hover:shadow-2xl transition-all">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-slate-400 text-sm font-medium">Storage</p>
+              <p class="text-3xl font-bold text-white" id="storageUsed">0 MB</p>
+            </div>
+            <div
+              class="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
+              <i class="fas fa-hdd text-purple-400 text-xl"></i>
+            </div>
+          </div>
+          <div class="mt-4">
+            <div class="w-full bg-slate-800 rounded-full h-3">
+              <div
+                class="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all"
+                style="width: 0%"
+                id="storageBar"></div>
+            </div>
+            <p class="text-xs text-slate-400 mt-1 text-right">5GB / 10GB</p>
+          </div>
+        </div>
+
+        <div class="glass-card p-6 rounded-2xl hover:shadow-2xl transition-all">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-slate-400 text-sm font-medium">Avg Completion</p>
+              <p class="text-3xl font-bold text-white" id="avgCompletion">0%</p>
+            </div>
+            <div
+              class="w-12 h-12 bg-orange-500/20 rounded-xl flex items-center justify-center">
+              <i class="fas fa-chart-line text-orange-400 text-xl"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Media Management -->
+        <div class="lg:col-span-2">
+          <div class="glass-card p-6 rounded-3xl">
+            <div class="flex items-center justify-between mb-6">
+              <div>
+                <h2 class="text-2xl font-bold text-white">Media Library</h2>
+                <p class="text-slate-400">
+                  Manage uploaded educational content
+                </p>
+              </div>
+              <div class="flex gap-3">
+                <label
+                  for="media-upload"
+                  class="upload-zone cursor-pointer px-6 py-3 rounded-xl border-2 border-dashed flex items-center gap-2 text-blue-400 hover:text-blue-300 font-medium transition-all">
+                  <i class="fas fa-cloud-upload-alt"></i> Upload Media
+                </label>
+                <button
+                  onclick="refreshMedia()"
+                  class="px-4 py-3 glass hover:bg-white/10 rounded-xl flex items-center gap-2 text-slate-400 hover:text-white transition-all">
+                  <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+              </div>
+            </div>
+
+            <!-- Upload Form (Hidden) -->
+            <form
+              id="uploadForm"
+              class="mb-6 p-4 bg-slate-900/50 rounded-2xl hidden">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <input
+                  type="file"
+                  id="media-upload"
+                  class="hidden"
+                  accept="video/*,audio/*,application/pdf"
+                  multiple />
+                <input
+                  type="text"
+                  id="mediaTitle"
+                  placeholder="Title"
+                  class="input-field p-4 rounded-xl bg-slate-800/50 border border-slate-700 text-white focus:border-blue-500"
+                  required />
+                <select
+                  id="mediaCategory"
+                  class="input-field p-4 rounded-xl bg-slate-800/50 border border-slate-700 text-white focus:border-blue-500">
+                  <option value="general">General</option>
+                  <option value="tutorial">Tutorial</option>
+                  <option value="documentation">Documentation</option>
+                </select>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  type="text"
+                  id="mediaDescription"
+                  placeholder="Description (optional)"
+                  class="input-field p-4 rounded-xl bg-slate-800/50 border border-slate-700 text-white focus:border-blue-500" />
+                <button
+                  type="submit"
+                  class="btn-primary py-4 rounded-xl font-semibold">
+                  Upload Files
+                </button>
+              </div>
+            </form>
+
+            <!-- Media Table -->
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-white/10">
+                    <th class="text-left py-4 font-semibold text-slate-300">
+                      Title
+                    </th>
+                    <th class="text-left py-4 font-semibold text-slate-300">
+                      Type
+                    </th>
+                    <th class="text-left py-4 font-semibold text-slate-300">
+                      Size
+                    </th>
+                    <th class="text-left py-4 font-semibold text-slate-300">
+                      Category
+                    </th>
+                    <th class="text-left py-4 font-semibold text-slate-300">
+                      Uploaded
+                    </th>
+                    <th class="text-right py-4 font-semibold text-slate-300">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody id="mediaTableBody">
+                  <!-- Dynamic content -->
+                </tbody>
+              </table>
+              <div id="noMedia" class="text-center py-12 text-slate-500 hidden">
+                <i class="fas fa-inbox text-4xl mb-4 opacity-50"></i>
+                <p class="text-lg">No media files uploaded yet</p>
+                <p class="text-sm mt-2">
+                  Upload your first educational content to get started
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions & Recent Activity -->
+        <div>
+          <div class="glass-card p-6 rounded-3xl mb-6">
+            <h3
+              class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+              <i class="fas fa-bolt text-yellow-400"></i> Quick Actions
+            </h3>
+            <div class="space-y-3">
+              <button
+                onclick="showUsers()"
+                class="w-full p-4 glass-card hover:bg-white/10 rounded-xl flex items-center gap-3 text-left transition-all">
+                <i class="fas fa-users text-blue-400"></i>
+                <span>View All Users</span>
+              </button>
+              <button
+                onclick="showReports()"
+                class="w-full p-4 glass-card hover:bg-white/10 rounded-xl flex items-center gap-3 text-left transition-all">
+                <i class="fas fa-chart-bar text-green-400"></i>
+                <span>Analytics & Reports</span>
+              </button>
+              <button
+                onclick="showCourses()"
+                class="w-full p-4 glass-card hover:bg-white/10 rounded-xl flex items-center gap-3 text-left transition-all">
+                <i class="fas fa-book text-purple-400"></i>
+                <span>Manage Courses</span>
+              </button>
+              <button
+                onclick="bulkDelete()"
+                class="w-full p-4 glass-card hover:bg-red-500/20 border-red-500/30 text-red-400 rounded-xl flex items-center gap-3 text-left transition-all">
+                <i class="fas fa-trash-alt"></i>
+                <span>Delete All Media</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="glass-card p-6 rounded-3xl">
+            <h3
+              class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+              <i class="fas fa-clock text-orange-400"></i> Recent Activity
+            </h3>
+            <div
+              id="recentActivity"
+              class="space-y-3 max-h-64 overflow-y-auto custom-scrollbar">
+              <!-- Dynamic content -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <script>
-      // =============================================
-      // API CONFIGURATION - DEPLOYED BACKEND
-      // =============================================
-      const API_URL = "https://e-bundle.onrender.com/api/chat";
+      const API_BASE_URL = "https://e-bundle.onrender.com";
 
-      let isWaitingForResponse = false;
-      let authToken = null;
-      let currentUser = null;
+      let mediaList = [];
+      let adminData = null;
+      let stats = {};
 
-      // =============================================
-      // UTILITY FUNCTIONS
-      // =============================================
-
-      function showToast(message, type = "info") {
+      // Utility Functions
+      function showToast(message, type = "success") {
         const container = document.getElementById("toastContainer");
         const toast = document.createElement("div");
-        const colors =
-          type === "error" ? "bg-red-500/20 border-red-500/50 text-red-400"
-          : type === "success" ?
-            "bg-green-500/20 border-green-500/50 text-green-400"
-          : "bg-primary/20 border-primary/50 text-primary";
-
-        toast.className = `px-4 py-3 rounded-xl glass border ${colors} text-sm flex items-center space-x-2 transform translate-x-full transition-transform duration-300`;
-        toast.innerHTML = `<i class="fas ${
-          type === "error" ? "fa-exclamation-circle"
-          : type === "success" ? "fa-check-circle"
-          : "fa-info-circle"
-        }"></i><span>${message}</span>`;
-
+        toast.className = `glass-card p-4 rounded-xl border-l-4 transform translate-x-full transition-transform ${type === "error" ? "border-red-500 bg-red-500/10" : "border-green-500 bg-green-500/10"}`;
+        toast.innerHTML = `
+          <div class="flex items-center gap-3">
+            <i class="fas ${type === "error" ? "fa-exclamation-triangle" : "fa-check-circle"} text-xl ${type === "error" ? "text-red-400" : "text-green-400"}"></i>
+            <span class="text-white font-medium">${message}</span>
+          </div>
+        `;
         container.appendChild(toast);
 
         setTimeout(() => toast.classList.remove("translate-x-full"), 10);
         setTimeout(() => {
           toast.classList.add("translate-x-full");
           setTimeout(() => toast.remove(), 300);
-        }, 3000);
+        }, 4000);
       }
 
-      function getToken() {
-        return localStorage.getItem("token");
+      function showLoading(show = true) {
+        document
+          .getElementById("loadingOverlay")
+          .classList.toggle("hidden", !show);
       }
 
-      function getCurrentUser() {
-        const user = localStorage.getItem("user");
-        return user ? JSON.parse(user) : null;
-      }
+      async function apiRequest(endpoint, options = {}) {
+        const token = localStorage.getItem("adminToken");
+        if (!token) throw new Error("No admin token found");
 
-      function checkAuth() {
-        const token = getToken();
-        if (!token) {
-          showToast("Please log in to use the AI Tutor", "error");
-          setTimeout(() => {
-            window.location.href = "login.html";
-          }, 2000);
-          return false;
-        }
-        return true;
-      }
-
-      async function fetchUserProfile() {
-        try {
-          const token = getToken();
-          const response = await fetch(
-            "https://e-bundle.onrender.com/profile",
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            },
-          );
-
-          if (response.ok) {
-            const data = await response.json();
-            currentUser = data.user;
-            // Update UI with user info
-            document.getElementById("userNameDisplay").textContent =
-              currentUser.firstName || "User";
-            document.getElementById("userStreak").textContent =
-              `${currentUser.streak || 0} Day Streak`;
-            if (currentUser.avatar) {
-              document.getElementById("userAvatar").src = currentUser.avatar;
-            }
-          }
-        } catch (error) {
-          console.error("Error fetching user profile:", error);
-        }
-      }
-
-      // =============================================
-      // CHAT FUNCTIONS
-      // =============================================
-
-      function quickAsk(question) {
-        document.getElementById("aiChatInput").value = question;
-        sendMessage();
-      }
-
-      function setLoadingState(loading) {
-        const btn = document.getElementById("sendBtn");
-        const icon = document.getElementById("sendIcon");
-        const spinner = document.getElementById("sendSpinner");
-        const input = document.getElementById("aiChatInput");
-
-        isWaitingForResponse = loading;
-        btn.disabled = loading;
-
-        if (loading) {
-          icon.classList.add("hidden");
-          spinner.classList.remove("hidden");
-          input.disabled = true;
-        } else {
-          icon.classList.remove("hidden");
-          spinner.classList.add("hidden");
-          input.disabled = false;
-          input.focus();
-        }
-      }
-
-      async function sendMessage() {
-        const input = document.getElementById("aiChatInput");
-        const text = input.value.trim();
-
-        if (!text || isWaitingForResponse) return;
-
-        // Check auth
-        if (!checkAuth()) return;
-
-        authToken = getToken();
-
-        addMessage(text, "user");
-        input.value = "";
-        setLoadingState(true);
-        showTyping();
-
-        try {
-          console.log("Sending request to:", API_URL);
-          console.log("Token exists:", !!authToken);
-
-          const response = await fetch(API_URL, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${authToken}`,
-            },
-            body: JSON.stringify({ message: text }),
-          });
-
-          console.log("Response status:", response.status);
-          removeTyping();
-
-          if (response.status === 401) {
-            showToast("Session expired. Please log in again.", "error");
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
-            setTimeout(() => {
-              window.location.href = "login.html";
-            }, 1500);
-            return;
-          }
-
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            console.error("Error response:", errorData);
-            throw new Error(
-              errorData.error || `HTTP error! status: ${response.status}`,
-            );
-          }
-
-          const data = await response.json();
-          console.log("Success response:", data);
-
-          if (data.success) {
-            addMessage(data.response, "ai");
-          } else {
-            throw new Error(data.error || "Unknown error");
-          }
-        } catch (error) {
-          removeTyping();
-          console.error("Chat error:", error);
-          addMessage(
-            `I apologize, but I'm having trouble connecting right now. \n\n**Error:** ${error.message}\n\nPlease try again or contact support if the problem persists.`,
-            "ai",
-          );
-          showToast("Connection error: " + error.message, "error");
-        } finally {
-          setLoadingState(false);
-        }
-      }
-
-      function showTyping() {
-        const container = document.getElementById("aiChatMessages");
-        const typing = document.createElement("div");
-        typing.id = "typingIndicator";
-        typing.className = "flex items-start space-x-4";
-        typing.innerHTML = `
-                <div class="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center flex-shrink-0">
-                    <i class="fas fa-robot text-white"></i>
-                </div>
-                <div class="glass p-4 rounded-2xl">
-                    <div class="flex space-x-1">
-                        <div class="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
-                        <div class="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
-                        <div class="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
-                    </div>
-                </div>
-            `;
-        container.appendChild(typing);
-        container.scrollTop = container.scrollHeight;
-      }
-
-      function removeTyping() {
-        const typing = document.getElementById("typingIndicator");
-        if (typing) typing.remove();
-      }
-
-      function formatMarkdown(text) {
-        // Convert **text** to bold
-        text = text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-        // Convert *text* to italic (but not bullet points)
-        text = text.replace(/(?<!\*)\*(?!\*)(.*?)\*(?!\*)/g, "<em>$1</em>");
-        // Convert `code` to inline code
-        text = text.replace(/`([^`]+)`/g, "<code>$1</code>");
-        // Convert ```code blocks```
-        text = text.replace(/```([\s\S]*?)```/g, "<pre><code>$1</code></pre>");
-        // Convert bullet points
-        text = text.replace(/^[\*\-] (.*)$/gm, "<li>$1</li>");
-        text = text.replace(/(<li>.*<\/li>)/s, "<ul>$1</ul>");
-        // Convert numbered lists
-        text = text.replace(/^\d+\. (.*)$/gm, "<li>$1</li>");
-        // Convert newlines to <br> (but not inside pre blocks)
-        text = text
-          .split("<pre>")
-          .map((part, index) => {
-            if (index % 2 === 0) {
-              return part.replace(/\n/g, "<br>");
-            }
-            return part;
-          })
-          .join("<pre>");
-        return text;
-      }
-
-      function addMessage(message, sender) {
-        const container = document.getElementById("aiChatMessages");
-        const wrapper = document.createElement("div");
-        wrapper.className = `flex items-start space-x-4 ${sender === "ai" ? "" : "justify-end"} fade-in`;
-        wrapper.style.animationDelay = "0.1s";
-
-        const avatarHtml =
-          sender === "ai" ?
-            `<div class="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center flex-shrink-0"><i class="fas fa-robot text-white"></i></div>`
-          : `<div class="w-10 h-10 bg-slate-700 rounded-full flex items-center justify-center flex-shrink-0"><i class="fas fa-user text-white"></i></div>`;
-
-        const messageContent =
-          sender === "ai" ?
-            formatMarkdown(message)
-          : message.replace(/\n/g, "<br>");
-
-        const timestamp = new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            ...options.headers,
+          },
+          ...options,
         });
 
-        wrapper.innerHTML = `
-                ${sender === "ai" ? avatarHtml : ""}
-                <div class="glass p-4 rounded-2xl max-w-2xl ${sender === "ai" ? "markdown-body" : "bg-primary/20"}">
-                    <div class="text-sm leading-relaxed">${messageContent}</div>
-                    <div class="text-xs text-gray-500 mt-2 text-right">${timestamp}</div>
-                </div>
-                ${sender === "user" ? avatarHtml : ""}
-            `;
-        container.appendChild(wrapper);
-        container.scrollTop = container.scrollHeight;
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.message || `HTTP ${response.status}`);
+        }
+
+        return response.json();
+      }
+
+      // Auth Check
+      async function checkAuth() {
+        try {
+          const data = await apiRequest("/api/admin/profile");
+          adminData = data.admin;
+          document.getElementById("adminName").textContent =
+            `${adminData.firstName} ${adminData.lastName}`;
+          document.getElementById("pageSubtitle").textContent =
+            `Welcome back, ${adminData.firstName}!`;
+          return true;
+        } catch (error) {
+          showToast("Session expired. Redirecting to login...", "error");
+          setTimeout(() => (window.location.href = "admin-login.html"), 1500);
+          return false;
+        }
+      }
+
+      // Media Management
+      async function loadMedia() {
+        try {
+          showLoading(true);
+          const data = await apiRequest("/api/media");
+
+          mediaList = data.media;
+          updateStats();
+          renderMediaTable();
+
+          if (mediaList.length === 0) {
+            document.getElementById("noMedia").classList.remove("hidden");
+          } else {
+            document.getElementById("noMedia").classList.add("hidden");
+          }
+        } catch (error) {
+          showToast(`Failed to load media: ${error.message}`, "error");
+        } finally {
+          showLoading(false);
+        }
+      }
+
+      function updateStats() {
+        const videoCount = mediaList.filter((m) => m.type === "video").length;
+        const audioCount = mediaList.filter((m) => m.type === "audio").length;
+        const pdfCount = mediaList.filter((m) => m.type === "pdf").length;
+        const totalSize = mediaList.reduce(
+          (sum, m) => sum + (m.sizeBytes || 0),
+          0,
+        );
+
+        document.getElementById("totalMedia").textContent = mediaList.length;
+        document.getElementById("videoCount").textContent = videoCount;
+        document.getElementById("audioCount").textContent = audioCount;
+        document.getElementById("pdfCount").textContent = pdfCount;
+        document.getElementById("totalSize").textContent =
+          (totalSize / (1024 * 1024)).toFixed(1) + " MB";
+
+        // Storage bar (mock 50% usage)
+        document.getElementById("storageUsed").textContent =
+          (totalSize / (1024 * 1024)).toFixed(1) + " MB";
+        document.getElementById("storageBar").style.width =
+          Math.min((totalSize / (5 * 1024 * 1024 * 1024)) * 100, 100) + "%";
+      }
+
+      function renderMediaTable() {
+        const tbody = document.getElementById("mediaTableBody");
+        if (mediaList.length === 0) return;
+
+        tbody.innerHTML = mediaList
+          .map(
+            (media) => `
+          <tr class="table-row border-b border-white/5 h-16 items-center">
+            <td class="py-4 font-medium text-white max-w-xs truncate">${media.title}</td>
+            <td><span class="px-3 py-1 rounded-full text-xs font-semibold ${
+              media.type === "video" ? "bg-blue-500/20 text-blue-300"
+              : media.type === "audio" ? "bg-green-500/20 text-green-300"
+              : "bg-purple-500/20 text-purple-300"
+            }">${media.type.toUpperCase()}</span></td>
+            <td class="text-slate-400">${media.size}</td>
+            <td><span class="px-2 py-1 bg-slate-800/50 text-xs rounded-full">${media.category}</span></td>
+            <td class="text-slate-400 text-sm">${new Date(media.createdAt).toLocaleDateString()}</td>
+            <td class="py-4">
+              <div class="flex items-center gap-2">
+                <a href="${API_BASE_URL}${media.url}" target="_blank" class="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-blue-400 transition-all">
+                  <i class="fas fa-eye"></i>
+                </a>
+                <button onclick="deleteMedia('${media.id}')" class="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-red-400 transition-all">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `,
+          )
+          .join("");
+      }
+
+      async function deleteMedia(id) {
+        if (!confirm("Delete this media file? This cannot be undone.")) return;
+
+        try {
+          await apiRequest(`/api/media/${id}`, { method: "DELETE" });
+          showToast("Media deleted successfully");
+          loadMedia();
+        } catch (error) {
+          showToast(`Delete failed: ${error.message}`, "error");
+        }
+      }
+
+      async function uploadMedia(formData) {
+        try {
+          showLoading(true);
+          const data = await apiRequest("/api/media/upload", {
+            method: "POST",
+            body: formData,
+          });
+          showToast(`Uploaded: ${data.media.title}`);
+          loadMedia();
+          document.getElementById("uploadForm").classList.add("hidden");
+        } catch (error) {
+          showToast(`Upload failed: ${error.message}`, "error");
+        } finally {
+          showLoading(false);
+        }
+      }
+
+      function refreshMedia() {
+        loadMedia();
+        showToast("Media refreshed");
+      }
+
+      // Event Listeners
+      document
+        .getElementById("media-upload")
+        .addEventListener("change", (e) => {
+          if (e.target.files.length > 0) {
+            document.getElementById("uploadForm").classList.remove("hidden");
+            document.getElementById("mediaTitle").focus();
+          }
+        });
+
+      document
+        .getElementById("uploadForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const formData = new FormData();
+          const files = document.getElementById("media-upload").files;
+
+          for (let file of files) {
+            formData.append("file", file);
+          }
+
+          formData.append("title", document.getElementById("mediaTitle").value);
+          formData.append(
+            "category",
+            document.getElementById("mediaCategory").value,
+          );
+          formData.append(
+            "description",
+            document.getElementById("mediaDescription").value,
+          );
+
+          await uploadMedia(formData);
+        });
+
+      // Mock recent activity
+      function loadRecentActivity() {
+        const container = document.getElementById("recentActivity");
+        const activities = [
+          {
+            type: "upload",
+            message: "New video uploaded",
+            time: "2 min ago",
+            icon: "fa-video",
+            color: "blue",
+          },
+          {
+            type: "delete",
+            message: "3 PDFs deleted",
+            time: "1 hr ago",
+            icon: "fa-trash",
+            color: "red",
+          },
+          {
+            type: "login",
+            message: "Admin login",
+            time: "Today",
+            icon: "fa-sign-in",
+            color: "green",
+          },
+        ];
+        container.innerHTML = activities
+          .map(
+            (a) => `
+          <div class="p-3 rounded-xl hover:bg-white/5 transition-all flex items-center gap-3">
+            <div class="w-8 h-8 bg-${a.color}-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+              <i class="fas ${a.icon} text-${a.color}-400 text-sm"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-white font-medium truncate">${a.message}</p>
+              <p class="text-xs text-slate-500">${a.time}</p>
+            </div>
+          </div>
+        `,
+          )
+          .join("");
+      }
+
+      // Other functions (placeholders)
+      function showUsers() {
+        showToast("Users view coming soon");
+      }
+      function showReports() {
+        showToast("Analytics view coming soon");
+      }
+      function showCourses() {
+        showToast("Courses view coming soon");
+      }
+      async function bulkDelete() {
+        if (confirm("Delete ALL media? This is permanent!")) {
+          const confirmText = prompt('Type "DELETE_ALL_MEDIA" to confirm:');
+          if (confirmText === "DELETE_ALL_MEDIA") {
+            try {
+              await apiRequest("/api/media", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ confirm: "DELETE_ALL_MEDIA" }),
+              });
+              showToast("All media deleted");
+              loadMedia();
+            } catch (error) {
+              showToast(`Bulk delete failed: ${error.message}`, "error");
+            }
+          }
+        }
       }
 
       function logout() {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        showToast("Logged out successfully", "success");
-        setTimeout(() => {
-          window.location.href = "login.html";
-        }, 1000);
+        localStorage.removeItem("adminToken");
+        localStorage.removeItem("adminData");
+        window.location.href = "admin-login.html";
       }
 
-      // =============================================
-      // INITIALIZATION
-      // =============================================
-
-      document.addEventListener("DOMContentLoaded", async () => {
-        // Check authentication
-        if (!checkAuth()) return;
-
-        authToken = getToken();
-
-        // Fetch user profile for display
-        await fetchUserProfile();
-
-        // Enable input
-        document.getElementById("aiChatInput").disabled = false;
-        document.getElementById("sendBtn").disabled = false;
-
-        // Focus input
-        setTimeout(() => {
-          document.getElementById("aiChatInput").focus();
-        }, 500);
-
-        // Add welcome message
-        const user = getCurrentUser();
-        const firstName = user?.firstName || "Student";
-
-        addMessage(
-          `Hello ${firstName}! 👋 I'm your AI tutor powered by Groq's Llama 3.3 70B model. I can help you with:\n\n` +
-            `• **Mathematics** - Algebra, Geometry, Calculus, Statistics\n` +
-            `• **Physics** - Mechanics, Electricity, Waves, Thermodynamics\n` +
-            `• **Chemistry** - Organic, Inorganic, Physical Chemistry\n` +
-            `• **Biology** - Cell Biology, Genetics, Ecology, Human Anatomy\n` +
-            `• **English** - Grammar, Literature, Writing\n` +
-            `• **History** - Ethiopian and World History\n` +
-            `• **Geography** - Physical and Human Geography\n\n` +
-            `What would you like to learn today? 🎓`,
-          "ai",
-        );
-      });
-
-      // Handle page unload
-      window.addEventListener("beforeunload", () => {
-        // Clean up if needed
+      // Initialization
+      window.addEventListener("DOMContentLoaded", async () => {
+        showLoading(true);
+        if (!(await checkAuth())) return;
+        await loadMedia();
+        loadRecentActivity();
+        showLoading(false);
       });
     </script>
   </body>
