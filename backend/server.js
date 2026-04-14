@@ -86,11 +86,20 @@ if (!fs.existsSync(uploadsDir)) {
   }
 }
 
+// ================= GRIDFS SETUP =================
+let gridFSBucket;
+
 // ================= MONGODB CONNECTION =================
 const connectDB = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI);
     console.log("✅ MongoDB Connected Successfully");
+
+    // Initialize GridFS bucket after connection
+    gridFSBucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
+      bucketName: "media",
+    });
+    console.log("✅ GridFS bucket initialized");
   } catch (err) {
     console.error("❌ MongoDB Connection Error:", err.message);
     console.log("Retrying connection in 5 seconds...");
@@ -198,21 +207,52 @@ app.post(
         });
       }
 
+      // Determine file type
+      let fileType = "pdf";
+      if (req.file.mimetype.startsWith("video")) fileType = "video";
+      else if (req.file.mimetype.startsWith("audio")) fileType = "audio";
+      else if (req.file.mimetype === "application/pdf") fileType = "pdf";
+
+      // Upload file to GridFS
+      const uploadStream = gridFSBucket.openUploadStream(req.file.filename, {
+        contentType: req.file.mimetype,
+        metadata: {
+          originalName: req.file.originalname,
+          title: title,
+          uploadedBy: req.admin.id,
+        },
+      });
+
+      const fileStream = fs.createReadStream(req.file.path);
+      fileStream.pipe(uploadStream);
+
+      await new Promise((resolve, reject) => {
+        uploadStream.on("finish", resolve);
+        uploadStream.on("error", reject);
+        fileStream.on("error", reject);
+      });
+
       const media = new Media({
         title: title || req.file.originalname,
         originalName: req.file.originalname,
         filename: req.file.filename,
-        type: req.fileType,
+        fileId: uploadStream.id,
+        type: fileType,
         size: req.file.size,
         sizeFormatted: formatFileSize(req.file.size),
         category: category || "general",
         description: description || "",
         mimeType: req.file.mimetype,
-        url: `/uploads/media/${req.file.filename}`,
+        url: `/api/media/stream/${uploadStream.id}`,
         uploadedBy: req.admin.id,
       });
 
       await media.save();
+
+      // Clean up local file
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
 
       res.status(201).json({
         success: true,
@@ -376,9 +416,13 @@ app.delete("/api/media/:id", authenticateAdmin, async (req, res) => {
       });
     }
 
-    const filePath = path.join(__dirname, "uploads", "media", media.filename);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    // Delete from GridFS if fileId exists
+    if (media.fileId && gridFSBucket) {
+      try {
+        await gridFSBucket.delete(media.fileId);
+      } catch (err) {
+        console.error("GridFS delete error:", err);
+      }
     }
 
     await Media.findByIdAndDelete(req.params.id);
@@ -408,12 +452,16 @@ app.delete("/api/media", authenticateAdmin, async (req, res) => {
       });
     }
 
-    const allMedia = await Media.find({}, "filename");
+    const allMedia = await Media.find({});
 
+    // Delete all files from GridFS
     for (const media of allMedia) {
-      const filePath = path.join(__dirname, "uploads", "media", media.filename);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
+      if (media.fileId && gridFSBucket) {
+        try {
+          await gridFSBucket.delete(media.fileId);
+        } catch (err) {
+          console.error("GridFS delete error:", err);
+        }
       }
     }
 
@@ -466,33 +514,84 @@ app.get("/api/library/media", authenticateToken, async (req, res) => {
   }
 });
 
+// ================= STREAM MEDIA FROM GRIDFS =================
 app.get("/api/media/stream/:id", authenticateToken, async (req, res) => {
   try {
-    const media = await Media.findById(req.params.id);
+    const fileId = req.params.id;
+    let media;
+    let fileIdToUse = fileId;
+
+    // First try to find media by fileId (GridFS ID)
+    if (mongoose.Types.ObjectId.isValid(fileId)) {
+      media = await Media.findOne({ fileId: fileId });
+    }
+
+    // If not found, try by media _id
+    if (!media && mongoose.Types.ObjectId.isValid(fileId)) {
+      media = await Media.findById(fileId);
+      if (media && media.fileId) {
+        fileIdToUse = media.fileId;
+      }
+    }
 
     if (!media) {
-      return res.status(404).json({ message: "Media not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Media not found in database",
+      });
     }
 
-    const filePath = path.join(__dirname, "uploads", "media", media.filename);
-
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ message: "File not found" });
+    if (!gridFSBucket) {
+      return res.status(500).json({
+        success: false,
+        message: "GridFS not initialized",
+      });
     }
 
-    const mimeType =
-      media.mimeType ||
-      (media.type === "video" ? "video/mp4"
-      : media.type === "audio" ? "audio/mpeg"
-      : "application/pdf");
+    const fileIdObj = new mongoose.Types.ObjectId(fileIdToUse);
 
-    res.setHeader("Content-Type", mimeType);
+    // Check if file exists in GridFS
+    const files = await mongoose.connection.db
+      .collection("media.files")
+      .findOne({ _id: fileIdObj });
 
-    const stream = fs.createReadStream(filePath);
-    stream.pipe(res);
+    if (!files) {
+      return res.status(404).json({
+        success: false,
+        message: "File not found in storage",
+      });
+    }
+
+    // Set proper headers
+    res.setHeader(
+      "Content-Type",
+      files.contentType || media.mimeType || "application/octet-stream",
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${media.originalName || media.title}"`,
+    );
+
+    // Create download stream from GridFS
+    const downloadStream = gridFSBucket.openDownloadStream(fileIdObj);
+
+    // Handle errors
+    downloadStream.on("error", (err) => {
+      console.error("GridFS stream error:", err);
+      if (!res.headersSent) {
+        res.status(500).json({ message: "Error streaming file" });
+      }
+    });
+
+    // Pipe to response
+    downloadStream.pipe(res);
   } catch (err) {
     console.error("Stream error:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({
+      success: false,
+      message: "Server error while streaming file",
+      error: err.message,
+    });
   }
 });
 
