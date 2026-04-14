@@ -2524,6 +2524,143 @@ app.post("/seed-courses", authenticateToken, async (req, res) => {
   }
 });
 
+// ================= COURSES ENDPOINTS =================
+
+// Get all courses for library
+app.get("/api/courses", authenticateToken, async (req, res) => {
+  try {
+    const { subject, grade, search, page = 1, limit = 50 } = req.query;
+
+    let query = {};
+
+    if (subject && subject !== "all") {
+      query.subject = subject;
+    }
+
+    if (grade && grade !== "all") {
+      query.grade = parseInt(grade);
+    }
+
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+        { subject: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const [courses, total] = await Promise.all([
+      Course.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      Course.countDocuments(query),
+    ]);
+
+    // Get user progress for these courses
+    const progressRecords = await Progress.find({
+      userId: req.user.id,
+      courseId: { $in: courses.map((c) => c._id) },
+    });
+
+    const progressMap = {};
+    progressRecords.forEach((record) => {
+      progressMap[record.courseId.toString()] = {
+        percentage: record.percentage || 0,
+        completedLessons: record.completedLessons || 0,
+        totalLessons: record.totalLessons || 0,
+      };
+    });
+
+    // Get unique subjects for filter
+    const subjects = await Course.distinct("subject");
+    const grades = await Course.distinct("grade");
+
+    res.json({
+      success: true,
+      courses: courses.map((course) => ({
+        id: course._id,
+        title: course.title,
+        subject: course.subject,
+        grade: course.grade,
+        description: course.description,
+        totalLessons: course.totalLessons || 0,
+        icon: course.icon || "fa-book",
+        color: course.color || "from-blue-500 to-cyan-500",
+        thumbnail: course.thumbnail || null,
+        createdAt: course.createdAt,
+        progress: progressMap[course._id.toString()]?.percentage || 0,
+        completedLessons:
+          progressMap[course._id.toString()]?.completedLessons || 0,
+      })),
+      filters: {
+        subjects: subjects,
+        grades: grades.sort((a, b) => a - b),
+      },
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (err) {
+    console.error("Get courses error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+});
+
+// Get single course details
+app.get("/api/courses/:id", authenticateToken, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id).lean();
+
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: "Course not found",
+      });
+    }
+
+    // Get user progress for this course
+    const progress = await Progress.findOne({
+      userId: req.user.id,
+      courseId: course._id,
+    });
+
+    res.json({
+      success: true,
+      course: {
+        id: course._id,
+        title: course.title,
+        subject: course.subject,
+        grade: course.grade,
+        description: course.description,
+        totalLessons: course.totalLessons || 0,
+        content: course.content || [],
+        icon: course.icon || "fa-book",
+        color: course.color || "from-blue-500 to-cyan-500",
+        thumbnail: course.thumbnail || null,
+        createdAt: course.createdAt,
+        progress: progress?.percentage || 0,
+        completedLessons: progress?.completedLessons || 0,
+      },
+    });
+  } catch (err) {
+    console.error("Get course error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+});
+
 // ================= AI TUTOR CHAT (GROQ API) =================
 const axios = require("axios");
 
