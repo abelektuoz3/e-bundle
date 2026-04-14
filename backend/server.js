@@ -50,6 +50,7 @@ const allowedOrigins =
       "http://localhost:3000",
       "http://localhost:5000",
       "https://e-bundle.onrender.com",
+      "https://ebundle-ethiopia.netlify.app",
     ];
 
 app.use(
@@ -1599,7 +1600,6 @@ app.post("/change-password", authenticateToken, async (req, res) => {
 });
 
 // ================= FIXED FORGOT PASSWORD ENDPOINT =================
-// This now points to your frontend route instead of an HTML file
 app.post("/forgot-password", async (req, res) => {
   try {
     const { email } = req.body;
@@ -1615,14 +1615,12 @@ app.post("/forgot-password", async (req, res) => {
 
     const token = crypto.randomBytes(32).toString("hex");
     user.resetToken = token;
-    user.resetTokenExpire = Date.now() + 3600000; // 1 hour
+    user.resetTokenExpire = Date.now() + 3600000;
     await user.save();
 
-    // Use FRONTEND_URL from environment or fallback to your Render URL
     const frontendUrl =
       process.env.FRONTEND_URL || "https://ebundle-ethiopia.netlify.app";
 
-    // Point to your frontend's forgot-password page with the token
     const resetLink = `${frontendUrl}/change-password?token=${token}`;
 
     console.log(`Sending reset link to ${email}: ${resetLink}`);
@@ -2529,10 +2527,39 @@ app.post("/seed-courses", authenticateToken, async (req, res) => {
 // ================= AI TUTOR CHAT (GROQ API) =================
 const axios = require("axios");
 
+// Get the model from environment or use default - UPDATED to current available models
+const getGroqModel = () => {
+  const envModel = process.env.GROQ_MODEL;
+
+  // List of currently active Groq models (as of April 2026)
+  const activeModels = [
+    "llama-3.3-70b-versatile",
+    "llama-3.3-70b-specdec",
+    "llama-3.2-90b-text-preview",
+    "llama-3.2-11b-text-preview",
+    "llama-3.2-3b-preview",
+    "llama-3.2-1b-preview",
+    "mixtral-8x7b-32768",
+    "gemma2-9b-it",
+    "gemma-7b-it",
+    "deepseek-r1-distill-llama-70b",
+    "qwen-2.5-32b",
+    "qwen-2.5-7b",
+  ];
+
+  // If environment variable is set and valid, use it
+  if (envModel && activeModels.includes(envModel)) {
+    return envModel;
+  }
+
+  // Otherwise use the recommended default (Llama 3.3 70B)
+  return "llama-3.3-70b-versatile";
+};
+
 // Test endpoint to verify Groq configuration
 app.get("/api/groq-status", authenticateToken, async (req, res) => {
   const hasKey = !!process.env.GROQ_API_KEY;
-  const model = process.env.GROQ_MODEL || "llama3-70b-8192";
+  const model = getGroqModel();
 
   res.json({
     configured: hasKey,
@@ -2555,11 +2582,10 @@ app.get("/api/chat-test", authenticateToken, (req, res) => {
   });
 });
 
-// Main chat endpoint
+// Main chat endpoint with fallback to multiple models
 app.post("/api/chat", authenticateToken, async (req, res) => {
   console.log("\n========== NEW CHAT REQUEST ==========");
   console.log("Timestamp:", new Date().toISOString());
-  console.log("Request body:", req.body);
 
   try {
     const { message } = req.body;
@@ -2575,25 +2601,23 @@ app.post("/api/chat", authenticateToken, async (req, res) => {
     const user = await User.findById(userId).select("firstName grade");
 
     const GROQ_API_KEY = process.env.GROQ_API_KEY;
-    const GROQ_MODEL = process.env.GROQ_MODEL || "llama3-70b-8192";
 
     if (!GROQ_API_KEY) {
-      console.error("❌ GROQ_API_KEY not found in environment variables");
+      console.error("❌ GROQ_API_KEY not found");
       return res.status(500).json({
         success: false,
-        error:
-          "AI service not configured - API key missing. Please add GROQ_API_KEY to your environment variables.",
+        error: "AI service not configured - API key missing",
       });
     }
 
-    console.log("Using Groq API with model:", GROQ_MODEL);
-    console.log(
-      "User:",
-      user?.firstName || "Unknown",
-      "Grade:",
-      user?.grade || "Not set",
-    );
-    console.log("Message preview:", message.substring(0, 100) + "...");
+    // List of models to try in order (fallback)
+    const modelsToTry = [
+      getGroqModel(),
+      "llama-3.2-3b-preview",
+      "mixtral-8x7b-32768",
+      "gemma2-9b-it",
+      "qwen-2.5-7b",
+    ];
 
     const systemContent = `You are an AI tutor for Ethiopian students${user ? ` named ${user.firstName}` : ""}${user?.grade ? ` in grade ${user.grade}` : ""}. 
               
@@ -2616,62 +2640,67 @@ Guidelines:
 - Use formatting like **bold** for key terms and *bullet points* for lists
 - For math problems, show all work clearly`;
 
-    const response = await axios.post(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        model: GROQ_MODEL,
-        messages: [
-          { role: "system", content: systemContent },
-          { role: "user", content: message },
-        ],
-        temperature: 0.7,
-        max_tokens: 1024,
-        top_p: 0.9,
-        stream: false,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${GROQ_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        timeout: 30000,
-      },
-    );
+    let lastError = null;
+    let aiResponse = null;
 
-    const aiResponse = response.data.choices[0].message.content;
+    for (const model of modelsToTry) {
+      try {
+        console.log(`Trying Groq model: ${model}`);
 
-    console.log("✅ AI response sent successfully");
-    console.log("Response length:", aiResponse.length, "characters");
+        const response = await axios.post(
+          "https://api.groq.com/openai/v1/chat/completions",
+          {
+            model: model,
+            messages: [
+              { role: "system", content: systemContent },
+              { role: "user", content: message },
+            ],
+            temperature: 0.7,
+            max_tokens: 1024,
+            top_p: 0.9,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${GROQ_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            timeout: 30000,
+          },
+        );
 
-    res.json({
-      success: true,
-      response: aiResponse,
+        aiResponse = response.data.choices[0].message.content;
+        console.log(`✅ Successfully used model: ${model}`);
+        break;
+      } catch (modelError) {
+        console.warn(
+          `Model ${model} failed:`,
+          modelError.response?.data?.error?.message || modelError.message,
+        );
+        lastError = modelError;
+      }
+    }
+
+    if (aiResponse) {
+      return res.json({
+        success: true,
+        response: aiResponse,
+      });
+    }
+
+    console.error("🚨 ALL AI MODELS FAILED");
+    return res.status(500).json({
+      success: false,
+      error: "All AI models are currently unavailable. Please try again later.",
+      details: lastError?.response?.data?.error?.message || lastError?.message,
     });
   } catch (error) {
     console.error("❌ Chat error:", error.message);
-
-    // Detailed error logging for debugging
     if (error.response) {
       console.error("Response status:", error.response.status);
       console.error(
         "Response data:",
         JSON.stringify(error.response.data, null, 2),
       );
-
-      if (error.response.status === 401) {
-        return res.status(500).json({
-          success: false,
-          error:
-            "Invalid Groq API key. Please check your API key configuration.",
-        });
-      } else if (error.response.status === 429) {
-        return res.status(500).json({
-          success: false,
-          error: "Rate limit exceeded. Please try again in a few moments.",
-        });
-      }
-    } else if (error.request) {
-      console.error("No response received from Groq API");
     }
 
     res.status(500).json({
@@ -2693,32 +2722,63 @@ app.get("/api/test", async (req, res) => {
       });
     }
 
-    const response = await axios.post(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        model: process.env.GROQ_MODEL || "llama3-70b-8192",
-        messages: [
-          {
-            role: "user",
-            content: "Say 'API is working!' if you receive this.",
-          },
-        ],
-        max_tokens: 50,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${GROQ_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        timeout: 10000,
-      },
-    );
+    const modelsToTest = [
+      getGroqModel(),
+      "llama-3.2-3b-preview",
+      "mixtral-8x7b-32768",
+    ];
 
-    res.json({
-      success: true,
-      message: "Groq API test successful",
-      response: response.data.choices[0].message.content,
-    });
+    let workingModel = null;
+    let testResponse = null;
+
+    for (const model of modelsToTest) {
+      try {
+        console.log(`Testing model: ${model}`);
+        const response = await axios.post(
+          "https://api.groq.com/openai/v1/chat/completions",
+          {
+            model: model,
+            messages: [
+              {
+                role: "user",
+                content: "Say 'API is working!' if you receive this.",
+              },
+            ],
+            max_tokens: 50,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${GROQ_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            timeout: 10000,
+          },
+        );
+
+        workingModel = model;
+        testResponse = response.data.choices[0].message.content;
+        break;
+      } catch (err) {
+        console.warn(
+          `Model ${model} test failed:`,
+          err.response?.data?.error?.message,
+        );
+      }
+    }
+
+    if (workingModel) {
+      return res.json({
+        success: true,
+        message: "Groq API test successful",
+        workingModel: workingModel,
+        response: testResponse,
+      });
+    } else {
+      return res.json({
+        success: false,
+        error: "No working models found. Please check your Groq API key.",
+      });
+    }
   } catch (error) {
     console.error("Test endpoint error:", error.message);
     res.json({
@@ -2774,7 +2834,7 @@ const io = socketIo(server, {
 // Store connected users and waiting queue
 const connectedUsers = new Map();
 const waitingUsers = [];
-const activeRooms = new Map(); // roomId -> [socket1, socket2]
+const activeRooms = new Map();
 
 // Socket.io connection handling
 io.on("connection", (socket) => {
@@ -2784,7 +2844,6 @@ io.on("connection", (socket) => {
   let currentRoom = null;
   let isInCall = false;
 
-  // Register user info
   socket.on("register", (userData) => {
     currentUserId = userData.userId;
     connectedUsers.set(currentUserId, {
@@ -2797,15 +2856,12 @@ io.on("connection", (socket) => {
     console.log(`User registered: ${userData.name} (Grade ${userData.grade})`);
   });
 
-  // Join specific room (for named rooms)
   socket.on("join-room", (roomId) => {
     socket.join(roomId);
     currentRoom = roomId;
 
-    // Check if room has other users
     const room = io.sockets.adapter.rooms.get(roomId);
     if (room && room.size === 2) {
-      // Room has 2 people, they can start calling each other
       const sockets = Array.from(room);
       const otherSocketId = sockets.find((id) => id !== socket.id);
       const otherSocket = io.sockets.sockets.get(otherSocketId);
@@ -2819,7 +2875,6 @@ io.on("connection", (socket) => {
         );
 
         if (otherUser && thisUser) {
-          // Notify both users they can start the call
           socket.emit("matched", {
             partner: otherUser,
             room: roomId,
@@ -2833,11 +2888,9 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Find random partner
   socket.on("find-random-partner", (userData) => {
     currentUserId = userData.userId;
 
-    // Remove from waiting if already there
     const existingIndex = waitingUsers.findIndex(
       (u) => u.socketId === socket.id,
     );
@@ -2845,7 +2898,6 @@ io.on("connection", (socket) => {
       waitingUsers.splice(existingIndex, 1);
     }
 
-    // Try to find match with same grade
     const sameGradeIndex = waitingUsers.findIndex(
       (u) => u.grade === userData.grade,
     );
@@ -2854,7 +2906,6 @@ io.on("connection", (socket) => {
       sameGradeIndex !== -1 &&
       waitingUsers[sameGradeIndex].socketId !== socket.id
     ) {
-      // Found match
       const partner = waitingUsers[sameGradeIndex];
       waitingUsers.splice(sameGradeIndex, 1);
 
@@ -2865,17 +2916,14 @@ io.on("connection", (socket) => {
         userId: userData.userId,
       };
 
-      // Create room
       const roomName = `random_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       socket.join(roomName);
       partner.socket.join(roomName);
       currentRoom = roomName;
 
-      // Store in active rooms
       activeRooms.set(roomName, [socket.id, partner.socketId]);
       isInCall = true;
 
-      // Notify both
       socket.emit("matched", {
         partner: partner,
         room: roomName,
@@ -2890,7 +2938,6 @@ io.on("connection", (socket) => {
         `Matched ${user.name} with ${partner.name} in room ${roomName}`,
       );
     } else {
-      // No match, add to waiting
       waitingUsers.push({
         socketId: socket.id,
         userId: userData.userId,
@@ -2904,7 +2951,6 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Leave waiting queue
   socket.on("leave-queue", () => {
     const index = waitingUsers.findIndex((u) => u.socketId === socket.id);
     if (index !== -1) {
@@ -2912,8 +2958,6 @@ io.on("connection", (socket) => {
       console.log("User left queue");
     }
   });
-
-  // WebRTC Signaling Events
 
   socket.on("offer", (data) => {
     const targetSocket = io.sockets.sockets.get(data.target);
@@ -2923,7 +2967,6 @@ io.on("connection", (socket) => {
         from: socket.id,
         fromUser: data.fromUser,
       });
-      console.log(`Offer sent from ${socket.id} to ${data.target}`);
     }
   });
 
@@ -2934,7 +2977,6 @@ io.on("connection", (socket) => {
         answer: data.answer,
         from: socket.id,
       });
-      console.log(`Answer sent from ${socket.id} to ${data.target}`);
     }
   });
 
@@ -2957,30 +2999,24 @@ io.on("connection", (socket) => {
     }
 
     if (currentRoom) {
-      // Clean up room
       activeRooms.delete(currentRoom);
       socket.leave(currentRoom);
     }
     isInCall = false;
   });
 
-  // Handle disconnect
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
 
-    // Remove from waiting queue
     const queueIndex = waitingUsers.findIndex((u) => u.socketId === socket.id);
     if (queueIndex !== -1) {
       waitingUsers.splice(queueIndex, 1);
-      console.log("Removed from waiting queue");
     }
 
-    // Remove from connected users
     if (currentUserId) {
       connectedUsers.delete(currentUserId);
     }
 
-    // Notify partner if in call
     if (currentRoom && isInCall) {
       const room = activeRooms.get(currentRoom);
       if (room) {
@@ -2995,7 +3031,6 @@ io.on("connection", (socket) => {
       }
     }
 
-    // Leave all rooms
     if (currentRoom) {
       socket.leave(currentRoom);
     }
