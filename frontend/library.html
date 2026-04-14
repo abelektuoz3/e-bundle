@@ -98,11 +98,11 @@
         animation-delay: 4s;
       }
 
-      .course-card {
+      .media-card {
         transition: all 0.3s ease;
       }
 
-      .course-card:hover {
+      .media-card:hover {
         transform: translateY(-4px);
       }
 
@@ -152,13 +152,65 @@
         }
       }
 
-      .subject-badge {
+      .type-badge {
         background: rgba(79, 70, 229, 0.2);
         border: 1px solid rgba(79, 70, 229, 0.3);
         padding: 4px 10px;
         border-radius: 20px;
         font-size: 11px;
         font-weight: 600;
+      }
+
+      .play-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .media-card:hover .play-overlay {
+        opacity: 1;
+      }
+
+      .play-button {
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, #4f46e5, #7c3aed);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.3s ease;
+      }
+
+      .play-button:hover {
+        transform: scale(1.1);
+      }
+
+      .status-badge {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+        backdrop-filter: blur(8px);
+        z-index: 10;
+      }
+
+      .status-completed {
+        background: rgba(16, 185, 129, 0.9);
+        color: white;
+      }
+
+      .status-in-progress {
+        background: rgba(245, 158, 11, 0.9);
+        color: white;
       }
     </style>
   </head>
@@ -268,8 +320,10 @@
         <div
           class="flex flex-col md:flex-row justify-between items-center gap-4">
           <div>
-            <h2 class="text-3xl font-bold">Learning Library</h2>
-            <p class="text-gray-400">Browse and access all your courses</p>
+            <h2 class="text-3xl font-bold">Media Library</h2>
+            <p class="text-gray-400">
+              Browse and access all your learning materials
+            </p>
           </div>
 
           <!-- Search Bar -->
@@ -281,7 +335,7 @@
                 <input
                   type="text"
                   id="librarySearchInput"
-                  placeholder="Search courses..."
+                  placeholder="Search by title..."
                   class="search-input w-full bg-transparent py-2.5 pl-10 pr-10 rounded-xl text-white placeholder-gray-400 focus:outline-none text-sm"
                   autocomplete="off" />
                 <button
@@ -295,77 +349,87 @@
           </div>
         </div>
 
-        <!-- Filters -->
+        <!-- Type Filters -->
         <div class="flex flex-wrap gap-3 items-center">
           <div class="glass p-1 rounded-xl flex flex-wrap gap-1">
             <button
-              onclick="filterBySubject('all')"
+              onclick="filterByType('all')"
               id="filter-all"
-              class="filter-btn active px-3 py-1.5 rounded-lg text-sm font-medium transition-all">
+              class="tab-btn active px-3 py-1.5 rounded-lg text-sm font-medium transition-all">
               All
             </button>
             <button
-              onclick="filterBySubject('math')"
-              id="filter-math"
-              class="filter-btn px-3 py-1.5 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white">
-              <i class="fas fa-calculator mr-1"></i>Math
+              onclick="filterByType('audio')"
+              id="filter-audio"
+              class="tab-btn px-3 py-1.5 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white">
+              <i class="fas fa-headphones mr-1"></i>Audio
             </button>
             <button
-              onclick="filterBySubject('physics')"
-              id="filter-physics"
-              class="filter-btn px-3 py-1.5 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white">
-              <i class="fas fa-atom mr-1"></i>Physics
+              onclick="filterByType('video')"
+              id="filter-video"
+              class="tab-btn px-3 py-1.5 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white">
+              <i class="fas fa-video mr-1"></i>Video
             </button>
             <button
-              onclick="filterBySubject('chemistry')"
-              id="filter-chemistry"
-              class="filter-btn px-3 py-1.5 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white">
-              <i class="fas fa-flask mr-1"></i>Chemistry
-            </button>
-            <button
-              onclick="filterBySubject('biology')"
-              id="filter-biology"
-              class="filter-btn px-3 py-1.5 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white">
-              <i class="fas fa-dna mr-1"></i>Biology
-            </button>
-            <button
-              onclick="filterBySubject('english')"
-              id="filter-english"
-              class="filter-btn px-3 py-1.5 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white">
-              <i class="fas fa-book mr-1"></i>English
-            </button>
-            <button
-              onclick="filterBySubject('history')"
-              id="filter-history"
-              class="filter-btn px-3 py-1.5 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white">
-              <i class="fas fa-landmark mr-1"></i>History
+              onclick="filterByType('pdf')"
+              id="filter-pdf"
+              class="tab-btn px-3 py-1.5 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white">
+              <i class="fas fa-file-pdf mr-1"></i>PDF
             </button>
           </div>
-
-          <!-- Grade Filter -->
-          <select
-            id="gradeFilter"
-            onchange="filterByGrade()"
-            class="glass bg-transparent px-3 py-1.5 rounded-lg text-sm border border-white/10 focus:outline-none focus:border-primary">
-            <option value="all">All Grades</option>
-            <option value="9">Grade 9</option>
-            <option value="10">Grade 10</option>
-            <option value="11">Grade 11</option>
-            <option value="12">Grade 12</option>
-          </select>
         </div>
 
-        <!-- Courses Grid -->
+        <!-- Media Grid -->
         <div
-          id="coursesGrid"
+          id="mediaGrid"
           class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           <div class="col-span-3 text-center py-12 text-gray-400">
             <i class="fas fa-spinner fa-spin text-3xl mb-3"></i>
-            <p>Loading courses...</p>
+            <p>Loading media...</p>
           </div>
         </div>
       </section>
     </main>
+
+    <!-- Player Modal -->
+    <div
+      id="player-modal"
+      class="fixed inset-0 z-50 hidden items-center justify-center modal-overlay p-4"
+      style="background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px)">
+      <div
+        class="glass max-w-4xl w-full rounded-2xl p-6 relative border border-white/10">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <h3 id="player-title" class="text-xl font-bold"></h3>
+            <p class="text-sm text-gray-400" id="player-status"></p>
+          </div>
+          <button
+            onclick="closePlayer()"
+            class="w-10 h-10 hover:bg-white/10 rounded-full flex items-center justify-center transition-colors text-gray-400 hover:text-white">
+            <i class="fas fa-times text-xl"></i>
+          </button>
+        </div>
+        <div id="player-container"></div>
+        <div id="error-container"></div>
+
+        <!-- Progress Tracking Controls -->
+        <div class="mt-4 flex justify-between items-center">
+          <div class="flex items-center space-x-4">
+            <button
+              id="markCompleteBtn"
+              onclick="markMediaComplete()"
+              class="px-4 py-2 bg-success/20 hover:bg-success/30 text-success border border-success/30 rounded-lg text-sm transition-colors flex items-center space-x-2">
+              <i class="fas fa-check-circle"></i>
+              <span>Mark as Complete</span>
+            </button>
+          </div>
+          <div class="text-sm text-gray-400">
+            Progress:
+            <span id="watchProgress" class="text-primary font-bold">0%</span>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <script>
       // API Configuration
@@ -375,10 +439,18 @@
         : "https://e-bundle.onrender.com";
 
       let authToken = localStorage.getItem("token");
-      let allCourses = [];
-      let currentSubject = "all";
-      let currentGrade = "all";
+      let allMedia = [];
+      let currentType = "all";
       let currentSearchQuery = "";
+
+      // Player tracking variables
+      let currentMediaId = null;
+      let currentMediaType = null;
+      let currentMediaTitle = null;
+      let watchStartTime = null;
+      let mediaProgress = {};
+      let lastReportedProgress = 0;
+      let currentVideoElement = null;
 
       // Check if user is logged in
       if (!authToken) {
@@ -409,6 +481,21 @@
         }
       }
 
+      // Load user progress
+      async function loadUserProgress() {
+        try {
+          const response = await fetch(`${API_URL}/api/media-progress`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+          });
+          const data = await response.json();
+          if (data.success) {
+            mediaProgress = data.progress || {};
+          }
+        } catch (err) {
+          console.error("Error loading progress:", err);
+        }
+      }
+
       function showToast(message, type = "info") {
         const container = document.getElementById("toastContainer");
         const toast = document.createElement("div");
@@ -433,16 +520,16 @@
         }, 3000);
       }
 
-      // Load courses from API
-      async function loadCourses() {
+      // Load media from API
+      async function loadMedia() {
         try {
+          await loadUserProgress();
+
           const params = new URLSearchParams();
-          if (currentSubject !== "all")
-            params.append("subject", currentSubject);
-          if (currentGrade !== "all") params.append("grade", currentGrade);
+          if (currentType !== "all") params.append("type", currentType);
           if (currentSearchQuery) params.append("search", currentSearchQuery);
 
-          const url = `${API_URL}/api/courses?${params.toString()}`;
+          const url = `${API_URL}/api/library/media?${params.toString()}`;
           const response = await fetch(url, {
             headers: { Authorization: `Bearer ${authToken}` },
           });
@@ -457,18 +544,18 @@
           const data = await response.json();
 
           if (data.success) {
-            allCourses = data.courses;
-            renderCourses(allCourses);
+            allMedia = data.media || [];
+            renderMedia(allMedia);
           } else {
-            throw new Error(data.message || "Failed to load courses");
+            throw new Error(data.message || "Failed to load media");
           }
         } catch (err) {
-          console.error("Load courses error:", err);
-          document.getElementById("coursesGrid").innerHTML = `
+          console.error("Load media error:", err);
+          document.getElementById("mediaGrid").innerHTML = `
             <div class="col-span-3 text-center py-12">
               <i class="fas fa-exclamation-circle text-5xl text-red-400 mb-4"></i>
-              <p class="text-red-400">Failed to load courses. Please try again.</p>
-              <button onclick="loadCourses()" class="mt-4 px-4 py-2 bg-primary rounded-lg hover:bg-primary/80 transition-colors">
+              <p class="text-red-400">Failed to load media. Please try again.</p>
+              <button onclick="loadMedia()" class="mt-4 px-4 py-2 bg-primary rounded-lg hover:bg-primary/80 transition-colors">
                 Retry
               </button>
             </div>
@@ -476,101 +563,114 @@
         }
       }
 
-      function renderCourses(courses) {
-        const grid = document.getElementById("coursesGrid");
+      function getTypeStyles(type) {
+        const styles = {
+          video: {
+            gradient: "from-red-500 to-orange-500",
+            icon: "fa-play-circle",
+            iconColor: "text-red-400",
+            label: "Video",
+          },
+          audio: {
+            gradient: "from-green-500 to-emerald-500",
+            icon: "fa-headphones",
+            iconColor: "text-green-400",
+            label: "Audio",
+          },
+          pdf: {
+            gradient: "from-orange-500 to-yellow-500",
+            icon: "fa-file-pdf",
+            iconColor: "text-orange-400",
+            label: "PDF",
+          },
+        };
+        return styles[type] || styles.pdf;
+      }
 
-        if (!courses || courses.length === 0) {
+      function renderMedia(mediaList) {
+        const grid = document.getElementById("mediaGrid");
+
+        if (!mediaList || mediaList.length === 0) {
           grid.innerHTML = `
             <div class="col-span-3 text-center py-12">
-              <i class="fas fa-book-open text-5xl text-gray-600 mb-4"></i>
-              <p class="text-gray-400">No courses found</p>
+              <i class="fas fa-folder-open text-5xl text-gray-600 mb-4"></i>
+              <p class="text-gray-400">No media found</p>
               <p class="text-gray-500 text-sm mt-2">Try adjusting your filters or search</p>
             </div>
           `;
           return;
         }
 
-        grid.innerHTML = courses
-          .map((course) => {
-            const progress = course.progress || 0;
+        grid.innerHTML = mediaList
+          .map((item) => {
+            const styles = getTypeStyles(item.type);
+            const progress = mediaProgress[item.id] || 0;
             const isCompleted = progress === 100;
             const isStarted = progress > 0 && progress < 100;
 
-            // Get icon based on subject
-            const subjectIcons = {
-              math: "fa-calculator",
-              physics: "fa-atom",
-              chemistry: "fa-flask",
-              biology: "fa-dna",
-              english: "fa-book",
-              history: "fa-landmark",
-              default: "fa-graduation-cap",
-            };
-            const icon = subjectIcons[course.subject] || subjectIcons.default;
-
-            // Get color based on subject
-            const subjectColors = {
-              math: "from-blue-500 to-cyan-500",
-              physics: "from-orange-500 to-red-500",
-              chemistry: "from-green-500 to-emerald-500",
-              biology: "from-purple-500 to-pink-500",
-              english: "from-indigo-500 to-blue-500",
-              history: "from-yellow-500 to-orange-500",
-              default: "from-primary to-secondary",
-            };
-            const gradient =
-              subjectColors[course.subject] || subjectColors.default;
+            let statusBadge = "";
+            if (isCompleted) {
+              statusBadge = `<span class="status-badge status-completed"><i class="fas fa-check mr-1"></i>Done</span>`;
+            } else if (isStarted) {
+              statusBadge = `<span class="status-badge status-in-progress"><i class="fas fa-spinner mr-1"></i>${Math.round(progress)}%</span>`;
+            }
 
             return `
-            <div class="course-card glass-card rounded-2xl overflow-hidden cursor-pointer" 
-                 onclick="viewCourse('${course.id}')">
-              <div class="h-40 bg-gradient-to-br ${gradient} flex items-center justify-center relative overflow-hidden">
-                <div class="absolute inset-0 bg-black/20"></div>
-                <i class="fas ${icon} text-5xl text-white/80 relative z-10"></i>
-                <div class="absolute top-3 right-3">
-                  <span class="subject-badge text-xs">${course.subject.toUpperCase()}</span>
+              <div class="media-card glass-card rounded-2xl overflow-hidden cursor-pointer" 
+                   onclick="playMedia('${item.id}', '${item.type}', '${escapeHtml(item.title)}')">
+                <div class="h-40 bg-gradient-to-br ${styles.gradient} flex items-center justify-center relative overflow-hidden">
+                  <div class="absolute inset-0 bg-black/20"></div>
+                  <i class="fas ${styles.icon} text-5xl text-white/80 relative z-10"></i>
+                  
+                  <div class="play-overlay">
+                    <div class="play-button">
+                      <i class="fas ${isCompleted ? "fa-redo" : "fa-play"} text-white text-xl ml-1"></i>
+                    </div>
+                  </div>
+                  
+                  ${statusBadge}
+                  
+                  <div class="absolute top-3 left-3">
+                    <span class="type-badge text-xs">${styles.label}</span>
+                  </div>
                 </div>
-                <div class="absolute bottom-3 left-3">
-                  <span class="text-xs font-bold px-2 py-1 rounded-lg bg-black/50 text-white">Grade ${course.grade}</span>
+                
+                <div class="p-5">
+                  <h3 class="font-bold text-lg mb-2 line-clamp-2 group-hover:text-primary transition-colors">${escapeHtml(item.title)}</h3>
+                  <p class="text-sm text-gray-400 line-clamp-2 mb-3">${escapeHtml(item.description) || "No description available"}</p>
+                  
+                  <div class="flex justify-between items-center text-xs text-gray-500 mb-2">
+                    <span><i class="fas fa-database mr-1"></i>${item.size || "Unknown size"}</span>
+                    <span>${Math.round(progress)}% complete</span>
+                  </div>
+                  
+                  <div class="progress-bar">
+                    <div class="progress-fill ${isCompleted ? "completed" : ""}" style="width: ${progress}%"></div>
+                  </div>
+                  
+                  ${
+                    isStarted ?
+                      `
+                    <div class="mt-3 flex items-center justify-between">
+                      <span class="text-xs text-warning">${Math.round(progress)}% complete</span>
+                      <span class="text-xs text-primary">Continue <i class="fas fa-arrow-right ml-1"></i></span>
+                    </div>
+                  `
+                    : isCompleted ?
+                      `
+                    <div class="mt-3">
+                      <span class="text-xs text-success"><i class="fas fa-check-circle mr-1"></i>Completed</span>
+                    </div>
+                  `
+                    : `
+                    <div class="mt-3">
+                      <span class="text-xs text-primary">Start Learning <i class="fas fa-arrow-right ml-1"></i></span>
+                    </div>
+                  `
+                  }
                 </div>
               </div>
-              
-              <div class="p-5">
-                <h3 class="font-bold text-lg mb-2 line-clamp-1 group-hover:text-primary transition-colors">${escapeHtml(course.title)}</h3>
-                <p class="text-sm text-gray-400 line-clamp-2 mb-3">${escapeHtml(course.description) || "No description available"}</p>
-                
-                <div class="flex justify-between items-center text-xs text-gray-500 mb-2">
-                  <span><i class="fas fa-book-open mr-1"></i>${course.totalLessons} lessons</span>
-                  <span>${Math.round(progress)}% complete</span>
-                </div>
-                
-                <div class="progress-bar">
-                  <div class="progress-fill ${isCompleted ? "completed" : ""}" style="width: ${progress}%"></div>
-                </div>
-                
-                ${
-                  isStarted ?
-                    `
-                  <div class="mt-3 flex items-center justify-between">
-                    <span class="text-xs text-warning">${Math.round(progress)}% complete</span>
-                    <span class="text-xs text-primary">Continue <i class="fas fa-arrow-right ml-1"></i></span>
-                  </div>
-                `
-                  : isCompleted ?
-                    `
-                  <div class="mt-3">
-                    <span class="text-xs text-success"><i class="fas fa-check-circle mr-1"></i>Completed</span>
-                  </div>
-                `
-                  : `
-                  <div class="mt-3">
-                    <span class="text-xs text-primary">Start Learning <i class="fas fa-arrow-right ml-1"></i></span>
-                  </div>
-                `
-                }
-              </div>
-            </div>
-          `;
+            `;
           })
           .join("");
       }
@@ -582,15 +682,230 @@
         return div.innerHTML;
       }
 
-      function viewCourse(courseId) {
-        window.location.href = `course-detail.html?id=${courseId}`;
+      // ==========================================
+      // PLAYER FUNCTIONS
+      // ==========================================
+      async function playMedia(id, type, title) {
+        const modal = document.getElementById("player-modal");
+        const container = document.getElementById("player-container");
+        const errorContainer = document.getElementById("error-container");
+
+        errorContainer.innerHTML = "";
+        document.getElementById("player-title").textContent = title;
+        await startMediaTracking(id, type, title);
+
+        const streamUrl = `${API_URL}/api/media/stream/${id}?token=${encodeURIComponent(authToken)}`;
+
+        if (type === "video") {
+          container.innerHTML = `
+            <div class="relative rounded-xl overflow-hidden bg-black">
+              <video id="activeVideo" controls class="w-full max-h-[70vh]" autoplay crossorigin="anonymous" playsinline ontimeupdate="updateVideoProgress(this)" onended="onMediaEnded('${id}')" onerror="handleMediaError(this, '${type}')">
+                <source src="${streamUrl}">
+                Your browser does not support video.
+              </video>
+            </div>
+          `;
+          currentVideoElement = document.getElementById("activeVideo");
+        } else if (type === "audio") {
+          container.innerHTML = `
+            <div class="flex flex-col items-center justify-center p-8 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl border border-white/10">
+              <div class="w-24 h-24 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center mb-6 shadow-lg shadow-green-500/20">
+                <i class="fas fa-music text-white text-4xl"></i>
+              </div>
+              <h4 class="text-xl font-bold mb-2">${escapeHtml(title)}</h4>
+              <p class="text-gray-400 mb-6">Audio Lesson</p>
+              <audio id="activeAudio" controls class="w-full max-w-md" autoplay crossorigin="anonymous" ontimeupdate="updateAudioProgress(this)" onended="onMediaEnded('${id}')" onerror="handleMediaError(this, '${type}')">
+                <source src="${streamUrl}">
+                Your browser does not support audio.
+              </audio>
+            </div>
+          `;
+          currentVideoElement = document.getElementById("activeAudio");
+        } else if (type === "pdf") {
+          container.innerHTML = `
+            <div id="pdf-container" class="w-full h-96 bg-slate-800 rounded-xl flex items-center justify-center border border-white/10">
+              <div class="text-center"><i class="fas fa-spinner fa-spin text-4xl text-primary mb-4"></i><p class="text-gray-400">Loading PDF...</p></div>
+            </div>
+            <div class="mt-4 flex justify-between items-center">
+              <div class="flex gap-2">
+                <a href="${streamUrl}" target="_blank" class="px-4 py-2 bg-primary hover:bg-primary/80 rounded-lg text-sm transition-colors flex items-center"><i class="fas fa-external-link-alt mr-2"></i>Open in New Tab</a>
+                <a href="${streamUrl}&download=1" download class="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition-colors flex items-center"><i class="fas fa-download mr-2"></i>Download</a>
+              </div>
+            </div>
+          `;
+          currentVideoElement = null;
+          await trackMediaProgress(id, 50, false);
+
+          const blobUrl = `${streamUrl}&download=1`;
+          document.getElementById("pdf-container").innerHTML =
+            `<iframe src="${blobUrl}" class="w-full h-full rounded-xl" type="application/pdf"></iframe>`;
+        }
+
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
       }
 
-      function filterBySubject(subject) {
-        currentSubject = subject;
+      async function startMediaTracking(mediaId, mediaType, title) {
+        currentMediaId = mediaId;
+        currentMediaType = mediaType;
+        currentMediaTitle = title;
+        watchStartTime = Date.now();
+        lastReportedProgress = 0;
+
+        const currentProgress = mediaProgress[mediaId] || 0;
+        document.getElementById("watchProgress").textContent =
+          `${Math.round(currentProgress)}%`;
+
+        const btn = document.getElementById("markCompleteBtn");
+        if (currentProgress === 100) {
+          btn.innerHTML = '<i class="fas fa-check"></i><span>Completed</span>';
+          btn.classList.add("opacity-50", "cursor-not-allowed");
+          btn.disabled = true;
+        } else {
+          btn.innerHTML =
+            '<i class="fas fa-check-circle"></i><span>Mark as Complete</span>';
+          btn.classList.remove("opacity-50", "cursor-not-allowed");
+          btn.disabled = false;
+        }
+
+        try {
+          await fetch(`${API_URL}/log-activity`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              type: "lesson",
+              title: `Started ${mediaType}: ${title}`,
+              description: `Opened ${mediaType} content`,
+              xp: 5,
+            }),
+          });
+        } catch (err) {
+          console.error("Error logging activity:", err);
+        }
+      }
+
+      async function trackMediaProgress(
+        mediaId,
+        progressPercent,
+        completed = false,
+      ) {
+        try {
+          const response = await fetch(`${API_URL}/api/track-media`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              mediaId: mediaId,
+              mediaType: currentMediaType,
+              progress: progressPercent,
+              completed: completed,
+              timeSpent: Math.floor((Date.now() - watchStartTime) / 60000),
+            }),
+          });
+
+          if (response.ok) {
+            mediaProgress[mediaId] = completed ? 100 : progressPercent;
+            document.getElementById("watchProgress").textContent =
+              `${Math.round(progressPercent)}%`;
+            if (completed) {
+              const btn = document.getElementById("markCompleteBtn");
+              btn.innerHTML =
+                '<i class="fas fa-check"></i><span>Completed</span>';
+              btn.classList.add("opacity-50", "cursor-not-allowed");
+              btn.disabled = true;
+              showToast("Media marked as complete!", "success");
+              loadMedia();
+            }
+          }
+        } catch (err) {
+          console.error("Error tracking progress:", err);
+        }
+      }
+
+      async function markMediaComplete() {
+        if (!currentMediaId) return;
+        await trackMediaProgress(currentMediaId, 100, true);
+      }
+
+      async function updateVideoProgress(videoElement) {
+        if (!videoElement || !currentMediaId) return;
+        const current = videoElement.currentTime,
+          duration = videoElement.duration || 0;
+        if (duration === 0) return;
+        const percent = (current / duration) * 100;
+        document.getElementById("watchProgress").textContent =
+          `${Math.round(percent)}%`;
+        const threshold = Math.floor(percent / 10) * 10;
+        if (threshold > lastReportedProgress || percent >= 95) {
+          lastReportedProgress = threshold;
+          await trackMediaProgress(currentMediaId, percent, percent >= 95);
+        }
+      }
+
+      async function updateAudioProgress(audioElement) {
+        if (!audioElement || !currentMediaId) return;
+        const current = audioElement.currentTime,
+          duration = audioElement.duration || 0;
+        if (duration === 0) return;
+        const percent = (current / duration) * 100;
+        document.getElementById("watchProgress").textContent =
+          `${Math.round(percent)}%`;
+        const threshold = Math.floor(percent / 10) * 10;
+        if (threshold > lastReportedProgress || percent >= 95) {
+          lastReportedProgress = threshold;
+          await trackMediaProgress(currentMediaId, percent, percent >= 95);
+        }
+      }
+
+      async function onMediaEnded(mediaId) {
+        showToast("Content finished! Marking as complete...", "success");
+        await trackMediaProgress(mediaId, 100, true);
+        loadMedia();
+      }
+
+      function handleMediaError(mediaElement, type) {
+        if (mediaElement.error && mediaElement.error.code === 4) return;
+        const errorMessages = {
+          1: "Playback was aborted",
+          2: "Network error - please check your connection",
+          3: "Decode error - file may be corrupted",
+          4: "Format not supported by your browser",
+        };
+        const code = mediaElement.error ? mediaElement.error.code : "unknown";
+        const message = errorMessages[code] || "Unknown playback error";
+        const errorContainer = document.getElementById("error-container");
+        errorContainer.innerHTML = `<div class="error-message flex items-center space-x-3 mt-4"><i class="fas fa-exclamation-circle text-red-400"></i><span>${message}</span></div>`;
+      }
+
+      function closePlayer() {
+        const modal = document.getElementById("player-modal"),
+          container = document.getElementById("player-container");
+        const media = container.querySelector("video, audio");
+        if (media) {
+          media.pause();
+          media.src = "";
+        }
+        currentVideoElement = null;
+        lastReportedProgress = 0;
+        container.innerHTML = "";
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+        loadMedia();
+      }
+
+      // ==========================================
+      // FILTER FUNCTIONS
+      // ==========================================
+      function filterByType(type) {
+        currentType = type;
 
         // Update active state on filter buttons
-        document.querySelectorAll(".filter-btn").forEach((btn) => {
+        document.querySelectorAll(".tab-btn").forEach((btn) => {
           btn.classList.remove(
             "active",
             "bg-primary/20",
@@ -601,7 +916,7 @@
           btn.classList.add("text-gray-400");
         });
 
-        const activeBtn = document.getElementById(`filter-${subject}`);
+        const activeBtn = document.getElementById(`filter-${type}`);
         if (activeBtn) {
           activeBtn.classList.add(
             "active",
@@ -626,13 +941,7 @@
             .classList.remove("text-gray-400");
         }
 
-        loadCourses();
-      }
-
-      function filterByGrade() {
-        const gradeSelect = document.getElementById("gradeFilter");
-        currentGrade = gradeSelect.value;
-        loadCourses();
+        loadMedia();
       }
 
       function filterBySearch() {
@@ -648,7 +957,7 @@
           clearBtn.classList.add("opacity-0", "pointer-events-none");
         }
 
-        loadCourses();
+        loadMedia();
       }
 
       function clearSearch() {
@@ -669,10 +978,19 @@
         }, 1000);
       }
 
-      // Event Listeners
+      // Close modal on backdrop click
       document.addEventListener("DOMContentLoaded", () => {
         loadUserData();
-        loadCourses();
+        loadMedia();
+
+        const modal = document.getElementById("player-modal");
+        modal.addEventListener("click", function (e) {
+          if (e.target === this) closePlayer();
+        });
+
+        document.addEventListener("keydown", function (e) {
+          if (e.key === "Escape") closePlayer();
+        });
 
         const searchInput = document.getElementById("librarySearchInput");
         if (searchInput) {

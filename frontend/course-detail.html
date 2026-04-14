@@ -8,19 +8,68 @@
     <link
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
       rel="stylesheet" />
+
     <link rel="stylesheet" href="style/course-detail.css" />
   </head>
-  <body class="min-h-screen">
-    <div class="max-w-4xl mx-auto p-6">
+  <body class="min-h-screen relative">
+    <!-- Animated Background -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+      <div class="blob bg-primary w-72 h-72 rounded-full top-0 left-0"></div>
+      <div
+        class="blob bg-secondary w-96 h-96 rounded-full bottom-0 right-0"></div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+    <div class="max-w-4xl mx-auto p-6 relative z-10">
       <div class="mb-6">
-        <a href="library.html" class="text-primary hover:text-primary/80"
-          >&larr; Back to Library</a
-        >
+        <a
+          href="library.html"
+          class="text-primary hover:text-primary/80 transition-colors">
+          <i class="fas fa-arrow-left mr-2"></i> Back to Library
+        </a>
       </div>
       <div id="courseContent" class="glass rounded-2xl p-6">
         <div class="text-center py-12">
           <i class="fas fa-spinner fa-spin text-3xl"></i>
-          <p class="mt-3">Loading course...</p>
+          <p class="mt-3 text-gray-400">Loading course...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Player Modal for lessons -->
+    <div
+      id="player-modal"
+      class="fixed inset-0 z-50 hidden items-center justify-center p-4"
+      style="background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px)">
+      <div
+        class="glass max-w-4xl w-full rounded-2xl p-6 relative border border-white/10">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <h3 id="player-title" class="text-xl font-bold"></h3>
+            <p class="text-sm text-gray-400" id="player-status"></p>
+          </div>
+          <button
+            onclick="closePlayer()"
+            class="w-10 h-10 hover:bg-white/10 rounded-full flex items-center justify-center transition-colors text-gray-400 hover:text-white">
+            <i class="fas fa-times text-xl"></i>
+          </button>
+        </div>
+        <div id="player-container"></div>
+        <div id="error-container"></div>
+        <div class="mt-4 flex justify-between items-center">
+          <button
+            id="markCompleteBtn"
+            onclick="markLessonComplete()"
+            class="px-4 py-2 bg-success/20 hover:bg-success/30 text-success border border-success/30 rounded-lg text-sm transition-colors flex items-center space-x-2">
+            <i class="fas fa-check-circle"></i>
+            <span>Mark as Complete</span>
+          </button>
+          <div class="text-sm text-gray-400">
+            Progress:
+            <span id="lessonProgress" class="text-primary font-bold">0%</span>
+          </div>
         </div>
       </div>
     </div>
@@ -34,8 +83,51 @@
       const urlParams = new URLSearchParams(window.location.search);
       const courseId = urlParams.get("id");
 
+      let currentCourse = null;
+      let currentLessonIndex = null;
+      let watchStartTime = null;
+      let courseProgress = {};
+
       if (!authToken) {
         window.location.href = "login.html";
+      }
+
+      function showToast(message, type = "info") {
+        const container = document.getElementById("toastContainer");
+        const toast = document.createElement("div");
+        const colors =
+          type === "error" ? "bg-red-500/20 border-red-500/50 text-red-400"
+          : type === "success" ?
+            "bg-green-500/20 border-green-500/50 text-green-400"
+          : "bg-primary/20 border-primary/50 text-primary";
+
+        toast.className = `px-4 py-3 rounded-xl glass border ${colors} text-sm flex items-center space-x-2 toast`;
+        toast.innerHTML = `<i class="fas ${
+          type === "error" ? "fa-exclamation-circle"
+          : type === "success" ? "fa-check-circle"
+          : "fa-info-circle"
+        }"></i><span>${message}</span>`;
+
+        container.appendChild(toast);
+        setTimeout(() => {
+          toast.style.opacity = "0";
+          toast.style.transform = "translateX(100%)";
+          setTimeout(() => toast.remove(), 300);
+        }, 3000);
+      }
+
+      async function loadUserProgress() {
+        try {
+          const response = await fetch(`${API_URL}/api/media-progress`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+          });
+          const data = await response.json();
+          if (data.success) {
+            courseProgress = data.progress || {};
+          }
+        } catch (err) {
+          console.error("Error loading progress:", err);
+        }
       }
 
       async function loadCourse() {
@@ -46,13 +138,16 @@
         }
 
         try {
+          await loadUserProgress();
+
           const response = await fetch(`${API_URL}/api/courses/${courseId}`, {
             headers: { Authorization: `Bearer ${authToken}` },
           });
           const data = await response.json();
 
           if (data.success) {
-            renderCourse(data.course);
+            currentCourse = data.course;
+            renderCourse(currentCourse);
           } else {
             throw new Error(data.message);
           }
@@ -75,59 +170,196 @@
         const gradient =
           subjectColors[course.subject] || "from-primary to-secondary";
 
+        const courseProgressPercent = courseProgress[course.id] || 0;
+        const completedLessons = Math.floor(
+          (courseProgressPercent / 100) * (course.totalLessons || 1),
+        );
+
         document.getElementById("courseContent").innerHTML = `
-        <div class="bg-gradient-to-r ${gradient} -m-6 p-8 rounded-t-2xl mb-6">
-          <h1 class="text-2xl md:text-3xl font-bold mb-2">${escapeHtml(course.title)}</h1>
-          <div class="flex flex-wrap gap-3 text-sm">
-            <span class="px-2 py-1 rounded-lg bg-black/30">${course.subject.toUpperCase()}</span>
-            <span class="px-2 py-1 rounded-lg bg-black/30">Grade ${course.grade}</span>
-            <span class="px-2 py-1 rounded-lg bg-black/30"><i class="fas fa-book-open mr-1"></i>${course.totalLessons} lessons</span>
-            <span class="px-2 py-1 rounded-lg bg-black/30"><i class="fas fa-chart-line mr-1"></i>${Math.round(course.progress)}% complete</span>
+          <div class="bg-gradient-to-r ${gradient} -m-6 p-8 rounded-t-2xl mb-6">
+            <h1 class="text-2xl md:text-3xl font-bold mb-2">${escapeHtml(course.title)}</h1>
+            <div class="flex flex-wrap gap-3 text-sm">
+              <span class="px-2 py-1 rounded-lg bg-black/30">${course.subject.toUpperCase()}</span>
+              <span class="px-2 py-1 rounded-lg bg-black/30">Grade ${course.grade}</span>
+              <span class="px-2 py-1 rounded-lg bg-black/30"><i class="fas fa-book-open mr-1"></i>${course.totalLessons} lessons</span>
+              <span class="px-2 py-1 rounded-lg bg-black/30"><i class="fas fa-chart-line mr-1"></i>${Math.round(courseProgressPercent)}% complete</span>
+            </div>
           </div>
-        </div>
-        
-        <div class="mb-8">
-          <h2 class="text-xl font-semibold mb-3">About this course</h2>
-          <p class="text-gray-300">${escapeHtml(course.description) || "No description available."}</p>
-        </div>
-        
-        <div>
-          <h2 class="text-xl font-semibold mb-4">Course Content</h2>
-          <div class="space-y-3">
-            ${Array(course.totalLessons)
-              .fill()
-              .map(
-                (_, i) => `
-              <div class="lesson-item glass rounded-xl p-4 flex justify-between items-center cursor-pointer" onclick="startLesson(${i + 1})">
-                <div class="flex items-center space-x-3">
-                  <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                    <i class="fas fa-play text-xs text-primary"></i>
+          
+          <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-3">About this course</h2>
+            <p class="text-gray-300">${escapeHtml(course.description) || "No description available."}</p>
+          </div>
+          
+          <div>
+            <h2 class="text-xl font-semibold mb-4">Course Content</h2>
+            <div class="space-y-3">
+              ${Array(course.totalLessons || 5)
+                .fill()
+                .map((_, i) => {
+                  const lessonProgress =
+                    courseProgress[`${course.id}_lesson_${i + 1}`] || 0;
+                  const isCompleted = lessonProgress === 100;
+                  return `
+                  <div class="lesson-item glass rounded-xl p-4 flex justify-between items-center" onclick="startLesson(${i + 1})">
+                    <div class="flex items-center space-x-3">
+                      <div class="w-8 h-8 rounded-full ${isCompleted ? "bg-success/20" : "bg-primary/20"} flex items-center justify-center">
+                        <i class="fas ${isCompleted ? "fa-check" : "fa-play"} text-xs ${isCompleted ? "text-success" : "text-primary"}"></i>
+                      </div>
+                      <div>
+                        <h4 class="font-medium">Lesson ${i + 1}: ${course.title} - Part ${i + 1}</h4>
+                        <p class="text-xs text-gray-400">${isCompleted ? "Completed" : "Click to start learning"}</p>
+                      </div>
+                    </div>
+                    ${isCompleted ? '<i class="fas fa-check-circle text-success"></i>' : '<i class="fas fa-chevron-right text-gray-500"></i>'}
                   </div>
-                  <div>
-                    <h4 class="font-medium">Lesson ${i + 1}: ${course.title} - Part ${i + 1}</h4>
-                    <p class="text-xs text-gray-400">Click to start learning</p>
-                  </div>
-                </div>
-                <i class="fas fa-chevron-right text-gray-500"></i>
-              </div>
-            `,
-              )
-              .join("")}
+                `;
+                })
+                .join("")}
+            </div>
           </div>
-        </div>
-        
-        <div class="mt-8 pt-6 border-t border-white/10">
-          <div class="progress-bar h-2 bg-white/10 rounded-full overflow-hidden">
-            <div class="progress-fill h-full bg-primary rounded-full" style="width: ${course.progress}%"></div>
+          
+          <div class="mt-8 pt-6 border-t border-white/10">
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: ${courseProgressPercent}%"></div>
+            </div>
+            <p class="text-sm text-gray-400 mt-2 text-center">${Math.round(courseProgressPercent)}% of course completed (${completedLessons}/${course.totalLessons} lessons)</p>
           </div>
-          <p class="text-sm text-gray-400 mt-2 text-center">${Math.round(course.progress)}% of course completed</p>
-        </div>
-      `;
+        `;
       }
 
-      function startLesson(lessonNumber) {
-        showToast(`Starting lesson ${lessonNumber}...`, "info");
-        // Implement lesson playback logic here
+      async function startLesson(lessonNumber) {
+        if (!currentCourse) return;
+
+        currentLessonIndex = lessonNumber;
+        watchStartTime = Date.now();
+
+        const lessonId = `${currentCourse.id}_lesson_${lessonNumber}`;
+        const currentProgress = courseProgress[lessonId] || 0;
+
+        // Create a simple lesson content modal
+        const modal = document.getElementById("player-modal");
+        const container = document.getElementById("player-container");
+        const errorContainer = document.getElementById("error-container");
+
+        errorContainer.innerHTML = "";
+        document.getElementById("player-title").textContent =
+          `${currentCourse.title} - Lesson ${lessonNumber}`;
+        document.getElementById("lessonProgress").textContent =
+          `${Math.round(currentProgress)}%`;
+
+        // For now, show a simple lesson viewer
+        // You can replace this with actual video/audio/pdf content
+        container.innerHTML = `
+          <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-8 text-center border border-white/10">
+            <div class="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center mx-auto mb-6">
+              <i class="fas fa-graduation-cap text-white text-3xl"></i>
+            </div>
+            <h3 class="text-xl font-bold mb-3">Lesson ${lessonNumber}</h3>
+            <p class="text-gray-300 mb-6">${escapeHtml(currentCourse.description) || "Learning content for this lesson."}</p>
+            <div class="flex justify-center gap-4">
+              <button onclick="completeLesson()" class="px-6 py-2 bg-primary rounded-lg hover:bg-primary/80 transition-colors">
+                <i class="fas fa-check mr-2"></i>Mark Complete
+              </button>
+            </div>
+          </div>
+        `;
+
+        const btn = document.getElementById("markCompleteBtn");
+        if (currentProgress === 100) {
+          btn.innerHTML = '<i class="fas fa-check"></i><span>Completed</span>';
+          btn.classList.add("opacity-50", "cursor-not-allowed");
+          btn.disabled = true;
+        } else {
+          btn.innerHTML =
+            '<i class="fas fa-check-circle"></i><span>Mark as Complete</span>';
+          btn.classList.remove("opacity-50", "cursor-not-allowed");
+          btn.disabled = false;
+        }
+
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+
+        // Log activity
+        try {
+          await fetch(`${API_URL}/log-activity`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              type: "lesson",
+              title: `Started lesson ${lessonNumber}: ${currentCourse.title}`,
+              description: `Started lesson ${lessonNumber}`,
+              xp: 5,
+              courseId: currentCourse.id,
+            }),
+          });
+        } catch (err) {
+          console.error("Error logging activity:", err);
+        }
+      }
+
+      async function completeLesson() {
+        if (!currentCourse || !currentLessonIndex) return;
+
+        const lessonId = `${currentCourse.id}_lesson_${currentLessonIndex}`;
+        const timeSpent = Math.floor((Date.now() - watchStartTime) / 60000);
+
+        try {
+          // Update progress
+          const response = await fetch(`${API_URL}/api/track-media`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              mediaId: lessonId,
+              mediaType: "lesson",
+              courseId: currentCourse.id,
+              progress: 100,
+              completed: true,
+              timeSpent: timeSpent,
+            }),
+          });
+
+          if (response.ok) {
+            courseProgress[lessonId] = 100;
+
+            // Update overall course progress
+            const totalLessons = currentCourse.totalLessons || 5;
+            let completedCount = 0;
+            for (let i = 1; i <= totalLessons; i++) {
+              if (courseProgress[`${currentCourse.id}_lesson_${i}`] === 100)
+                completedCount++;
+            }
+            const overallProgress = (completedCount / totalLessons) * 100;
+            courseProgress[currentCourse.id] = overallProgress;
+
+            showToast(`Lesson ${currentLessonIndex} completed!`, "success");
+            closePlayer();
+            renderCourse(currentCourse);
+          }
+        } catch (err) {
+          console.error("Error completing lesson:", err);
+          showToast("Failed to save progress", "error");
+        }
+      }
+
+      async function markLessonComplete() {
+        if (!currentCourse || !currentLessonIndex) return;
+        await completeLesson();
+      }
+
+      function closePlayer() {
+        const modal = document.getElementById("player-modal");
+        const container = document.getElementById("player-container");
+        container.innerHTML = "";
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+        currentLessonIndex = null;
       }
 
       function escapeHtml(text) {
@@ -137,12 +369,19 @@
         return div.innerHTML;
       }
 
-      function showToast(message, type) {
-        // Simple alert for now, you can implement proper toast later
-        alert(message);
-      }
+      // Close modal on backdrop click
+      document.addEventListener("DOMContentLoaded", () => {
+        loadCourse();
 
-      loadCourse();
+        const modal = document.getElementById("player-modal");
+        modal.addEventListener("click", function (e) {
+          if (e.target === this) closePlayer();
+        });
+
+        document.addEventListener("keydown", function (e) {
+          if (e.key === "Escape") closePlayer();
+        });
+      });
     </script>
   </body>
 </html>
