@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Course Detail | E-Bundle Ethiopia</title>
+    <title>Media Player | E-Bundle Ethiopia</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
@@ -30,46 +30,12 @@
           <i class="fas fa-arrow-left mr-2"></i> Back to Library
         </a>
       </div>
-      <div id="courseContent" class="glass rounded-2xl p-6">
+
+      <!-- Media Player Container -->
+      <div id="mediaContainer" class="glass rounded-2xl p-6">
         <div class="text-center py-12">
           <i class="fas fa-spinner fa-spin text-3xl"></i>
-          <p class="mt-3 text-gray-400">Loading course...</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Player Modal for lessons -->
-    <div
-      id="player-modal"
-      class="fixed inset-0 z-50 hidden items-center justify-center p-4"
-      style="background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px)">
-      <div
-        class="glass max-w-4xl w-full rounded-2xl p-6 relative border border-white/10">
-        <div class="flex justify-between items-center mb-4">
-          <div>
-            <h3 id="player-title" class="text-xl font-bold"></h3>
-            <p class="text-sm text-gray-400" id="player-status"></p>
-          </div>
-          <button
-            onclick="closePlayer()"
-            class="w-10 h-10 hover:bg-white/10 rounded-full flex items-center justify-center transition-colors text-gray-400 hover:text-white">
-            <i class="fas fa-times text-xl"></i>
-          </button>
-        </div>
-        <div id="player-container"></div>
-        <div id="error-container"></div>
-        <div class="mt-4 flex justify-between items-center">
-          <button
-            id="markCompleteBtn"
-            onclick="markLessonComplete()"
-            class="px-4 py-2 bg-success/20 hover:bg-success/30 text-success border border-success/30 rounded-lg text-sm transition-colors flex items-center space-x-2">
-            <i class="fas fa-check-circle"></i>
-            <span>Mark as Complete</span>
-          </button>
-          <div class="text-sm text-gray-400">
-            Progress:
-            <span id="lessonProgress" class="text-primary font-bold">0%</span>
-          </div>
+          <p class="mt-3 text-gray-400">Loading media...</p>
         </div>
       </div>
     </div>
@@ -81,12 +47,15 @@
         : "https://e-bundle.onrender.com";
       const authToken = localStorage.getItem("token");
       const urlParams = new URLSearchParams(window.location.search);
-      const courseId = urlParams.get("id");
+      const mediaId = urlParams.get("id");
 
-      let currentCourse = null;
-      let currentLessonIndex = null;
+      let currentMediaId = null;
+      let currentMediaType = null;
+      let currentMediaTitle = null;
       let watchStartTime = null;
-      let courseProgress = {};
+      let mediaProgress = {};
+      let lastReportedProgress = 0;
+      let currentVideoElement = null;
 
       if (!authToken) {
         window.location.href = "login.html";
@@ -108,7 +77,7 @@
           : "fa-info-circle"
         }"></i><span>${message}</span>`;
 
-        container.appendChild(toast);
+        document.getElementById("toastContainer").appendChild(toast);
         setTimeout(() => {
           toast.style.opacity = "0";
           toast.style.transform = "translateX(100%)";
@@ -123,162 +92,216 @@
           });
           const data = await response.json();
           if (data.success) {
-            courseProgress = data.progress || {};
+            mediaProgress = data.progress || {};
           }
         } catch (err) {
           console.error("Error loading progress:", err);
         }
       }
 
-      async function loadCourse() {
-        if (!courseId) {
-          document.getElementById("courseContent").innerHTML =
-            '<div class="text-center py-12 text-red-400">No course selected</div>';
+      async function loadMedia() {
+        if (!mediaId) {
+          document.getElementById("mediaContainer").innerHTML = `
+            <div class="text-center py-12 text-red-400">
+              <i class="fas fa-exclamation-circle text-5xl mb-4"></i>
+              <p>No media selected</p>
+            </div>`;
           return;
         }
 
         try {
           await loadUserProgress();
 
-          const response = await fetch(`${API_URL}/api/courses/${courseId}`, {
-            headers: { Authorization: `Bearer ${authToken}` },
-          });
+          // First, get all media to find the specific one
+          const response = await fetch(
+            `${API_URL}/api/library/media?type=all`,
+            {
+              headers: { Authorization: `Bearer ${authToken}` },
+            },
+          );
           const data = await response.json();
 
           if (data.success) {
-            currentCourse = data.course;
-            renderCourse(currentCourse);
+            const media = data.media.find((m) => m.id === mediaId);
+            if (media) {
+              renderMediaPlayer(media);
+            } else {
+              throw new Error("Media not found");
+            }
           } else {
-            throw new Error(data.message);
+            throw new Error(data.message || "Failed to load media");
           }
         } catch (err) {
-          console.error(err);
-          document.getElementById("courseContent").innerHTML =
-            `<div class="text-center py-12 text-red-400">Failed to load course: ${err.message}</div>`;
+          console.error("Load media error:", err);
+          document.getElementById("mediaContainer").innerHTML = `
+            <div class="text-center py-12">
+              <i class="fas fa-exclamation-circle text-5xl text-red-400 mb-4"></i>
+              <p class="text-red-400">Failed to load media: ${err.message}</p>
+              <button onclick="loadMedia()" class="mt-4 px-4 py-2 bg-primary rounded-lg hover:bg-primary/80 transition-colors">
+                Retry
+              </button>
+            </div>`;
         }
       }
 
-      function renderCourse(course) {
-        const subjectColors = {
-          math: "from-blue-500 to-cyan-500",
-          physics: "from-orange-500 to-red-500",
-          chemistry: "from-green-500 to-emerald-500",
-          biology: "from-purple-500 to-pink-500",
-          english: "from-indigo-500 to-blue-500",
-          history: "from-yellow-500 to-orange-500",
-        };
-        const gradient =
-          subjectColors[course.subject] || "from-primary to-secondary";
-
-        const courseProgressPercent = courseProgress[course.id] || 0;
-        const completedLessons = Math.floor(
-          (courseProgressPercent / 100) * (course.totalLessons || 1),
-        );
-
-        document.getElementById("courseContent").innerHTML = `
-          <div class="bg-gradient-to-r ${gradient} -m-6 p-8 rounded-t-2xl mb-6">
-            <h1 class="text-2xl md:text-3xl font-bold mb-2">${escapeHtml(course.title)}</h1>
-            <div class="flex flex-wrap gap-3 text-sm">
-              <span class="px-2 py-1 rounded-lg bg-black/30">${course.subject.toUpperCase()}</span>
-              <span class="px-2 py-1 rounded-lg bg-black/30">Grade ${course.grade}</span>
-              <span class="px-2 py-1 rounded-lg bg-black/30"><i class="fas fa-book-open mr-1"></i>${course.totalLessons} lessons</span>
-              <span class="px-2 py-1 rounded-lg bg-black/30"><i class="fas fa-chart-line mr-1"></i>${Math.round(courseProgressPercent)}% complete</span>
-            </div>
-          </div>
-          
-          <div class="mb-8">
-            <h2 class="text-xl font-semibold mb-3">About this course</h2>
-            <p class="text-gray-300">${escapeHtml(course.description) || "No description available."}</p>
-          </div>
-          
-          <div>
-            <h2 class="text-xl font-semibold mb-4">Course Content</h2>
-            <div class="space-y-3">
-              ${Array(course.totalLessons || 5)
-                .fill()
-                .map((_, i) => {
-                  const lessonProgress =
-                    courseProgress[`${course.id}_lesson_${i + 1}`] || 0;
-                  const isCompleted = lessonProgress === 100;
-                  return `
-                  <div class="lesson-item glass rounded-xl p-4 flex justify-between items-center" onclick="startLesson(${i + 1})">
-                    <div class="flex items-center space-x-3">
-                      <div class="w-8 h-8 rounded-full ${isCompleted ? "bg-success/20" : "bg-primary/20"} flex items-center justify-center">
-                        <i class="fas ${isCompleted ? "fa-check" : "fa-play"} text-xs ${isCompleted ? "text-success" : "text-primary"}"></i>
-                      </div>
-                      <div>
-                        <h4 class="font-medium">Lesson ${i + 1}: ${course.title} - Part ${i + 1}</h4>
-                        <p class="text-xs text-gray-400">${isCompleted ? "Completed" : "Click to start learning"}</p>
-                      </div>
-                    </div>
-                    ${isCompleted ? '<i class="fas fa-check-circle text-success"></i>' : '<i class="fas fa-chevron-right text-gray-500"></i>'}
-                  </div>
-                `;
-                })
-                .join("")}
-            </div>
-          </div>
-          
-          <div class="mt-8 pt-6 border-t border-white/10">
-            <div class="progress-bar">
-              <div class="progress-fill" style="width: ${courseProgressPercent}%"></div>
-            </div>
-            <p class="text-sm text-gray-400 mt-2 text-center">${Math.round(courseProgressPercent)}% of course completed (${completedLessons}/${course.totalLessons} lessons)</p>
-          </div>
-        `;
-      }
-
-      async function startLesson(lessonNumber) {
-        if (!currentCourse) return;
-
-        currentLessonIndex = lessonNumber;
+      async function renderMediaPlayer(media) {
+        currentMediaId = media.id;
+        currentMediaType = media.type;
+        currentMediaTitle = media.title;
         watchStartTime = Date.now();
+        lastReportedProgress = 0;
 
-        const lessonId = `${currentCourse.id}_lesson_${lessonNumber}`;
-        const currentProgress = courseProgress[lessonId] || 0;
+        const currentProgress = mediaProgress[media.id] || 0;
+        const streamUrl = `${API_URL}/api/media/stream/${media.id}?token=${encodeURIComponent(authToken)}`;
 
-        // Create a simple lesson content modal
-        const modal = document.getElementById("player-modal");
-        const container = document.getElementById("player-container");
-        const errorContainer = document.getElementById("error-container");
+        const styles = {
+          video: {
+            gradient: "from-red-500 to-orange-500",
+            icon: "fa-play-circle",
+            label: "Video",
+          },
+          audio: {
+            gradient: "from-green-500 to-emerald-500",
+            icon: "fa-headphones",
+            label: "Audio",
+          },
+          pdf: {
+            gradient: "from-orange-500 to-yellow-500",
+            icon: "fa-file-pdf",
+            label: "PDF",
+          },
+        };
+        const style = styles[media.type] || styles.pdf;
 
-        errorContainer.innerHTML = "";
-        document.getElementById("player-title").textContent =
-          `${currentCourse.title} - Lesson ${lessonNumber}`;
-        document.getElementById("lessonProgress").textContent =
-          `${Math.round(currentProgress)}%`;
+        let playerHtml = "";
 
-        // For now, show a simple lesson viewer
-        // You can replace this with actual video/audio/pdf content
-        container.innerHTML = `
-          <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-8 text-center border border-white/10">
-            <div class="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center mx-auto mb-6">
-              <i class="fas fa-graduation-cap text-white text-3xl"></i>
+        if (media.type === "video") {
+          playerHtml = `
+            <div class="bg-gradient-to-r ${style.gradient} -m-6 p-8 rounded-t-2xl mb-6">
+              <h1 class="text-2xl md:text-3xl font-bold mb-2">${escapeHtml(media.title)}</h1>
+              <div class="flex flex-wrap gap-3 text-sm">
+                <span class="px-2 py-1 rounded-lg bg-black/30"><i class="fas ${style.icon} mr-1"></i>${style.label}</span>
+                <span class="px-2 py-1 rounded-lg bg-black/30"><i class="fas fa-chart-line mr-1"></i>${Math.round(currentProgress)}% complete</span>
+              </div>
             </div>
-            <h3 class="text-xl font-bold mb-3">Lesson ${lessonNumber}</h3>
-            <p class="text-gray-300 mb-6">${escapeHtml(currentCourse.description) || "Learning content for this lesson."}</p>
-            <div class="flex justify-center gap-4">
-              <button onclick="completeLesson()" class="px-6 py-2 bg-primary rounded-lg hover:bg-primary/80 transition-colors">
-                <i class="fas fa-check mr-2"></i>Mark Complete
+            
+            <div class="relative rounded-xl overflow-hidden bg-black">
+              <video id="activeVideo" controls class="w-full max-h-[70vh]" autoplay crossorigin="anonymous" playsinline 
+                     ontimeupdate="updateVideoProgress(this)" 
+                     onended="onMediaEnded()" 
+                     onerror="handleMediaError(this)">
+                <source src="${streamUrl}">
+                Your browser does not support video.
+              </video>
+            </div>
+            
+            <div class="mt-4 flex justify-between items-center">
+              <button id="markCompleteBtn" onclick="markMediaComplete()" 
+                      class="px-4 py-2 bg-success/20 hover:bg-success/30 text-success border border-success/30 rounded-lg text-sm transition-colors flex items-center space-x-2">
+                <i class="fas fa-check-circle"></i>
+                <span>${currentProgress === 100 ? "Completed" : "Mark as Complete"}</span>
+              </button>
+              <div class="text-sm text-gray-400">
+                Progress: <span id="watchProgress" class="text-primary font-bold">${Math.round(currentProgress)}%</span>
+              </div>
+            </div>
+          `;
+        } else if (media.type === "audio") {
+          playerHtml = `
+            <div class="bg-gradient-to-r ${style.gradient} -m-6 p-8 rounded-t-2xl mb-6">
+              <h1 class="text-2xl md:text-3xl font-bold mb-2">${escapeHtml(media.title)}</h1>
+              <div class="flex flex-wrap gap-3 text-sm">
+                <span class="px-2 py-1 rounded-lg bg-black/30"><i class="fas ${style.icon} mr-1"></i>${style.label}</span>
+                <span class="px-2 py-1 rounded-lg bg-black/30"><i class="fas fa-chart-line mr-1"></i>${Math.round(currentProgress)}% complete</span>
+              </div>
+            </div>
+            
+            <div class="flex flex-col items-center justify-center p-8 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl border border-white/10">
+              <div class="w-24 h-24 rounded-full bg-gradient-to-br ${style.gradient} flex items-center justify-center mb-6 shadow-lg">
+                <i class="fas ${style.icon} text-white text-4xl"></i>
+              </div>
+              <p class="text-gray-400 mb-6">Audio Lesson</p>
+              <audio id="activeAudio" controls class="w-full max-w-md" autoplay crossorigin="anonymous" 
+                     ontimeupdate="updateAudioProgress(this)" 
+                     onended="onMediaEnded()" 
+                     onerror="handleMediaError(this)">
+                <source src="${streamUrl}">
+                Your browser does not support audio.
+              </audio>
+            </div>
+            
+            <div class="mt-4 flex justify-between items-center">
+              <button id="markCompleteBtn" onclick="markMediaComplete()" 
+                      class="px-4 py-2 bg-success/20 hover:bg-success/30 text-success border border-success/30 rounded-lg text-sm transition-colors flex items-center space-x-2">
+                <i class="fas fa-check-circle"></i>
+                <span>${currentProgress === 100 ? "Completed" : "Mark as Complete"}</span>
+              </button>
+              <div class="text-sm text-gray-400">
+                Progress: <span id="watchProgress" class="text-primary font-bold">${Math.round(currentProgress)}%</span>
+              </div>
+            </div>
+          `;
+        } else if (media.type === "pdf") {
+          playerHtml = `
+            <div class="bg-gradient-to-r ${style.gradient} -m-6 p-8 rounded-t-2xl mb-6">
+              <h1 class="text-2xl md:text-3xl font-bold mb-2">${escapeHtml(media.title)}</h1>
+              <div class="flex flex-wrap gap-3 text-sm">
+                <span class="px-2 py-1 rounded-lg bg-black/30"><i class="fas ${style.icon} mr-1"></i>${style.label}</span>
+                <span class="px-2 py-1 rounded-lg bg-black/30"><i class="fas fa-chart-line mr-1"></i>${Math.round(currentProgress)}% complete</span>
+              </div>
+            </div>
+            
+            <div id="pdf-container" class="w-full h-96 bg-slate-800 rounded-xl flex items-center justify-center border border-white/10">
+              <div class="text-center">
+                <i class="fas fa-spinner fa-spin text-4xl text-primary mb-4"></i>
+                <p class="text-gray-400">Loading PDF...</p>
+              </div>
+            </div>
+            
+            <div class="mt-4 flex justify-between items-center">
+              <div class="flex gap-2">
+                <a href="${streamUrl}" target="_blank" class="px-4 py-2 bg-primary hover:bg-primary/80 rounded-lg text-sm transition-colors flex items-center">
+                  <i class="fas fa-external-link-alt mr-2"></i>Open in New Tab
+                </a>
+                <a href="${streamUrl}&download=1" download class="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition-colors flex items-center">
+                  <i class="fas fa-download mr-2"></i>Download
+                </a>
+              </div>
+              <button id="markCompleteBtn" onclick="markMediaComplete()" 
+                      class="px-4 py-2 bg-success/20 hover:bg-success/30 text-success border border-success/30 rounded-lg text-sm transition-colors flex items-center space-x-2">
+                <i class="fas fa-check-circle"></i>
+                <span>${currentProgress === 100 ? "Completed" : "Mark as Complete"}</span>
               </button>
             </div>
-          </div>
-        `;
-
-        const btn = document.getElementById("markCompleteBtn");
-        if (currentProgress === 100) {
-          btn.innerHTML = '<i class="fas fa-check"></i><span>Completed</span>';
-          btn.classList.add("opacity-50", "cursor-not-allowed");
-          btn.disabled = true;
-        } else {
-          btn.innerHTML =
-            '<i class="fas fa-check-circle"></i><span>Mark as Complete</span>';
-          btn.classList.remove("opacity-50", "cursor-not-allowed");
-          btn.disabled = false;
+            
+            <div class="mt-3 text-center">
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: ${currentProgress}%"></div>
+              </div>
+              <p class="text-sm text-gray-400 mt-2">${Math.round(currentProgress)}% complete</p>
+            </div>
+          `;
         }
 
-        modal.classList.remove("hidden");
-        modal.classList.add("flex");
+        document.getElementById("mediaContainer").innerHTML = playerHtml;
+
+        // Load PDF if needed
+        if (media.type === "pdf") {
+          const blobUrl = `${streamUrl}&download=1`;
+          document.getElementById("pdf-container").innerHTML =
+            `<iframe src="${blobUrl}" class="w-full h-full rounded-xl" type="application/pdf"></iframe>`;
+          // Auto-mark PDF as 50% when opened
+          if (currentProgress < 50) {
+            await trackMediaProgress(media.id, 50, false);
+          }
+        }
+
+        // Set button state
+        const btn = document.getElementById("markCompleteBtn");
+        if (currentProgress === 100 && btn) {
+          btn.innerHTML = '<i class="fas fa-check"></i><span>Completed</span>';
+          btn.disabled = true;
+        }
 
         // Log activity
         try {
@@ -290,10 +313,9 @@
             },
             body: JSON.stringify({
               type: "lesson",
-              title: `Started lesson ${lessonNumber}: ${currentCourse.title}`,
-              description: `Started lesson ${lessonNumber}`,
+              title: `Started ${media.type}: ${media.title}`,
+              description: `Opened ${media.type} content`,
               xp: 5,
-              courseId: currentCourse.id,
             }),
           });
         } catch (err) {
@@ -301,14 +323,12 @@
         }
       }
 
-      async function completeLesson() {
-        if (!currentCourse || !currentLessonIndex) return;
-
-        const lessonId = `${currentCourse.id}_lesson_${currentLessonIndex}`;
-        const timeSpent = Math.floor((Date.now() - watchStartTime) / 60000);
-
+      async function trackMediaProgress(
+        mediaId,
+        progressPercent,
+        completed = false,
+      ) {
         try {
-          // Update progress
           const response = await fetch(`${API_URL}/api/track-media`, {
             method: "POST",
             headers: {
@@ -316,50 +336,85 @@
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              mediaId: lessonId,
-              mediaType: "lesson",
-              courseId: currentCourse.id,
-              progress: 100,
-              completed: true,
-              timeSpent: timeSpent,
+              mediaId: mediaId,
+              mediaType: currentMediaType,
+              progress: progressPercent,
+              completed: completed,
+              timeSpent: Math.floor((Date.now() - watchStartTime) / 60000),
             }),
           });
 
           if (response.ok) {
-            courseProgress[lessonId] = 100;
+            mediaProgress[mediaId] = completed ? 100 : progressPercent;
+            const progressSpan = document.getElementById("watchProgress");
+            if (progressSpan)
+              progressSpan.textContent = `${Math.round(progressPercent)}%`;
 
-            // Update overall course progress
-            const totalLessons = currentCourse.totalLessons || 5;
-            let completedCount = 0;
-            for (let i = 1; i <= totalLessons; i++) {
-              if (courseProgress[`${currentCourse.id}_lesson_${i}`] === 100)
-                completedCount++;
+            if (completed) {
+              const btn = document.getElementById("markCompleteBtn");
+              if (btn) {
+                btn.innerHTML =
+                  '<i class="fas fa-check"></i><span>Completed</span>';
+                btn.disabled = true;
+              }
+              showToast("Media marked as complete!", "success");
             }
-            const overallProgress = (completedCount / totalLessons) * 100;
-            courseProgress[currentCourse.id] = overallProgress;
-
-            showToast(`Lesson ${currentLessonIndex} completed!`, "success");
-            closePlayer();
-            renderCourse(currentCourse);
           }
         } catch (err) {
-          console.error("Error completing lesson:", err);
-          showToast("Failed to save progress", "error");
+          console.error("Error tracking progress:", err);
         }
       }
 
-      async function markLessonComplete() {
-        if (!currentCourse || !currentLessonIndex) return;
-        await completeLesson();
+      async function markMediaComplete() {
+        if (!currentMediaId) return;
+        await trackMediaProgress(currentMediaId, 100, true);
       }
 
-      function closePlayer() {
-        const modal = document.getElementById("player-modal");
-        const container = document.getElementById("player-container");
-        container.innerHTML = "";
-        modal.classList.add("hidden");
-        modal.classList.remove("flex");
-        currentLessonIndex = null;
+      async function updateVideoProgress(videoElement) {
+        if (!videoElement || !currentMediaId) return;
+        const current = videoElement.currentTime,
+          duration = videoElement.duration || 0;
+        if (duration === 0) return;
+        const percent = (current / duration) * 100;
+        const progressSpan = document.getElementById("watchProgress");
+        if (progressSpan) progressSpan.textContent = `${Math.round(percent)}%`;
+        const threshold = Math.floor(percent / 10) * 10;
+        if (threshold > lastReportedProgress || percent >= 95) {
+          lastReportedProgress = threshold;
+          await trackMediaProgress(currentMediaId, percent, percent >= 95);
+        }
+      }
+
+      async function updateAudioProgress(audioElement) {
+        if (!audioElement || !currentMediaId) return;
+        const current = audioElement.currentTime,
+          duration = audioElement.duration || 0;
+        if (duration === 0) return;
+        const percent = (current / duration) * 100;
+        const progressSpan = document.getElementById("watchProgress");
+        if (progressSpan) progressSpan.textContent = `${Math.round(percent)}%`;
+        const threshold = Math.floor(percent / 10) * 10;
+        if (threshold > lastReportedProgress || percent >= 95) {
+          lastReportedProgress = threshold;
+          await trackMediaProgress(currentMediaId, percent, percent >= 95);
+        }
+      }
+
+      async function onMediaEnded() {
+        showToast("Content finished! Marking as complete...", "success");
+        await trackMediaProgress(currentMediaId, 100, true);
+      }
+
+      function handleMediaError(mediaElement) {
+        const errorMessages = {
+          1: "Playback was aborted",
+          2: "Network error - please check your connection",
+          3: "Decode error - file may be corrupted",
+          4: "Format not supported by your browser",
+        };
+        const code = mediaElement.error ? mediaElement.error.code : "unknown";
+        const message = errorMessages[code] || "Unknown playback error";
+        showToast(message, "error");
       }
 
       function escapeHtml(text) {
@@ -369,18 +424,9 @@
         return div.innerHTML;
       }
 
-      // Close modal on backdrop click
+      // Initialize
       document.addEventListener("DOMContentLoaded", () => {
-        loadCourse();
-
-        const modal = document.getElementById("player-modal");
-        modal.addEventListener("click", function (e) {
-          if (e.target === this) closePlayer();
-        });
-
-        document.addEventListener("keydown", function (e) {
-          if (e.key === "Escape") closePlayer();
-        });
+        loadMedia();
       });
     </script>
   </body>
