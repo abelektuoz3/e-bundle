@@ -300,8 +300,14 @@
     </main>
 
     <script>
-      // FIXED: Use relative path instead of absolute URL
-      const API_URL = "/api/chat";
+      // ================= FIXED: Use dynamic API URL =================
+      // For local development: /api/chat
+      // For production (Netlify): https://e-bundle.onrender.com/api/chat
+      const API_URL =
+        window.location.hostname === "localhost" ?
+          "/api/chat"
+        : "https://e-bundle.onrender.com/api/chat";
+
       let isWaitingForResponse = false;
       let authToken = null;
 
@@ -320,9 +326,14 @@
           return;
         }
 
-        // Load user info
+        // Load user info from backend
         try {
-          const response = await fetch("/profile", {
+          const profileUrl =
+            window.location.hostname === "localhost" ?
+              "/profile"
+            : "https://e-bundle.onrender.com/profile";
+
+          const response = await fetch(profileUrl, {
             headers: {
               Authorization: `Bearer ${authToken}`,
             },
