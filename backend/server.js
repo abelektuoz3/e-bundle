@@ -517,19 +517,19 @@ app.get("/api/library/media", authenticateToken, async (req, res) => {
 // ================= STREAM MEDIA FROM GRIDFS =================
 app.get("/api/media/stream/:id", authenticateToken, async (req, res) => {
   try {
-    const fileId = req.params.id;
+    const mediaId = req.params.id;
     let media;
-    let fileIdToUse = fileId;
+    let fileIdToUse = mediaId;
 
-    // First try to find media by fileId (GridFS ID)
-    if (mongoose.Types.ObjectId.isValid(fileId)) {
-      media = await Media.findOne({ fileId: fileId });
+    // Primary: try by media _id (library frontend sends this)
+    if (mongoose.Types.ObjectId.isValid(mediaId)) {
+      media = await Media.findById(mediaId);
     }
 
-    // If not found, try by media _id
-    if (!media && mongoose.Types.ObjectId.isValid(fileId)) {
-      media = await Media.findById(fileId);
-      if (media && media.fileId) {
+    // Fallback: try by GridFS fileId
+    if (!media && mongoose.Types.ObjectId.isValid(mediaId)) {
+      media = await Media.findOne({ fileId: mediaId });
+      if (media) {
         fileIdToUse = media.fileId;
       }
     }
@@ -540,6 +540,15 @@ app.get("/api/media/stream/:id", authenticateToken, async (req, res) => {
         message: "Media not found in database",
       });
     }
+
+    // Ensure we have valid fileId for GridFS
+    if (!media.fileId) {
+      return res.status(404).json({
+        success: false,
+        message: "No file associated with this media",
+      });
+    }
+    fileIdToUse = media.fileId;
 
     if (!gridFSBucket) {
       return res.status(500).json({

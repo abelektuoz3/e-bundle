@@ -617,7 +617,8 @@
 
             return `
               <div class="media-card glass-card rounded-2xl overflow-hidden cursor-pointer" 
-                   onclick="playMedia('${item.id}', '${item.type}', '${item.url}', '${escapeHtml(item.title)}')">
+                   onclick="playMedia('${item.id}', '${item.fileId}', '${item.type}', '${item.url}', '${escapeHtml(item.title)}')">
+
                 <div class="h-40 bg-gradient-to-br ${styles.gradient} flex items-center justify-center relative overflow-hidden">
                   <div class="absolute inset-0 bg-black/20"></div>
                   <i class="fas ${styles.icon} text-5xl text-white/80 relative z-10"></i>
@@ -685,7 +686,7 @@
       // ==========================================
       // PLAYER FUNCTIONS
       // ==========================================
-      async function playMedia(id, type, url, title) {
+      async function playMedia(id, fileId, type, url, title) {
         const modal = document.getElementById("player-modal");
         const container = document.getElementById("player-container");
         const errorContainer = document.getElementById("error-container");
@@ -694,10 +695,7 @@
         document.getElementById("player-title").textContent = title;
         await startMediaTracking(id, type, title);
 
-        const streamUrl =
-          url.startsWith("http") ?
-            `${url}?token=${encodeURIComponent(authToken)}`
-          : `${API_URL}${url}?token=${encodeURIComponent(authToken)}`;
+        const streamUrl = `${API_URL}/api/media/stream/${fileId}?token=${encodeURIComponent(authToken)}`;
 
         if (type === "video") {
           container.innerHTML = `
