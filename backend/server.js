@@ -595,6 +595,117 @@ app.get("/api/media/stream/:id", authenticateToken, async (req, res) => {
   }
 });
 
+// ================= DIAGNOSTIC ENDPOINT - Step 1 Complete ✅ =================
+// GET /api/media/diagnose/:id - Admin only - Debug PDF stream issues
+app.get("/api/media/diagnose/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const paramId = req.params.id;
+    console.log(`🔍 DIAGNOSE: Checking media ID/fileId: ${paramId}`);
+
+    let media = null;
+    let gridFSFile = null;
+    let validation = {};
+
+    // Step 1: Try as GridFS fileId first
+    if (mongoose.Types.ObjectId.isValid(paramId)) {
+      media = await Media.findOne({ fileId: paramId });
+      if (media) {
+        console.log(`✅ Found Media by fileId: ${media._id} -> ${media.title}`);
+        validation.primaryMatch = "fileId";
+      }
+    }
+
+    // Step 2: Try as Media document _id (library frontend pattern)
+    if (!media && mongoose.Types.ObjectId.isValid(paramId)) {
+      media = await Media.findById(paramId);
+      if (media) {
+        console.log(`✅ Found Media by _id: ${media._id} -> ${media.title}`);
+        validation.primaryMatch = "_id";
+      }
+    }
+
+    if (!media) {
+      return res.status(404).json({
+        success: false,
+        message: "Media not found by _id OR fileId",
+        diagnostics: {
+          paramId,
+          validObjectId: mongoose.Types.ObjectId.isValid(paramId),
+        },
+      });
+    }
+
+    // Step 3: GridFS file validation
+    if (!gridFSBucket) {
+      return res.status(500).json({
+        success: false,
+        message: "GridFS not available",
+        diagnostics: { mediaId: media._id, hasFileId: !!media.fileId },
+      });
+    }
+
+    const fileIdObj = new mongoose.Types.ObjectId(media.fileId);
+    gridFSFile = await mongoose.connection.db
+      .collection("media.files")
+      .findOne({ _id: fileIdObj });
+
+    validation.gridFSExists = !!gridFSFile;
+    validation.fileId = media.fileId.toString();
+    validation.mediaId = media._id.toString();
+    validation.expectedStreamUrl = `/api/media/stream/${media.fileId}`;
+    validation.libraryUsesMediaId = true; // Frontend bug
+
+    if (gridFSFile) {
+      console.log(
+        `✅ GridFS file EXISTS: ${gridFSFile.filename} (${gridFSFile.length} bytes)`,
+      );
+    } else {
+      console.log(`❌ GridFS file MISSING for fileId: ${media.fileId}`);
+    }
+
+    res.json({
+      success: true,
+      message: "Diagnostic complete",
+      media: {
+        id: media._id,
+        title: media.title,
+        type: media.type,
+        fileId: media.fileId,
+        url: media.url,
+        size: media.sizeFormatted,
+        category: media.category,
+      },
+      gridFS:
+        gridFSFile ?
+          {
+            exists: true,
+            filename: gridFSFile.filename,
+            length: gridFSFile.length,
+            contentType: gridFSFile.contentType,
+            uploadDate: gridFSFile.uploadDate,
+          }
+        : { exists: false },
+      validation,
+      fixRequired: !gridFSFile,
+      testStreamUrl: `${req.protocol}://${req.get("host")}/api/media/stream/${media.fileId}?token=${req.query.token || "your-token"}`,
+      nextSteps:
+        gridFSFile ?
+          ["✅ File OK - Frontend needs url fix"]
+        : [
+            "❌ Re-upload PDF",
+            "Delete orphan Media doc: DELETE /api/media/{media._id}",
+          ],
+    });
+  } catch (err) {
+    console.error("Diagnose error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Diagnostic failed",
+      error: err.message,
+    });
+  }
+});
+
 // ================= SENDGRID EMAIL FUNCTIONS =================
 
 const FROM_EMAIL =
