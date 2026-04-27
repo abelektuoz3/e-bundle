@@ -550,14 +550,27 @@ app.get("/api/media/stream/:id", authenticateToken, async (req, res) => {
       });
     }
 
-    // Ensure we have valid fileId for GridFS
-    if (!media.fileId) {
+    // Ensure we have a valid GridFS file id.
+    // Backward compatibility: older media docs may not have fileId saved,
+    // but may still contain a stream url with the GridFS id.
+    if (media.fileId) {
+      fileIdToUse = media.fileId;
+    } else if (media.url) {
+      const urlMatch = media.url.match(/\/api\/media\/stream\/([a-fA-F0-9]{24})/);
+      if (urlMatch && urlMatch[1]) {
+        fileIdToUse = urlMatch[1];
+      } else {
+        return res.status(404).json({
+          success: false,
+          message: "No file associated with this media",
+        });
+      }
+    } else {
       return res.status(404).json({
         success: false,
         message: "No file associated with this media",
       });
     }
-    fileIdToUse = media.fileId;
 
     if (!gridFSBucket) {
       return res.status(500).json({

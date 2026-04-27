@@ -617,7 +617,7 @@
 
             return `
               <div class="media-card glass-card rounded-2xl overflow-hidden cursor-pointer" 
-                   onclick="playMedia('${item.id}', '${item.fileId}', '${item.type}', '${item.url}', '${escapeHtml(item.title)}')">
+                   onclick="playMedia('${item.id}', '${item.fileId || ""}', '${item.type}', '${item.url}', '${escapeHtml(item.title)}')">
 
                 <div class="h-40 bg-gradient-to-br ${styles.gradient} flex items-center justify-center relative overflow-hidden">
                   <div class="absolute inset-0 bg-black/20"></div>
@@ -695,7 +695,8 @@
         document.getElementById("player-title").textContent = title;
         await startMediaTracking(id, type, title);
 
-        const streamUrl = `${API_URL}/api/media/stream/${fileId}?token=${encodeURIComponent(authToken)}`;
+        const streamTarget = fileId || id;
+        const streamUrl = `${API_URL}/api/media/stream/${streamTarget}?token=${encodeURIComponent(authToken)}`;
 
         if (type === "video") {
           container.innerHTML = `

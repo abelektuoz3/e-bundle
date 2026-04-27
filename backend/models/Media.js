@@ -4,6 +4,11 @@ const mediaSchema = new mongoose.Schema({
   title: { type: String, required: true },
   originalName: { type: String, required: true },
   filename: { type: String, required: true, unique: true },
+  fileId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true,
+    index: true,
+  },
   type: {
     type: String,
     required: true,
