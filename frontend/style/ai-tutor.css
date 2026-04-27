@@ -129,11 +129,25 @@ body {
     overflow: hidden;
   }
   main {
-    height: calc(100vh - 73px) !important;
+    height: calc(100dvh - 73px) !important;
   }
   .glass-card {
     border-radius: 0 !important;
     border-left: none !important;
     border-right: none !important;
+  }
+  #aiChatMessages {
+    padding-bottom: calc(7.5rem + env(safe-area-inset-bottom)) !important;
+  }
+  #chatComposer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 45;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(10px);
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
   }
 }

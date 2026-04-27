@@ -156,22 +156,22 @@
         <div
           class="h-full flex flex-col glass-card rounded-none md:rounded-3xl overflow-hidden border-0 md:border border-white/5">
           <div
-            class="p-6 border-b border-white/10 bg-gradient-to-r from-primary/20 to-secondary/20">
-            <div class="flex items-center space-x-4">
+            class="p-3 md:p-6 border-b border-white/10 bg-gradient-to-r from-primary/20 to-secondary/20">
+            <div class="flex items-center space-x-3 md:space-x-4">
               <div
-                class="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center animate-pulse">
-                <i class="fas fa-robot text-white text-xl"></i>
+                class="w-9 h-9 md:w-12 md:h-12 bg-gradient-to-br from-primary to-secondary rounded-xl md:rounded-2xl flex items-center justify-center animate-pulse">
+                <i class="fas fa-robot text-white text-base md:text-xl"></i>
               </div>
               <div>
-                <h2 class="text-xl font-bold">AI Learning Assistant</h2>
-                <p class="text-sm text-gray-400">
+                <h2 class="text-base md:text-xl font-bold">AI Learning Assistant</h2>
+                <p class="hidden md:block text-sm text-gray-400">
                   Ask anything about your studies
                 </p>
               </div>
               <div class="ml-auto flex items-center space-x-2">
                 <span
                   class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                <span class="text-xs text-green-400">Online</span>
+                <span class="text-[11px] md:text-xs text-green-400">Online</span>
               </div>
             </div>
           </div>
@@ -182,7 +182,9 @@
             <!-- Messages loaded here -->
           </div>
 
-          <div class="p-3 md:p-4 border-t border-white/10 bg-slate-900/50">
+          <div
+            id="chatComposer"
+            class="p-3 md:p-4 border-t border-white/10 bg-slate-900/50">
             <div class="hidden sm:flex flex-wrap gap-2 mb-3">
               <button
                 onclick="quickAsk('Explain quadratic equations')"
