@@ -484,21 +484,30 @@ app.delete("/api/media", authenticateAdmin, async (req, res) => {
 
 app.get("/api/library/media", authenticateToken, async (req, res) => {
   try {
-    const { type } = req.query;
+    const { type, search } = req.query;
 
     let query = {};
     if (type && type !== "all") query.type = type;
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ];
+    }
 
     query.category = { $in: ["general", "tutorial", "documentation"] };
 
     const media = await Media.find(query)
-      .select("title description type category sizeFormatted url createdAt")
+      .select(
+        "title description type category sizeFormatted url fileId createdAt",
+      )
       .sort({ createdAt: -1 });
 
     res.json({
       success: true,
       media: media.map((m) => ({
         id: m._id,
+        fileId: m.fileId,
         title: m.title,
         description: m.description,
         type: m.type,
