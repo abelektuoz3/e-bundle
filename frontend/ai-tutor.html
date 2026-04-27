@@ -43,7 +43,7 @@
 
     <!-- Navbar -->
     <nav
-      class="w-full glass border-b border-white/10 px-6 py-4 flex justify-between items-center sticky top-0 z-50">
+      class="w-full glass border-b border-white/10 px-4 md:px-6 py-4 flex justify-between items-center sticky top-0 z-50">
       <div
         class="flex items-center space-x-3 cursor-pointer"
         onclick="window.location.href = 'dashboard.html'">
@@ -87,7 +87,14 @@
         </a>
       </div>
 
-      <div class="flex items-center space-x-4">
+      <div class="flex items-center space-x-2 sm:space-x-4">
+        <button
+          id="mobileMenuBtn"
+          class="md:hidden w-10 h-10 rounded-lg border border-white/10 hover:bg-white/10 transition-colors flex items-center justify-center"
+          aria-label="Toggle menu"
+          onclick="toggleMobileMenu()">
+          <i class="fas fa-bars"></i>
+        </button>
         <div
           class="hidden sm:flex items-center space-x-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
           <i class="fas fa-fire text-orange-500"></i>
@@ -131,12 +138,23 @@
         </div>
       </div>
     </nav>
+    <div
+      id="mobileMenu"
+      class="md:hidden hidden glass border-b border-white/10 px-4 py-3 space-y-2 relative z-40">
+      <a href="dashboard.html" class="block px-3 py-2 rounded-lg hover:bg-white/10">Dashboard</a>
+      <a href="library.html" class="block px-3 py-2 rounded-lg hover:bg-white/10">Library</a>
+      <a href="ai-tutor.html" class="block px-3 py-2 rounded-lg bg-white/10">AI Tutor</a>
+      <a href="community.html" class="block px-3 py-2 rounded-lg hover:bg-white/10">Community</a>
+      <a href="kahoot.html" class="block px-3 py-2 rounded-lg hover:bg-white/10">Kahoot</a>
+      <a href="video-chat.html" class="block px-3 py-2 rounded-lg hover:bg-white/10">Video Chat</a>
+    </div>
 
     <!-- Main Content -->
-    <main class="p-6 max-w-7xl mx-auto relative z-10 h-[calc(100vh-5rem)]">
+    <main
+      class="p-0 md:p-6 max-w-7xl mx-auto relative z-10 h-[calc(100vh-5rem)] md:h-[calc(100vh-5rem)]">
       <section class="fade-in h-full">
         <div
-          class="h-full flex flex-col glass-card rounded-3xl overflow-hidden">
+          class="h-full flex flex-col glass-card rounded-none md:rounded-3xl overflow-hidden border-0 md:border border-white/5">
           <div
             class="p-6 border-b border-white/10 bg-gradient-to-r from-primary/20 to-secondary/20">
             <div class="flex items-center space-x-4">
@@ -158,12 +176,14 @@
             </div>
           </div>
 
-          <div id="aiChatMessages" class="flex-1 overflow-y-auto p-6 space-y-4">
+          <div
+            id="aiChatMessages"
+            class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
             <!-- Messages loaded here -->
           </div>
 
-          <div class="p-4 border-t border-white/10 bg-slate-900/50">
-            <div class="flex flex-wrap gap-2 mb-3">
+          <div class="p-3 md:p-4 border-t border-white/10 bg-slate-900/50">
+            <div class="hidden sm:flex flex-wrap gap-2 mb-3">
               <button
                 onclick="quickAsk('Explain quadratic equations')"
                 class="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-full text-xs transition-colors border border-white/10">
@@ -239,6 +259,18 @@
 
       let isWaitingForResponse = false;
       let authToken = null;
+      let mobileMenuOpen = false;
+
+      function toggleMobileMenu(force) {
+        const menu = document.getElementById("mobileMenu");
+        if (!menu) return;
+        if (typeof force === "boolean") {
+          mobileMenuOpen = force;
+        } else {
+          mobileMenuOpen = !mobileMenuOpen;
+        }
+        menu.classList.toggle("hidden", !mobileMenuOpen);
+      }
 
       // Check for auth token on load
       document.addEventListener("DOMContentLoaded", async () => {
@@ -288,6 +320,19 @@
         addMessage(
           "Hello! I'm your AI tutor powered by Groq. I can help you with Mathematics, Physics, Chemistry, Biology, English, History, and more. What would you like to learn today?",
         );
+
+        document.addEventListener("click", (event) => {
+          const menu = document.getElementById("mobileMenu");
+          const btn = document.getElementById("mobileMenuBtn");
+          if (!menu || !btn) return;
+          if (
+            mobileMenuOpen &&
+            !menu.contains(event.target) &&
+            !btn.contains(event.target)
+          ) {
+            toggleMobileMenu(false);
+          }
+        });
       });
 
       function showToast(message, type = "info") {

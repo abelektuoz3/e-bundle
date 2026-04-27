@@ -123,3 +123,17 @@ body {
 .animate-spin {
   animation: spin 1s linear infinite;
 }
+
+@media (max-width: 767px) {
+  body {
+    overflow: hidden;
+  }
+  main {
+    height: calc(100vh - 73px) !important;
+  }
+  .glass-card {
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+  }
+}
