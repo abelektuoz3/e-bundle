@@ -63,7 +63,14 @@
         grid-template-columns: 1fr;
       }
       .video-grid.duo {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: 1fr;
+        grid-template-rows: repeat(2, 1fr);
+      }
+      @media (min-width: 768px) {
+        .video-grid.duo {
+          grid-template-columns: repeat(2, 1fr);
+          grid-template-rows: 1fr;
+        }
       }
       .video-item {
         position: relative;
