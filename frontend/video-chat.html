@@ -480,7 +480,7 @@
 
         connectSocket: () => {
           const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.protocol === "file:";
-          const serverUrl = isLocal ? "http://localhost:5000" : window.location.origin;
+          const serverUrl = isLocal ? "http://localhost:5000" : "https://e-bundle.onrender.com";
 
           videoChat.socket = io(serverUrl, {
             transports: ["websocket", "polling"],
