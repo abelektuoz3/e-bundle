@@ -3202,7 +3202,9 @@ const socketIo = require("socket.io");
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: function (origin, callback) {
+      callback(null, true);
+    },
     credentials: true,
     methods: ["GET", "POST"],
   },
