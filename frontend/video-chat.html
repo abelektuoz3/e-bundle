@@ -493,7 +493,7 @@
               `Matched with ${data.partner.name} (Grade ${data.partner.grade})!`,
               "success",
             );
-            videoChat.startCall(data.partner.socketId, true);
+            videoChat.startCall(data.partner.socketId, data.initiator);
           });
 
           videoChat.socket.on("offer", async (data) => {

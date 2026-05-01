@@ -3254,13 +3254,17 @@ io.on("connection", (socket) => {
 
         if (otherUser && thisUser) {
           socket.emit("matched", {
-            partner: otherUser,
+            partner: { socketId: otherUser.socketId, name: otherUser.name, grade: otherUser.grade, avatar: otherUser.avatar },
             room: roomId,
+            initiator: true
           });
           otherSocket.emit("matched", {
-            partner: thisUser,
+            partner: { socketId: thisUser.socketId, name: thisUser.name, grade: thisUser.grade, avatar: thisUser.avatar },
             room: roomId,
+            initiator: false
           });
+          activeRooms.set(roomId, [socket.id, otherSocketId]);
+          isInCall = true;
         }
       }
     }
@@ -3303,13 +3307,15 @@ io.on("connection", (socket) => {
       isInCall = true;
 
       socket.emit("matched", {
-        partner: partner,
+        partner: { socketId: partner.socketId, name: partner.name, grade: partner.grade, userId: partner.userId },
         room: roomName,
+        initiator: true
       });
 
       io.to(partner.socketId).emit("matched", {
         partner: user,
         room: roomName,
+        initiator: false
       });
 
       console.log(
@@ -3395,9 +3401,9 @@ io.on("connection", (socket) => {
       connectedUsers.delete(currentUserId);
     }
 
-    if (currentRoom && isInCall) {
+    if (currentRoom) {
       const room = activeRooms.get(currentRoom);
-      if (room) {
+      if (room && room.includes(socket.id)) {
         const partnerId = room.find((id) => id !== socket.id);
         if (partnerId) {
           const partnerSocket = io.sockets.sockets.get(partnerId);
@@ -3407,9 +3413,6 @@ io.on("connection", (socket) => {
         }
         activeRooms.delete(currentRoom);
       }
-    }
-
-    if (currentRoom) {
       socket.leave(currentRoom);
     }
   });
