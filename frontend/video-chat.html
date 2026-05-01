@@ -320,22 +320,27 @@
                   ><i class="fas fa-chalkboard-user mr-1"></i> Grade 9-12</span
                 >
               </div>
-              <div class="space-y-3">
+              <div class="space-y-4 w-full">
                 <button
-                  onclick="videoChat.joinRandom()"
-                  class="w-full px-8 py-3 bg-gradient-to-r from-primary to-secondary rounded-xl font-bold hover:scale-105 transition-all shadow-lg">
-                  <i class="fas fa-random mr-2"></i> Join Random Study Session
+                  onclick="videoChat.createRoom()"
+                  class="w-full px-8 py-3 bg-gradient-to-r from-primary to-secondary rounded-xl font-bold hover:scale-105 transition-all shadow-lg flex justify-center items-center">
+                  <i class="fas fa-plus-circle mr-2"></i> Create a Room (Get PIN)
                 </button>
+                <div class="relative flex items-center justify-center my-4">
+                  <hr class="w-full border-white/20">
+                  <span class="absolute bg-[#0f172a] px-2 text-sm text-gray-400">OR</span>
+                </div>
                 <div class="flex gap-2">
                   <input
                     type="text"
-                    id="roomInput"
-                    placeholder="Enter room name..."
-                    class="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-primary" />
+                    id="pinInput"
+                    placeholder="Enter 6-digit PIN"
+                    maxlength="6"
+                    class="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-primary text-center tracking-widest font-mono text-lg" />
                   <button
                     onclick="videoChat.joinRoom()"
-                    class="px-6 py-2 glass rounded-xl hover:bg-white/10 transition-all">
-                    <i class="fas fa-door-open"></i>
+                    class="px-6 py-2 glass rounded-xl hover:bg-white/10 transition-all font-semibold">
+                    Join
                   </button>
                 </div>
               </div>
@@ -345,19 +350,30 @@
             </div>
           </div>
 
-          <!-- Searching Overlay -->
-          <div id="searchingOverlay" class="waiting-overlay hidden">
-            <div class="text-center space-y-4">
-              <div class="spinner mx-auto"></div>
-              <h3 class="text-xl font-semibold">Finding a study partner...</h3>
-              <p class="text-gray-400">
-                Connecting you with a student in your grade level
-              </p>
+          <!-- Host Waiting Screen -->
+          <div id="hostWaitingScreen" class="waiting-overlay hidden">
+            <div class="text-center space-y-6 max-w-md px-4 glass-card p-8 rounded-2xl mx-4">
+              <h3 class="text-2xl font-bold text-white">Your Room is Ready</h3>
+              <p class="text-gray-300">Share this PIN with your partner to let them join:</p>
+              <div class="bg-black/30 py-4 px-8 rounded-xl border border-white/10 inline-block">
+                <span id="displayPin" class="text-5xl font-mono tracking-widest text-primary font-bold">------</span>
+              </div>
+              <div class="spinner mx-auto mt-6"></div>
+              <p class="text-sm text-gray-400 mt-2">Waiting for someone to join...</p>
               <button
-                onclick="videoChat.cancelSearch()"
-                class="px-6 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-all">
+                onclick="videoChat.cancelCreate()"
+                class="mt-6 w-full px-6 py-3 bg-red-500/20 text-red-400 rounded-xl hover:bg-red-500/30 transition-all border border-red-500/30">
                 Cancel
               </button>
+            </div>
+          </div>
+
+          <!-- Joining Overlay -->
+          <div id="joiningOverlay" class="waiting-overlay hidden">
+            <div class="text-center space-y-4">
+              <div class="spinner mx-auto"></div>
+              <h3 class="text-xl font-semibold">Connecting to Room...</h3>
+              <p class="text-gray-400">Verifying PIN and establishing connection</p>
             </div>
           </div>
 
@@ -457,7 +473,8 @@
           const urlParams = new URLSearchParams(window.location.search);
           const room = urlParams.get("room");
           if (room) {
-            setTimeout(() => videoChat.joinSpecificRoom(room), 1000);
+            document.getElementById("pinInput").value = room;
+            setTimeout(() => videoChat.joinRoom(), 1000);
           }
         },
 
@@ -484,14 +501,29 @@
           videoChat.socket.on("matched", (data) => {
             videoChat.isSearching = false;
             videoChat.partnerData = data.partner;
-            document.getElementById("searchingOverlay").classList.add("hidden");
+            document.getElementById("hostWaitingScreen").classList.add("hidden");
+            document.getElementById("joiningOverlay").classList.add("hidden");
             document.getElementById("waitingScreen").classList.add("hidden");
             document.getElementById("controls").classList.remove("hidden");
             videoChat.showToast(
-              `Matched with ${data.partner.name} (Grade ${data.partner.grade})!`,
+              `Joined call with ${data.partner.name}`,
               "success",
             );
             videoChat.startCall(data.partner.socketId, data.initiator);
+          });
+
+          videoChat.socket.on("room-created", (data) => {
+            document.getElementById("displayPin").textContent = data.pin;
+          });
+
+          videoChat.socket.on("room-error", (msg) => {
+            videoChat.showToast(msg, "error");
+            document.getElementById("joiningOverlay").classList.add("hidden");
+            document.getElementById("waitingScreen").classList.remove("hidden");
+            if (videoChat.localStream) {
+              videoChat.localStream.getTracks().forEach((track) => track.stop());
+              videoChat.localStream = null;
+            }
           });
 
           videoChat.socket.on("offer", async (data) => {
@@ -641,12 +673,15 @@
           document.getElementById("waitingScreen").classList.add("hidden");
           document.getElementById("controls").classList.remove("hidden");
 
-          videoChat.peerConnection = videoChat.createPeerConnection(fromId);
+          if (!videoChat.peerConnection) {
+            videoChat.peerConnection = videoChat.createPeerConnection(fromId);
+          }
 
           try {
             await videoChat.peerConnection.setRemoteDescription(
               new RTCSessionDescription(offer),
             );
+            await videoChat.processIceQueue();
             const answer = await videoChat.peerConnection.createAnswer();
             await videoChat.peerConnection.setLocalDescription(answer);
             videoChat.socket.emit("answer", {
@@ -663,89 +698,100 @@
             await videoChat.peerConnection.setRemoteDescription(
               new RTCSessionDescription(answer),
             );
+            await videoChat.processIceQueue();
           } catch (err) {
             console.error("Error handling answer:", err);
           }
         },
 
+        iceCandidateQueue: [],
+
         handleIceCandidate: async (candidate) => {
           try {
-            await videoChat.peerConnection.addIceCandidate(
-              new RTCIceCandidate(candidate),
-            );
+            if (videoChat.peerConnection) {
+              if (videoChat.peerConnection.remoteDescription) {
+                await videoChat.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+              } else {
+                videoChat.iceCandidateQueue.push(candidate);
+              }
+            }
           } catch (err) {
             console.error("Error adding ICE candidate:", err);
           }
         },
 
-        joinRandom: async () => {
+        processIceQueue: async () => {
+          while (videoChat.iceCandidateQueue.length > 0) {
+            const candidate = videoChat.iceCandidateQueue.shift();
+            try {
+              await videoChat.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            } catch (err) {
+              console.error("Error processing queued ICE candidate:", err);
+            }
+          }
+        },
+
+        createRoom: async () => {
           if (!videoChat.socket) {
-            videoChat.showToast(
-              "Not connected to server. Please wait...",
-              "error",
-            );
+            videoChat.showToast("Not connected to server. Please wait...", "error");
             return;
           }
 
           document.getElementById("waitingScreen").classList.add("hidden");
-          document
-            .getElementById("searchingOverlay")
-            .classList.remove("hidden");
+          document.getElementById("hostWaitingScreen").classList.remove("hidden");
+          document.getElementById("displayPin").textContent = "------";
           videoChat.isSearching = true;
 
-          // Get media first
           const success = await videoChat.getMedia();
           if (!success) {
-            document.getElementById("searchingOverlay").classList.add("hidden");
+            document.getElementById("hostWaitingScreen").classList.add("hidden");
             document.getElementById("waitingScreen").classList.remove("hidden");
             return;
           }
 
-          videoChat.socket.emit("find-random-partner", {
+          videoChat.socket.emit("create-room", {
             userId: videoChat.userData?._id || "anonymous",
             name: videoChat.userData?.firstName || "Student",
             grade: videoChat.userData?.grade || "?",
           });
         },
 
-        cancelSearch: () => {
+        cancelCreate: () => {
           videoChat.isSearching = false;
-          videoChat.socket.emit("leave-queue");
-          document.getElementById("searchingOverlay").classList.add("hidden");
+          videoChat.socket.emit("cancel-create");
+          document.getElementById("hostWaitingScreen").classList.add("hidden");
           document.getElementById("waitingScreen").classList.remove("hidden");
 
-          // Stop media tracks
           if (videoChat.localStream) {
             videoChat.localStream.getTracks().forEach((track) => track.stop());
             videoChat.localStream = null;
           }
         },
 
-        joinRoom: () => {
-          const roomName = document.getElementById("roomInput").value.trim();
-          if (!roomName) {
-            videoChat.showToast("Please enter a room name", "error");
+        joinRoom: async () => {
+          const pin = document.getElementById("pinInput").value.trim();
+          if (!pin || pin.length !== 6) {
+            videoChat.showToast("Please enter a valid 6-digit PIN", "error");
             return;
           }
-          videoChat.joinSpecificRoom(roomName);
-        },
 
-        joinSpecificRoom: async (roomName) => {
           if (!videoChat.socket) {
             videoChat.showToast("Not connected to server", "error");
             return;
           }
 
-          // Get media first
-          const success = await videoChat.getMedia();
-          if (!success) return;
-
-          videoChat.room = roomName;
-          videoChat.socket.emit("join-room", roomName);
-
           document.getElementById("waitingScreen").classList.add("hidden");
-          document.getElementById("controls").classList.remove("hidden");
-          videoChat.showToast(`Joined room: ${roomName}`, "success");
+          document.getElementById("joiningOverlay").classList.remove("hidden");
+
+          const success = await videoChat.getMedia();
+          if (!success) {
+            document.getElementById("joiningOverlay").classList.add("hidden");
+            document.getElementById("waitingScreen").classList.remove("hidden");
+            return;
+          }
+
+          videoChat.room = pin;
+          videoChat.socket.emit("join-room", pin);
         },
 
         toggleMute: () => {
@@ -878,6 +924,8 @@
             videoChat.screenStream.getTracks().forEach((track) => track.stop());
             videoChat.screenStream = null;
           }
+
+          videoChat.iceCandidateQueue = [];
 
           // Reset UI
           document.getElementById("videoGrid").classList.remove("duo");

@@ -3236,112 +3236,79 @@ io.on("connection", (socket) => {
     console.log(`User registered: ${userData.name} (Grade ${userData.grade})`);
   });
 
-  socket.on("join-room", (roomId) => {
-    socket.join(roomId);
-    currentRoom = roomId;
+  socket.on("join-room", (pin) => {
+    const room = io.sockets.adapter.rooms.get(pin);
+    
+    if (!room || room.size === 0) {
+      socket.emit("room-error", "Invalid PIN. Room does not exist.");
+      return;
+    }
+    
+    if (room.size >= 2) {
+      socket.emit("room-error", "Room is already full.");
+      return;
+    }
 
-    const room = io.sockets.adapter.rooms.get(roomId);
-    if (room && room.size === 2) {
-      const sockets = Array.from(room);
-      const otherSocketId = sockets.find((id) => id !== socket.id);
-      const otherSocket = io.sockets.sockets.get(otherSocketId);
+    socket.join(pin);
+    currentRoom = pin;
 
-      if (otherSocket) {
-        const otherUser = Array.from(connectedUsers.values()).find(
-          (u) => u.socketId === otherSocketId,
-        );
-        const thisUser = Array.from(connectedUsers.values()).find(
-          (u) => u.socketId === socket.id,
-        );
+    const sockets = Array.from(room);
+    const otherSocketId = sockets.find((id) => id !== socket.id);
+    const otherSocket = io.sockets.sockets.get(otherSocketId);
 
-        if (otherUser && thisUser) {
-          socket.emit("matched", {
-            partner: { socketId: otherUser.socketId, name: otherUser.name, grade: otherUser.grade, avatar: otherUser.avatar },
-            room: roomId,
-            initiator: true
-          });
-          otherSocket.emit("matched", {
-            partner: { socketId: thisUser.socketId, name: thisUser.name, grade: thisUser.grade, avatar: thisUser.avatar },
-            room: roomId,
-            initiator: false
-          });
-          activeRooms.set(roomId, [socket.id, otherSocketId]);
-          isInCall = true;
-        }
+    if (otherSocket) {
+      const otherUser = Array.from(connectedUsers.values()).find(
+        (u) => u.socketId === otherSocketId,
+      );
+      const thisUser = Array.from(connectedUsers.values()).find(
+        (u) => u.socketId === socket.id,
+      );
+
+      if (otherUser && thisUser) {
+        socket.emit("matched", {
+          partner: { socketId: otherUser.socketId, name: otherUser.name, grade: otherUser.grade, avatar: otherUser.avatar },
+          room: pin,
+          initiator: true
+        });
+        otherSocket.emit("matched", {
+          partner: { socketId: thisUser.socketId, name: thisUser.name, grade: thisUser.grade, avatar: thisUser.avatar },
+          room: pin,
+          initiator: false
+        });
+        activeRooms.set(pin, [socket.id, otherSocketId]);
+        isInCall = true;
       }
     }
   });
 
-  socket.on("find-random-partner", (userData) => {
+  function generatePIN() {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  }
+
+  socket.on("create-room", (userData) => {
     currentUserId = userData.userId;
 
-    const existingIndex = waitingUsers.findIndex(
-      (u) => u.socketId === socket.id,
-    );
-    if (existingIndex !== -1) {
-      waitingUsers.splice(existingIndex, 1);
-    }
+    let pin;
+    do {
+      pin = generatePIN();
+    } while (activeRooms.has(pin) || io.sockets.adapter.rooms.has(pin));
 
-    const sameGradeIndex = waitingUsers.findIndex(
-      (u) => u.grade === userData.grade,
-    );
+    socket.join(pin);
+    currentRoom = pin;
 
-    if (
-      sameGradeIndex !== -1 &&
-      waitingUsers[sameGradeIndex].socketId !== socket.id
-    ) {
-      const partner = waitingUsers[sameGradeIndex];
-      waitingUsers.splice(sameGradeIndex, 1);
-
-      const user = {
-        socketId: socket.id,
-        name: userData.name,
-        grade: userData.grade,
-        userId: userData.userId,
-      };
-
-      const roomName = `random_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      socket.join(roomName);
-      partner.socket.join(roomName);
-      currentRoom = roomName;
-
-      activeRooms.set(roomName, [socket.id, partner.socketId]);
-      isInCall = true;
-
-      socket.emit("matched", {
-        partner: { socketId: partner.socketId, name: partner.name, grade: partner.grade, userId: partner.userId },
-        room: roomName,
-        initiator: true
-      });
-
-      io.to(partner.socketId).emit("matched", {
-        partner: user,
-        room: roomName,
-        initiator: false
-      });
-
-      console.log(
-        `Matched ${user.name} with ${partner.name} in room ${roomName}`,
-      );
-    } else {
-      waitingUsers.push({
-        socketId: socket.id,
-        userId: userData.userId,
-        name: userData.name,
-        grade: userData.grade,
-        socket: socket,
-      });
-      console.log(
-        `${userData.name} added to waiting queue. Size: ${waitingUsers.length}`,
-      );
-    }
+    // Store room host data
+    activeRooms.set(pin, [socket.id]);
+    
+    socket.emit("room-created", { pin: pin });
+    console.log(`Room created with PIN: ${pin} by ${userData.name}`);
   });
 
-  socket.on("leave-queue", () => {
-    const index = waitingUsers.findIndex((u) => u.socketId === socket.id);
-    if (index !== -1) {
-      waitingUsers.splice(index, 1);
-      console.log("User left queue");
+  socket.on("cancel-create", () => {
+    if (currentRoom) {
+      socket.leave(currentRoom);
+      activeRooms.delete(currentRoom);
+      console.log(`Room ${currentRoom} cancelled by host`);
+      currentRoom = null;
     }
   });
 
