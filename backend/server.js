@@ -3257,27 +3257,31 @@ io.on("connection", (socket) => {
     const otherSocket = io.sockets.sockets.get(otherSocketId);
 
     if (otherSocket) {
-      const otherUser = Array.from(connectedUsers.values()).find(
+      let otherUser = Array.from(connectedUsers.values()).find(
         (u) => u.socketId === otherSocketId,
       );
-      const thisUser = Array.from(connectedUsers.values()).find(
+      let thisUser = Array.from(connectedUsers.values()).find(
         (u) => u.socketId === socket.id,
       );
 
-      if (otherUser && thisUser) {
-        socket.emit("matched", {
-          partner: { socketId: otherUser.socketId, name: otherUser.name, grade: otherUser.grade, avatar: otherUser.avatar },
-          room: pin,
-          initiator: true
-        });
-        otherSocket.emit("matched", {
-          partner: { socketId: thisUser.socketId, name: thisUser.name, grade: thisUser.grade, avatar: thisUser.avatar },
-          room: pin,
-          initiator: false
-        });
-        activeRooms.set(pin, [socket.id, otherSocketId]);
-        isInCall = true;
-      }
+      // Fallback if not found in connectedUsers map (e.g., anonymous overwrites)
+      if (!otherUser) otherUser = { socketId: otherSocketId, name: "Partner", grade: "?", avatar: "" };
+      if (!thisUser) thisUser = { socketId: socket.id, name: "You", grade: "?", avatar: "" };
+
+      socket.emit("matched", {
+        partner: { socketId: otherUser.socketId, name: otherUser.name, grade: otherUser.grade, avatar: otherUser.avatar },
+        room: pin,
+        initiator: true
+      });
+      otherSocket.emit("matched", {
+        partner: { socketId: thisUser.socketId, name: thisUser.name, grade: thisUser.grade, avatar: thisUser.avatar },
+        room: pin,
+        initiator: false
+      });
+      activeRooms.set(pin, [socket.id, otherSocketId]);
+      isInCall = true;
+    } else {
+      socket.emit("room-error", "Failed to connect to partner.");
     }
   });
 
