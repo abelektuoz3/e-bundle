@@ -14,6 +14,7 @@ const Activity = require("./models/Activity");
 const Course = require("./models/Course");
 const Progress = require("./models/Progress");
 const sgMail = require("@sendgrid/mail");
+const ChatMessage = require("./models/ChatMessage");
 
 const app = express();
 
@@ -3185,6 +3186,69 @@ app.get("/health", (req, res) => {
   });
 });
 
+// ================= COMMUNITY CHAT REST API =================
+
+// GET messages for a group (last 60, non-deleted)
+app.get("/api/community/:groupId/messages", authenticateToken, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const limit = Math.min(parseInt(req.query.limit) || 60, 200);
+    const messages = await ChatMessage.find({
+      groupId,
+      deletedAt: null,
+    })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+    // Return in chronological order
+    res.json({ success: true, messages: messages.reverse() });
+  } catch (err) {
+    console.error("Community GET messages error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// PUT /api/community/messages/:messageId — edit own message
+app.put("/api/community/messages/:messageId", authenticateToken, async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { text } = req.body;
+    if (!text || !text.trim()) {
+      return res.status(400).json({ success: false, message: "Text is required" });
+    }
+    const msg = await ChatMessage.findOne({ messageId, deletedAt: null });
+    if (!msg) return res.status(404).json({ success: false, message: "Message not found" });
+    if (msg.userId !== req.user.id && msg.userId !== String(req.user._id)) {
+      return res.status(403).json({ success: false, message: "Not your message" });
+    }
+    msg.text = text.trim().slice(0, 2000);
+    msg.edited = true;
+    await msg.save();
+    res.json({ success: true, message: msg });
+  } catch (err) {
+    console.error("Community edit message error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// DELETE /api/community/messages/:messageId — soft-delete own message
+app.delete("/api/community/messages/:messageId", authenticateToken, async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const msg = await ChatMessage.findOne({ messageId, deletedAt: null });
+    if (!msg) return res.status(404).json({ success: false, message: "Message not found" });
+    if (msg.userId !== req.user.id && msg.userId !== String(req.user._id)) {
+      return res.status(403).json({ success: false, message: "Not your message" });
+    }
+    msg.deletedAt = new Date();
+    await msg.save();
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Community delete message error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
 // ================= ERROR HANDLING =================
 app.use((err, req, res, next) => {
   console.error("Unhandled error:", err);
@@ -3216,6 +3280,22 @@ const connectedUsers = new Map();
 const waitingUsers = [];
 const activeRooms = new Map();
 
+// ================= COMMUNITY CHAT SOCKET.IO =================
+// In-memory map: groupId -> Set of { socketId, userId, userName }
+const communityGroups = new Map();
+
+function getCommunityRoomName(groupId) {
+  return `community:${groupId}`;
+}
+
+function broadcastGroupCount(groupId) {
+  const members = communityGroups.get(groupId) || new Set();
+  io.to(getCommunityRoomName(groupId)).emit("group_online_count", {
+    groupId,
+    count: members.size,
+  });
+}
+
 // Socket.io connection handling
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
@@ -3223,6 +3303,131 @@ io.on("connection", (socket) => {
   let currentUserId = null;
   let currentRoom = null;
   let isInCall = false;
+
+  // ---- Community Chat Events ----
+  let communityUser = null;    // { userId, userName, userAvatar }
+  const joinedGroups = new Set(); // groups this socket is currently in
+
+  socket.on("join_group", async ({ groupId, userId, userName, userAvatar }) => {
+    if (!groupId || !userId) return;
+    const room = getCommunityRoomName(groupId);
+    socket.join(room);
+    joinedGroups.add(groupId);
+
+    communityUser = { userId, userName, userAvatar };
+
+    // Track in group member set
+    if (!communityGroups.has(groupId)) communityGroups.set(groupId, new Set());
+    communityGroups.get(groupId).add({ socketId: socket.id, userId, userName });
+
+    broadcastGroupCount(groupId);
+
+    // Notify others in group
+    socket.to(room).emit("user_joined", { groupId, userId, userName });
+
+    // Send last 60 messages to the joining socket
+    try {
+      const messages = await ChatMessage.find({ groupId, deletedAt: null })
+        .sort({ createdAt: -1 })
+        .limit(60)
+        .lean();
+      socket.emit("group_history", { groupId, messages: messages.reverse() });
+    } catch (e) {
+      console.error("join_group history error:", e);
+    }
+  });
+
+  socket.on("leave_group", ({ groupId, userId }) => {
+    if (!groupId) return;
+    const room = getCommunityRoomName(groupId);
+    socket.leave(room);
+    joinedGroups.delete(groupId);
+
+    if (communityGroups.has(groupId)) {
+      const members = communityGroups.get(groupId);
+      for (const m of members) {
+        if (m.socketId === socket.id) { members.delete(m); break; }
+      }
+    }
+    broadcastGroupCount(groupId);
+    socket.to(room).emit("user_left", { groupId, userId, userName: communityUser?.userName || "Someone" });
+  });
+
+  socket.on("send_message", async (data) => {
+    const { groupId, messageId, userId, userName, userAvatar, text } = data;
+    if (!groupId || !text || !messageId) return;
+    try {
+      const msg = new ChatMessage({
+        messageId,
+        groupId,
+        userId,
+        userName,
+        userAvatar: userAvatar || "",
+        text: String(text).slice(0, 2000),
+      });
+      await msg.save();
+      const payload = {
+        messageId: msg.messageId,
+        groupId: msg.groupId,
+        userId: msg.userId,
+        userName: msg.userName,
+        userAvatar: msg.userAvatar,
+        text: msg.text,
+        edited: false,
+        createdAt: msg.createdAt,
+        time: msg.createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+      io.to(getCommunityRoomName(groupId)).emit("new_message", payload);
+    } catch (e) {
+      console.error("send_message error:", e);
+      socket.emit("message_error", { error: "Failed to send message" });
+    }
+  });
+
+  socket.on("edit_message", async ({ messageId, groupId, userId, newText }) => {
+    if (!messageId || !newText || !userId) return;
+    try {
+      const msg = await ChatMessage.findOne({ messageId, deletedAt: null });
+      if (!msg) return;
+      if (msg.userId !== userId) {
+        socket.emit("message_error", { error: "Not authorized to edit this message" });
+        return;
+      }
+      msg.text = String(newText).slice(0, 2000);
+      msg.edited = true;
+      await msg.save();
+      io.to(getCommunityRoomName(groupId)).emit("message_edited", {
+        messageId,
+        groupId,
+        newText: msg.text,
+      });
+    } catch (e) {
+      console.error("edit_message error:", e);
+    }
+  });
+
+  socket.on("delete_message", async ({ messageId, groupId, userId }) => {
+    if (!messageId || !userId) return;
+    try {
+      const msg = await ChatMessage.findOne({ messageId, deletedAt: null });
+      if (!msg) return;
+      if (msg.userId !== userId) {
+        socket.emit("message_error", { error: "Not authorized to delete this message" });
+        return;
+      }
+      msg.deletedAt = new Date();
+      await msg.save();
+      io.to(getCommunityRoomName(groupId)).emit("message_deleted", { messageId, groupId });
+    } catch (e) {
+      console.error("delete_message error:", e);
+    }
+  });
+
+  socket.on("typing", ({ groupId, userId, userName }) => {
+    if (!groupId) return;
+    socket.to(getCommunityRoomName(groupId)).emit("user_typing", { groupId, userId, userName });
+  });
+  // ---- End Community Chat Events ----
 
   socket.on("register", (userData) => {
     currentUserId = userData.userId;
@@ -3364,6 +3569,24 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
+
+    // Clean up community group memberships
+    for (const groupId of joinedGroups) {
+      if (communityGroups.has(groupId)) {
+        const members = communityGroups.get(groupId);
+        for (const m of members) {
+          if (m.socketId === socket.id) { members.delete(m); break; }
+        }
+      }
+      broadcastGroupCount(groupId);
+      if (communityUser) {
+        socket.to(getCommunityRoomName(groupId)).emit("user_left", {
+          groupId,
+          userId: communityUser.userId,
+          userName: communityUser.userName,
+        });
+      }
+    }
 
     const queueIndex = waitingUsers.findIndex((u) => u.socketId === socket.id);
     if (queueIndex !== -1) {
