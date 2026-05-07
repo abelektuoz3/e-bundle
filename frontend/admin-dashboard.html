@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard | E-Bundle</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="admin.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-logo">📚 E-BUNDLE</div>
+        <nav class="sidebar-nav">
+            <a href="index.html" class="active">📊 Dashboard</a>
+            <a href="users.html">👥 Users</a>
+            <a href="courses.html">📚 Courses</a>
+            <a href="media.html">🎬 Media Library</a>
+            <a href="enrollments.html">📝 Enrollments</a>
+            <a href="settings.html">⚙️ Settings</a>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">Dashboard</h1>
+            <div class="glass px-4 py-2 rounded-xl">👋 Welcome, Admin</div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8" id="statsContainer">
+            <div class="stat-card">📊 Loading...</div>
+        </div>
+
+        <!-- Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div class="glass p-6 rounded-2xl">
+                <h2 class="text-xl font-semibold mb-4">📈 Enrollment Trends</h2>
+                <canvas id="enrollmentChart" height="200"></canvas>
+            </div>
+            <div class="glass p-6 rounded-2xl">
+                <h2 class="text-xl font-semibold mb-4">🏆 Top Courses</h2>
+                <div id="topCoursesList" class="space-y-3"></div>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="glass p-6 rounded-2xl">
+            <h2 class="text-xl font-semibold mb-4">🕒 Recent Enrollments</h2>
+            <div id="recentActivity"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const API_BASE = 'https://e-bundle.onrender.com/api'; // Change to your actual backend URL
+
+        async function loadDashboard() {
+            try {
+                const res = await fetch(`${API_BASE}/dashboard/stats`);
+                const data = await res.json();
+                
+                // Stats cards
+                document.getElementById('statsContainer').innerHTML = `
+                    <div class="stat-card"><div class="text-3xl font-bold">${data.totalUsers}</div><div class="text-gray-400 mt-1">Total Students</div></div>
+                    <div class="stat-card"><div class="text-3xl font-bold">${data.totalCourses}</div><div class="text-gray-400 mt-1">Active Courses</div></div>
+                    <div class="stat-card"><div class="text-3xl font-bold">${data.totalEnrollments}</div><div class="text-gray-400 mt-1">Enrollments</div></div>
+                    <div class="stat-card"><div class="text-3xl font-bold">$${data.totalRevenue}</div><div class="text-gray-400 mt-1">Revenue</div></div>
+                `;
+                
+                // Top courses
+                document.getElementById('topCoursesList').innerHTML = data.topCourses.map(c => `
+                    <div class="flex justify-between items-center p-3 bg-white/5 rounded-xl">
+                        <span>${c.title}</span>
+                        <span class="text-blue-400">${c.enrollments} enrolled</span>
+                    </div>
+                `).join('');
+                
+                // Recent enrollments
+                document.getElementById('recentActivity').innerHTML = `
+                    <div class="space-y-3">
+                        ${data.recentEnrollments.map(e => `
+                            <div class="flex justify-between items-center p-3 bg-white/5 rounded-xl">
+                                <div><strong>${e.userId?.name || 'Unknown'}</strong> enrolled in <strong>${e.courseId?.title || 'Course'}</strong></div>
+                                <div class="text-sm text-gray-400">${new Date(e.enrolledAt).toLocaleDateString()}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                
+                // Chart (mock data - replace with real trend data)
+                const ctx = document.getElementById('enrollmentChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'line',
+                    data: { labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'], datasets: [{ label: 'Enrollments', data: [12, 19, 15, 27, 24, 30], borderColor: '#60a5fa', tension: 0.4 }] },
+                    options: { responsive: true, maintainAspectRatio: true }
+                });
+            } catch (err) {
+                console.error('Dashboard error:', err);
+                document.getElementById('statsContainer').innerHTML = '<div class="stat-card">❌ Failed to load stats</div>';
+            }
+        }
+        
+        loadDashboard();
+    </script>
+</body>
+</html>

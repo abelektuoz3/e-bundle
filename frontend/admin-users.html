@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management | E-Bundle</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-logo">📚 E-BUNDLE</div>
+        <nav class="sidebar-nav">
+            <a href="index.html">📊 Dashboard</a>
+            <a href="users.html" class="active">👥 Users</a>
+            <a href="courses.html">📚 Courses</a>
+            <a href="media.html">🎬 Media Library</a>
+            <a href="enrollments.html">📝 Enrollments</a>
+            <a href="settings.html">⚙️ Settings</a>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold">👥 User Management</h1>
+            <button class="btn-primary" onclick="openUserModal()">➕ Add User</button>
+        </div>
+
+        <div class="glass p-4 rounded-2xl mb-6">
+            <input type="text" id="searchInput" placeholder="🔍 Search by name or email..." class="w-full">
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="data-table">
+                <thead>
+                    <tr><th>Name</th><th>Email</th><th>Grade</th><th>Role</th><th>Status</th><th>Joined</th><th>Actions</th></tr>
+                </thead>
+                <tbody id="usersTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- User Modal -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <h2 id="modalTitle" class="text-2xl font-bold mb-4">Add/Edit User</h2>
+            <input type="hidden" id="userId">
+            <div class="space-y-4">
+                <input type="text" id="userName" placeholder="Full Name">
+                <input type="email" id="userEmail" placeholder="Email">
+                <input type="password" id="userPassword" placeholder="Password (leave blank to keep unchanged)">
+                <select id="userGrade"><option value="">Select Grade</option><option>9</option><option>10</option><option>11</option><option>12</option></select>
+                <select id="userRole"><option value="student">Student</option><option value="instructor">Instructor</option><option value="admin">Admin</option></select>
+                <select id="userStatus"><option value="true">Active</option><option value="false">Inactive</option></select>
+                <div class="flex gap-3 pt-4"><button class="btn-primary flex-1" onclick="saveUser()">💾 Save</button><button class="btn-primary bg-gray-600 flex-1" onclick="closeModal()">Cancel</button></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://e-bundle.onrender.com/api';
+        let users = [];
+
+        async function loadUsers() {
+            const res = await fetch(`${API_BASE}/users`);
+            users = await res.json();
+            renderUsers();
+        }
+
+        function renderUsers() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = users.filter(u => u.name?.toLowerCase().includes(search) || u.email?.toLowerCase().includes(search));
+            document.getElementById('usersTable').innerHTML = filtered.map(u => `
+                <tr>
+                    <td>${u.name || '—'}</td><td>${u.email}</td><td>${u.grade || '—'}</td>
+                    <td><span class="px-2 py-1 rounded-full text-xs ${u.role === 'admin' ? 'bg-purple-500/20 text-purple-300' : u.role === 'instructor' ? 'bg-blue-500/20 text-blue-300' : 'bg-green-500/20 text-green-300'}">${u.role}</span></td>
+                    <td><span class="px-2 py-1 rounded-full text-xs ${u.isActive ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}">${u.isActive ? 'Active' : 'Inactive'}</span></td>
+                    <td>${new Date(u.createdAt).toLocaleDateString()}</td>
+                    <td><button class="text-blue-400 mr-2" onclick="editUser('${u._id}')">✏️</button><button class="text-red-400" onclick="deleteUser('${u._id}')">🗑️</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function openUserModal(userId = null) { document.getElementById('userModal').style.display = 'flex'; if(userId) editUser(userId); }
+        function closeModal() { document.getElementById('userModal').style.display = 'none'; document.getElementById('userId').value = ''; document.getElementById('userName').value = ''; document.getElementById('userEmail').value = ''; document.getElementById('userPassword').value = ''; }
+
+        async function editUser(id) { const user = users.find(u => u._id === id); if(user) { document.getElementById('userId').value = user._id; document.getElementById('userName').value = user.name || ''; document.getElementById('userEmail').value = user.email; document.getElementById('userGrade').value = user.grade || ''; document.getElementById('userRole').value = user.role; document.getElementById('userStatus').value = user.isActive; openUserModal(); } }
+
+        async function saveUser() { const payload = { name: document.getElementById('userName').value, email: document.getElementById('userEmail').value, grade: document.getElementById('userGrade').value, role: document.getElementById('userRole').value, isActive: document.getElementById('userStatus').value === 'true' }; const pass = document.getElementById('userPassword').value; if(pass) payload.password = pass; await fetch(`${API_BASE}/users`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); closeModal(); loadUsers(); }
+
+        async function deleteUser(id) { if(confirm('Delete user?')) { await fetch(`${API_BASE}/users/${id}`, { method: 'DELETE' }); loadUsers(); } }
+
+        document.getElementById('searchInput').addEventListener('input', renderUsers);
+        loadUsers();
+    </script>
+</body>
+</html>

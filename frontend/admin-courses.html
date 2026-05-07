@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Course Management | E-Bundle</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-logo">📚 E-BUNDLE</div>
+        <nav class="sidebar-nav">
+            <a href="index.html">📊 Dashboard</a>
+            <a href="users.html">👥 Users</a>
+            <a href="courses.html" class="active">📚 Courses</a>
+            <a href="media.html">🎬 Media Library</a>
+            <a href="enrollments.html">📝 Enrollments</a>
+            <a href="settings.html">⚙️ Settings</a>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold">📚 Course Management</h1>
+            <button class="btn-primary" onclick="openCourseModal()">➕ Create Course</button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Course List -->
+            <div class="lg:col-span-1 glass p-4 rounded-2xl">
+                <h2 class="text-xl font-semibold mb-4">All Courses</h2>
+                <div id="coursesList" class="space-y-2"></div>
+            </div>
+            
+            <!-- Course Editor -->
+            <div class="lg:col-span-2 glass p-6 rounded-2xl" id="courseEditor">
+                <p class="text-gray-400 text-center py-12">Select a course from the left to edit or build its structure</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Course Modal -->
+    <div id="courseModal" class="modal">
+        <div class="modal-content max-w-2xl">
+            <h2 id="courseModalTitle" class="text-2xl font-bold mb-4">Course Details</h2>
+            <input type="hidden" id="courseId">
+            <div class="space-y-4">
+                <input type="text" id="courseTitle" placeholder="Course Title">
+                <textarea id="courseDescription" rows="3" placeholder="Description"></textarea>
+                <input type="text" id="courseThumbnail" placeholder="Thumbnail URL">
+                <div class="grid grid-cols-2 gap-4">
+                    <select id="courseGrade"><option>9</option><option>10</option><option>11</option><option>12</option></select>
+                    <input type="text" id="courseSubject" placeholder="Subject (e.g., Math)">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <input type="number" id="coursePrice" placeholder="Price (0 = free)" value="0">
+                    <select id="courseStatus"><option value="true">Published</option><option value="false">Draft</option></select>
+                </div>
+                <div class="flex gap-3"><button class="btn-primary flex-1" onclick="saveCourse()">💾 Save Course</button><button class="btn-primary bg-gray-600 flex-1" onclick="closeCourseModal()">Cancel</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Module/Lesson Modal -->
+    <div id="moduleLessonModal" class="modal">
+        <div class="modal-content">
+            <h2 id="modalTypeTitle" class="text-xl font-bold mb-4">Add Module</h2>
+            <input type="hidden" id="currentCourseId"><input type="hidden" id="currentModuleIndex">
+            <input type="text" id="moduleTitle" placeholder="Module Title">
+            <textarea id="moduleDesc" rows="2" placeholder="Description"></textarea>
+            <button class="btn-primary mt-4 w-full" onclick="saveModule()">Add Module</button>
+            <hr class="my-4"><h3>Add Lesson</h3>
+            <select id="lessonMediaId"><option value="">Select existing media file</option></select>
+            <input type="text" id="lessonTitle" placeholder="Lesson Title">
+            <input type="text" id="lessonDuration" placeholder="Duration (e.g., 10:30)">
+            <button class="btn-primary mt-4 w-full" onclick="saveLesson()">Add Lesson</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://e-bundle.onrender.com/api';
+        let courses = []; let mediaFiles = [];
+
+        async function loadCourses() { const res = await fetch(`${API_BASE}/courses`); courses = await res.json(); renderCourseList(); }
+        async function loadMedia() { const res = await fetch(`${API_BASE}/media`); mediaFiles = await res.json(); }
+
+        function renderCourseList() {
+            document.getElementById('coursesList').innerHTML = courses.map(c => `
+                <div class="p-3 rounded-xl cursor-pointer transition-all ${selectedCourseId === c._id ? 'bg-blue-500/20 border border-blue-500/50' : 'bg-white/5 hover:bg-white/10'}" onclick="selectCourse('${c._id}')">
+                    <div class="font-semibold">${c.title}</div>
+                    <div class="text-sm text-gray-400">Grade ${c.grade} • ${c.subject}</div>
+                    <div class="text-xs mt-1">${c.isPublished ? '✅ Published' : '📝 Draft'}</div>
+                </div>
+            `).join('');
+        }
+
+        let selectedCourseId = null;
+        async function selectCourse(id) {
+            selectedCourseId = id;
+            const res = await fetch(`${API_BASE}/courses/${id}`);
+            const course = await res.json();
+            renderCourseEditor(course);
+        }
+
+        function renderCourseEditor(course) {
+            document.getElementById('courseEditor').innerHTML = `
+                <div class="flex justify-between items-start mb-6"><div><h2 class="text-2xl font-bold">${course.title}</h2><p class="text-gray-400">${course.description}</p></div><button class="btn-primary text-sm" onclick="openCourseModal('${course._id}')">✏️ Edit</button></div>
+                <div class="mb-6"><div class="flex gap-4"><span class="px-3 py-1 rounded-full bg-blue-500/20">Grade ${course.grade}</span><span class="px-3 py-1 rounded-full bg-purple-500/20">${course.subject}</span><span class="px-3 py-1 rounded-full ${course.isPublished ? 'bg-green-500/20' : 'bg-yellow-500/20'}">${course.isPublished ? 'Published' : 'Draft'}</span></div></div>
+                <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-semibold">📂 Modules & Lessons</h3><button class="btn-primary text-sm" onclick="openModuleModal('${course._id}')">+ Add Module</button></div>
+                <div class="space-y-4">${(course.modules || []).map((mod, idx) => `
+                    <div class="bg-white/5 rounded-xl p-4"><div class="flex justify-between items-center mb-2"><h4 class="font-semibold">${mod.title}</h4><button class="text-red-400 text-sm" onclick="deleteModule('${course._id}',${idx})">Delete</button></div>
+                    <p class="text-sm text-gray-400 mb-3">${mod.description || ''}</p>
+                    <div class="space-y-2 ml-4">${(mod.lessons || []).map((lesson, lidx) => `<div class="flex justify-between items-center p-2 bg-white/5 rounded-lg"><div><span class="text-blue-300">▶️</span> ${lesson.title} <span class="text-xs text-gray-400">(${lesson.duration || 'no duration'})</span></div><button class="text-red-400 text-sm" onclick="deleteLesson('${course._id}',${idx},${lidx})">🗑️</button></div>`).join('')}</div>
+                    <button class="text-sm text-blue-400 mt-2" onclick="openLessonModal('${course._id}',${idx})">+ Add Lesson</button></div>
+                `).join('')}</div>
+            `;
+        }
+
+        function openCourseModal(id = null) { if(id) { const c = courses.find(c => c._id === id); document.getElementById('courseId').value = c._id; document.getElementById('courseTitle').value = c.title; document.getElementById('courseDescription').value = c.description; document.getElementById('courseThumbnail').value = c.thumbnail || ''; document.getElementById('courseGrade').value = c.grade; document.getElementById('courseSubject').value = c.subject; document.getElementById('coursePrice').value = c.price; document.getElementById('courseStatus').value = c.isPublished; } document.getElementById('courseModal').style.display = 'flex'; }
+        function closeCourseModal() { document.getElementById('courseModal').style.display = 'none'; }
+        
+        async function saveCourse() { const payload = { title: document.getElementById('courseTitle').value, description: document.getElementById('courseDescription').value, thumbnail: document.getElementById('courseThumbnail').value, grade: parseInt(document.getElementById('courseGrade').value), subject: document.getElementById('courseSubject').value, price: parseFloat(document.getElementById('coursePrice').value), isPublished: document.getElementById('courseStatus').value === 'true' }; const id = document.getElementById('courseId').value; let url = `${API_BASE}/courses`; let method = 'POST'; if(id) { url += `/${id}`; method = 'PUT'; } await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); closeCourseModal(); loadCourses(); if(id === selectedCourseId) selectCourse(id); }
+
+        function openModuleModal(courseId) { document.getElementById('currentCourseId').value = courseId; document.getElementById('moduleTitle').value = ''; document.getElementById('moduleDesc').value = ''; document.getElementById('moduleLessonModal').style.display = 'flex'; document.getElementById('modalTypeTitle').innerText = 'Add Module'; }
+        async function saveModule() { const courseId = document.getElementById('currentCourseId').value; await fetch(`${API_BASE}/courses/${courseId}/modules`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: document.getElementById('moduleTitle').value, description: document.getElementById('moduleDesc').value }) }); closeModal(); selectCourse(courseId); loadCourses(); }
+
+        async function openLessonModal(courseId, moduleIdx) { document.getElementById('currentCourseId').value = courseId; document.getElementById('currentModuleIndex').value = moduleIdx; const mediaSelect = document.getElementById('lessonMediaId'); mediaSelect.innerHTML = '<option value="">Select media...</option>' + mediaFiles.map(m => `<option value="${m._id}">${m.originalname || m.filename}</option>`).join(''); document.getElementById('lessonTitle').value = ''; document.getElementById('lessonDuration').value = ''; document.getElementById('moduleLessonModal').style.display = 'flex'; document.getElementById('modalTypeTitle').innerText = 'Add Lesson'; }
+        async function saveLesson() { const courseId = document.getElementById('currentCourseId').value; const moduleIdx = document.getElementById('currentModuleIndex').value; const mediaId = document.getElementById('lessonMediaId').value; if(!mediaId) { alert('Select a media file first'); return; } await fetch(`${API_BASE}/courses/${courseId}/modules/${moduleIdx}/lessons`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: document.getElementById('lessonTitle').value, mediaId, duration: document.getElementById('lessonDuration').value }) }); closeModal(); selectCourse(courseId); loadCourses(); }
+
+        async function deleteModule(courseId, moduleIdx) { if(confirm('Delete module and all lessons?')) { const course = courses.find(c => c._id === courseId); course.modules.splice(moduleIdx, 1); await fetch(`${API_BASE}/courses/${courseId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(course) }); selectCourse(courseId); loadCourses(); } }
+        async function deleteLesson(courseId, moduleIdx, lessonIdx) { if(confirm('Delete lesson?')) { const course = courses.find(c => c._id === courseId); course.modules[moduleIdx].lessons.splice(lessonIdx, 1); await fetch(`${API_BASE}/courses/${courseId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(course) }); selectCourse(courseId); loadCourses(); } }
+        function closeModal() { document.getElementById('moduleLessonModal').style.display = 'none'; }
+
+        loadCourses(); loadMedia();
+    </script>
+</body>
+</html>
