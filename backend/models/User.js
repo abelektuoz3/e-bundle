@@ -39,6 +39,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: "student",
   },
+  isActive: {
+    type: Boolean,
+    default: true,
+  },
   // OTP Verification Fields
   otp: {
     type: String,

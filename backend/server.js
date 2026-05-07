@@ -1364,6 +1364,586 @@ app.post("/api/admin/logout", authenticateAdmin, async (req, res) => {
   }
 });
 
+// ================= ADMIN DASHBOARD + MANAGEMENT ENDPOINTS =================
+app.get("/api/admin/overview", authenticateAdmin, async (req, res) => {
+  try {
+    const { range = "weekly" } = req.query;
+    const validRange = range === "monthly" ? "monthly" : "weekly";
+
+    const [totalUsers, totalCourses, totalEnrollments] = await Promise.all([
+      User.countDocuments({}),
+      Course.countDocuments({}),
+      Progress.countDocuments({}),
+    ]);
+
+    const recentActivity = await Activity.find({})
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .populate("userId", "firstName lastName email")
+      .lean();
+
+    // Revenue estimate based on progress records + course price.
+    // Replace this with payment-based data if you add transaction records later.
+    const revenueAggregation = await Progress.aggregate([
+      {
+        $lookup: {
+          from: "courses",
+          localField: "courseId",
+          foreignField: "_id",
+          as: "course",
+        },
+      },
+      { $unwind: { path: "$course", preserveNullAndEmptyArrays: true } },
+      {
+        $addFields: {
+          effectivePrice: { $ifNull: ["$course.price", 0] },
+          bucket:
+            validRange === "monthly" ?
+              { $dateToString: { format: "%Y-%m", date: "$createdAt" } }
+            : { $dateToString: { format: "%Y-W%V", date: "$createdAt" } },
+        },
+      },
+      {
+        $group: {
+          _id: "$bucket",
+          revenue: { $sum: "$effectivePrice" },
+        },
+      },
+      { $sort: { _id: 1 } },
+      { $limit: 12 },
+    ]);
+
+    res.json({
+      success: true,
+      overview: {
+        totalUsers,
+        totalCourses,
+        totalEnrollments,
+      },
+      revenue: {
+        range: validRange,
+        points: revenueAggregation.map((item) => ({
+          label: item._id,
+          amount: Number(item.revenue || 0),
+        })),
+      },
+      recentActivity: recentActivity.map((activity) => ({
+        id: activity._id,
+        type: activity.type,
+        title: activity.title,
+        description: activity.description,
+        xp: activity.xp || 0,
+        user:
+          activity.userId ?
+            {
+              id: activity.userId._id,
+              name:
+                `${activity.userId.firstName || ""} ${activity.userId.lastName || ""}`.trim(),
+              email: activity.userId.email || "",
+            }
+          : null,
+        createdAt: activity.createdAt,
+      })),
+    });
+  } catch (err) {
+    console.error("Admin overview error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to load admin overview",
+    });
+  }
+});
+
+app.get("/api/admin/users", authenticateAdmin, async (req, res) => {
+  try {
+    const { search = "", status = "all", page = 1, limit = 20 } = req.query;
+    const parsedPage = Math.max(parseInt(page, 10) || 1, 1);
+    const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+    const skip = (parsedPage - 1) * parsedLimit;
+
+    const query = {};
+    if (search) {
+      query.$or = [
+        { firstName: { $regex: search, $options: "i" } },
+        { lastName: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+      ];
+    }
+    if (status === "active") query.isActive = true;
+    if (status === "inactive") query.isActive = false;
+
+    const [users, total] = await Promise.all([
+      User.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parsedLimit)
+        .select("-password -otp -otpExpire -resetToken -resetTokenExpire")
+        .lean(),
+      User.countDocuments(query),
+    ]);
+
+    res.json({
+      success: true,
+      users: users.map((user) => ({
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        name: `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+        email: user.email,
+        studentId: user.studentId,
+        grade: user.grade,
+        school: user.school,
+        status: user.isActive === false ? "inactive" : "active",
+        joinedDate: user.createdAt,
+        isVerified: !!user.isVerified,
+      })),
+      pagination: {
+        page: parsedPage,
+        limit: parsedLimit,
+        total,
+        pages: Math.ceil(total / parsedLimit),
+      },
+    });
+  } catch (err) {
+    console.error("Admin users list error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to load users",
+    });
+  }
+});
+
+app.get("/api/admin/users/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid user id" });
+    }
+
+    const user = await User.findById(id)
+      .select("-password -otp -otpExpire -resetToken -resetTokenExpire")
+      .lean();
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    const progressDocs = await Progress.find({ userId: id })
+      .populate("courseId", "title subject grade")
+      .lean();
+
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        name: `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+        email: user.email,
+        studentId: user.studentId,
+        grade: user.grade,
+        school: user.school,
+        status: user.isActive === false ? "inactive" : "active",
+        joinedDate: user.createdAt,
+      },
+      enrolledCourses: progressDocs.map((progress) => ({
+        progressId: progress._id,
+        courseId: progress.courseId?._id || null,
+        title: progress.courseId?.title || "Unknown course",
+        subject: progress.courseId?.subject || null,
+        grade: progress.courseId?.grade || null,
+        percentage: progress.percentage || 0,
+        completedLessons: progress.completedLessons || 0,
+      })),
+    });
+  } catch (err) {
+    console.error("Admin user detail error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to load user detail",
+    });
+  }
+});
+
+app.patch("/api/admin/users/:id/status", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isActive } = req.body;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid user id" });
+    }
+    if (typeof isActive !== "boolean") {
+      return res.status(400).json({
+        success: false,
+        message: "isActive (boolean) is required",
+      });
+    }
+
+    const updated = await User.findByIdAndUpdate(
+      id,
+      { isActive },
+      { new: true },
+    ).select("firstName lastName email isActive createdAt");
+
+    if (!updated) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    res.json({
+      success: true,
+      message: `User ${isActive ? "activated" : "deactivated"} successfully`,
+      user: {
+        id: updated._id,
+        name: `${updated.firstName || ""} ${updated.lastName || ""}`.trim(),
+        email: updated.email,
+        status: updated.isActive ? "active" : "inactive",
+        joinedDate: updated.createdAt,
+      },
+    });
+  } catch (err) {
+    console.error("Admin user status update error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update user status",
+    });
+  }
+});
+
+app.delete("/api/admin/users/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid user id" });
+    }
+
+    const user = await User.findByIdAndDelete(id);
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    await Promise.all([
+      Progress.deleteMany({ userId: id }),
+      Activity.deleteMany({ userId: id }),
+    ]);
+
+    res.json({
+      success: true,
+      message: "User deleted successfully",
+    });
+  } catch (err) {
+    console.error("Admin delete user error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete user",
+    });
+  }
+});
+
+app.get("/api/admin/courses", authenticateAdmin, async (req, res) => {
+  try {
+    const { search = "", published = "all", page = 1, limit = 20 } = req.query;
+    const parsedPage = Math.max(parseInt(page, 10) || 1, 1);
+    const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+    const skip = (parsedPage - 1) * parsedLimit;
+
+    const query = {};
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+        { subject: { $regex: search, $options: "i" } },
+        { category: { $regex: search, $options: "i" } },
+      ];
+    }
+    if (published === "true") query.published = true;
+    if (published === "false") query.published = false;
+
+    const [courses, total] = await Promise.all([
+      Course.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parsedLimit)
+        .populate("mediaFiles", "title type url")
+        .lean(),
+      Course.countDocuments(query),
+    ]);
+
+    res.json({
+      success: true,
+      courses: courses.map((course) => ({
+        id: course._id,
+        title: course.title,
+        description: course.description,
+        thumbnail: course.thumbnail || "",
+        category: course.category || course.subject || "",
+        subject: course.subject,
+        grade: course.grade,
+        price: Number(course.price || 0),
+        published: !!course.published,
+        totalLessons: course.totalLessons || 0,
+        mediaFiles: (course.mediaFiles || []).map((media) => ({
+          id: media._id,
+          title: media.title,
+          type: media.type,
+          url: media.url,
+        })),
+        createdAt: course.createdAt,
+      })),
+      pagination: {
+        page: parsedPage,
+        limit: parsedLimit,
+        total,
+        pages: Math.ceil(total / parsedLimit),
+      },
+    });
+  } catch (err) {
+    console.error("Admin courses list error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to load courses",
+    });
+  }
+});
+
+app.post("/api/admin/courses", authenticateAdmin, async (req, res) => {
+  try {
+    const {
+      title,
+      description = "",
+      thumbnail = "",
+      category = "",
+      subject,
+      grade,
+      price = 0,
+      published = false,
+      mediaFiles = [],
+      lessons = [],
+      totalLessons = 0,
+      color = "from-blue-500 to-cyan-500",
+      icon = "fa-book",
+    } = req.body;
+
+    if (!title || !description) {
+      return res.status(400).json({
+        success: false,
+        message: "title and description are required",
+      });
+    }
+
+    const allowedSubjects = [
+      "math",
+      "physics",
+      "chemistry",
+      "biology",
+      "english",
+      "amharic",
+      "history",
+      "geography",
+      "cs",
+    ];
+    const normalizedSubject = allowedSubjects.includes(subject) ? subject : "cs";
+    const normalizedGrade =
+      Number.isInteger(grade) && grade >= 9 && grade <= 12 ? grade : 9;
+
+    const course = await Course.create({
+      title,
+      description,
+      thumbnail,
+      category,
+      subject: normalizedSubject,
+      grade: normalizedGrade,
+      price: Math.max(Number(price) || 0, 0),
+      published: !!published,
+      mediaFiles: Array.isArray(mediaFiles) ? mediaFiles : [],
+      lessons: Array.isArray(lessons) ? lessons : [],
+      totalLessons: Number(totalLessons) || 0,
+      color,
+      icon,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Course created successfully",
+      course: {
+        id: course._id,
+        title: course.title,
+        description: course.description,
+        thumbnail: course.thumbnail,
+        category: course.category,
+        subject: course.subject,
+        grade: course.grade,
+        price: course.price,
+        published: course.published,
+        totalLessons: course.totalLessons,
+      },
+    });
+  } catch (err) {
+    console.error("Admin create course error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to create course",
+    });
+  }
+});
+
+app.put("/api/admin/courses/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid course id" });
+    }
+
+    const updates = { ...req.body };
+    if (updates.price !== undefined) {
+      updates.price = Math.max(Number(updates.price) || 0, 0);
+    }
+    if (updates.subject) {
+      const allowedSubjects = [
+        "math",
+        "physics",
+        "chemistry",
+        "biology",
+        "english",
+        "amharic",
+        "history",
+        "geography",
+        "cs",
+      ];
+      if (!allowedSubjects.includes(updates.subject)) {
+        updates.subject = "cs";
+      }
+    }
+    if (updates.grade !== undefined) {
+      const parsedGrade = Number(updates.grade);
+      updates.grade = parsedGrade >= 9 && parsedGrade <= 12 ? parsedGrade : 9;
+    }
+
+    const updatedCourse = await Course.findByIdAndUpdate(id, updates, {
+      new: true,
+      runValidators: true,
+    }).lean();
+
+    if (!updatedCourse) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Course not found" });
+    }
+
+    res.json({
+      success: true,
+      message: "Course updated successfully",
+      course: {
+        id: updatedCourse._id,
+        title: updatedCourse.title,
+        description: updatedCourse.description,
+        thumbnail: updatedCourse.thumbnail || "",
+        category: updatedCourse.category || "",
+        subject: updatedCourse.subject,
+        grade: updatedCourse.grade,
+        price: Number(updatedCourse.price || 0),
+        published: !!updatedCourse.published,
+      },
+    });
+  } catch (err) {
+    console.error("Admin update course error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update course",
+    });
+  }
+});
+
+app.patch(
+  "/api/admin/courses/:id/publish",
+  authenticateAdmin,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { published } = req.body;
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid course id" });
+      }
+      if (typeof published !== "boolean") {
+        return res.status(400).json({
+          success: false,
+          message: "published (boolean) is required",
+        });
+      }
+
+      const updatedCourse = await Course.findByIdAndUpdate(
+        id,
+        { published },
+        { new: true },
+      ).select("title published");
+
+      if (!updatedCourse) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Course not found" });
+      }
+
+      res.json({
+        success: true,
+        message: `Course ${published ? "published" : "unpublished"} successfully`,
+        course: {
+          id: updatedCourse._id,
+          title: updatedCourse.title,
+          published: updatedCourse.published,
+        },
+      });
+    } catch (err) {
+      console.error("Admin publish toggle error:", err);
+      res.status(500).json({
+        success: false,
+        message: "Failed to toggle publish status",
+      });
+    }
+  },
+);
+
+app.delete("/api/admin/courses/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid course id" });
+    }
+
+    const deletedCourse = await Course.findByIdAndDelete(id);
+    if (!deletedCourse) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Course not found" });
+    }
+
+    await Promise.all([
+      Progress.deleteMany({ courseId: id }),
+      Activity.deleteMany({ courseId: id }),
+    ]);
+
+    res.json({
+      success: true,
+      message: "Course deleted successfully",
+    });
+  } catch (err) {
+    console.error("Admin delete course error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete course",
+    });
+  }
+});
+
 // ================= USER ENDPOINTS (Students) =================
 
 app.post("/signup", async (req, res) => {

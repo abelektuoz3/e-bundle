@@ -141,6 +141,10 @@
           transform: rotate(360deg);
         }
       }
+
+      .table-row-hover:hover {
+        background: rgba(59, 130, 246, 0.08);
+      }
     </style>
   </head>
   <body class="text-gray-100 overflow-hidden">
@@ -226,16 +230,43 @@
         <nav class="flex-1 p-4 space-y-2 overflow-y-auto custom-scrollbar">
           <div
             class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4 px-4">
-            Dashboard
+            Admin Pages
           </div>
+
+          <button
+            onclick="switchTab('overview')"
+            id="nav-overview"
+            class="nav-item active w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 transition-all group">
+            <i
+              class="fas fa-chart-line text-blue-400 group-hover:scale-110 transition-transform"></i>
+            <span class="font-medium">Dashboard / Overview</span>
+          </button>
+
+          <button
+            onclick="switchTab('users')"
+            id="nav-users"
+            class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 transition-all group">
+            <i
+              class="fas fa-users text-emerald-400 group-hover:scale-110 transition-transform"></i>
+            <span class="font-medium">User Management</span>
+          </button>
+
+          <button
+            onclick="switchTab('courses')"
+            id="nav-courses"
+            class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 transition-all group">
+            <i
+              class="fas fa-book-open text-amber-400 group-hover:scale-110 transition-transform"></i>
+            <span class="font-medium">Course Management</span>
+          </button>
 
           <button
             onclick="switchTab('upload')"
             id="nav-upload"
-            class="nav-item active w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 transition-all group">
+            class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 transition-all group">
             <i
-              class="fas fa-cloud-upload-alt text-blue-400 group-hover:scale-110 transition-transform"></i>
-            <span class="font-medium">Upload Media</span>
+              class="fas fa-cloud-upload-alt text-violet-400 group-hover:scale-110 transition-transform"></i>
+            <span class="font-medium">Media Upload</span>
           </button>
 
           <button
@@ -253,6 +284,7 @@
           </button>
 
           <div
+            id="media-filters-block"
             class="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-6 mb-4 px-4">
             Filters
           </div>
@@ -328,10 +360,229 @@
             class="absolute bottom-10 left-10 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
         </div>
 
+        <!-- Overview Section -->
+        <div
+          id="overview-section"
+          class="tab-section h-full overflow-y-auto custom-scrollbar p-8 relative z-10">
+          <div class="max-w-6xl mx-auto">
+            <header class="mb-8 flex items-center justify-between">
+              <div>
+                <h2 class="text-3xl font-bold mb-2">Dashboard / Overview</h2>
+                <p class="text-gray-400">
+                  Snapshot of users, courses, enrollments, revenue, and activity
+                </p>
+              </div>
+              <div class="flex items-center gap-2">
+                <label class="text-sm text-gray-400">Revenue:</label>
+                <select
+                  id="revenue-range"
+                  onchange="renderRevenueChart()"
+                  class="bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500">
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </div>
+            </header>
+
+            <div class="grid grid-cols-3 gap-4 mb-8">
+              <div class="glass-panel rounded-xl p-4 border-l-4 border-cyan-500">
+                <p class="text-gray-400 text-sm">Total Users</p>
+                <p class="text-3xl font-bold" id="overview-users">0</p>
+              </div>
+              <div class="glass-panel rounded-xl p-4 border-l-4 border-amber-500">
+                <p class="text-gray-400 text-sm">Total Courses</p>
+                <p class="text-3xl font-bold" id="overview-courses">0</p>
+              </div>
+              <div class="glass-panel rounded-xl p-4 border-l-4 border-emerald-500">
+                <p class="text-gray-400 text-sm">Total Enrollments</p>
+                <p class="text-3xl font-bold" id="overview-enrollments">0</p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-5 gap-6 mb-8">
+              <div class="glass-panel rounded-2xl p-6 col-span-3">
+                <h3 class="text-lg font-semibold mb-4">Revenue Chart</h3>
+                <div
+                  id="revenue-chart"
+                  class="h-64 flex items-end gap-3 border-b border-white/10 pb-4"></div>
+              </div>
+              <div class="glass-panel rounded-2xl p-6 col-span-2">
+                <h3 class="text-lg font-semibold mb-4">Quick Actions</h3>
+                <div class="space-y-3">
+                  <button
+                    onclick="switchTab('users')"
+                    class="w-full text-left px-4 py-3 rounded-lg bg-blue-500/10 border border-blue-500/30 hover:bg-blue-500/20 transition-all">
+                    <i class="fas fa-user-plus mr-2 text-blue-400"></i> Manage Users
+                  </button>
+                  <button
+                    onclick="switchTab('courses')"
+                    class="w-full text-left px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 transition-all">
+                    <i class="fas fa-plus-square mr-2 text-amber-400"></i> Create or Edit Course
+                  </button>
+                  <button
+                    onclick="switchTab('upload')"
+                    class="w-full text-left px-4 py-3 rounded-lg bg-violet-500/10 border border-violet-500/30 hover:bg-violet-500/20 transition-all">
+                    <i class="fas fa-photo-video mr-2 text-violet-400"></i> Upload Lesson Media
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="glass-panel rounded-2xl p-6">
+              <h3 class="text-lg font-semibold mb-4">Recent Activity</h3>
+              <div id="activity-feed" class="space-y-3"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- User Management Section -->
+        <div
+          id="users-section"
+          class="tab-section hidden h-full overflow-y-auto custom-scrollbar p-8 relative z-10">
+          <div class="max-w-7xl mx-auto">
+            <header class="mb-8">
+              <h2 class="text-3xl font-bold mb-2">User Management</h2>
+              <p class="text-gray-400">
+                Search, filter, and manage account status for all users
+              </p>
+            </header>
+
+            <div class="glass-panel rounded-xl p-4 mb-6 flex gap-3">
+              <div class="relative flex-1">
+                <i
+                  class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"></i>
+                <input
+                  type="text"
+                  id="user-search"
+                  oninput="renderUsersTable()"
+                  placeholder="Search users by name or email..."
+                  class="w-full pl-10 pr-4 py-2 bg-slate-800/50 border border-white/10 rounded-lg focus:outline-none focus:border-blue-500" />
+              </div>
+              <select
+                id="user-status-filter"
+                onchange="renderUsersTable()"
+                class="bg-slate-800/50 border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500">
+                <option value="all">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+
+            <div class="grid grid-cols-3 gap-6">
+              <div class="col-span-2 glass-panel rounded-2xl p-4 overflow-auto">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="text-left text-gray-400 border-b border-white/10">
+                      <th class="py-3 px-2">Name</th>
+                      <th class="py-3 px-2">Email</th>
+                      <th class="py-3 px-2">Joined Date</th>
+                      <th class="py-3 px-2">Status</th>
+                      <th class="py-3 px-2">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="users-table-body"></tbody>
+                </table>
+              </div>
+              <div
+                id="user-profile-panel"
+                class="glass-panel rounded-2xl p-5 text-sm text-gray-400">
+                Select a user to view profile and enrolled courses.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Course Management Section -->
+        <div
+          id="courses-section"
+          class="tab-section hidden h-full overflow-y-auto custom-scrollbar p-8 relative z-10">
+          <div class="max-w-7xl mx-auto">
+            <header class="mb-8">
+              <h2 class="text-3xl font-bold mb-2">Course Management</h2>
+              <p class="text-gray-400">
+                Create, edit, publish, and link media files to lessons
+              </p>
+            </header>
+
+            <div class="grid grid-cols-3 gap-6 mb-8">
+              <div class="col-span-1 glass-panel rounded-2xl p-5">
+                <h3 class="text-lg font-semibold mb-4" id="course-form-title">
+                  Create Course
+                </h3>
+                <form id="course-form" class="space-y-3">
+                  <input type="hidden" id="course-id" />
+                  <input
+                    id="course-title"
+                    type="text"
+                    required
+                    placeholder="Course title"
+                    class="w-full bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500" />
+                  <textarea
+                    id="course-description"
+                    rows="3"
+                    placeholder="Course description"
+                    class="w-full bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"></textarea>
+                  <input
+                    id="course-thumbnail"
+                    type="text"
+                    placeholder="Thumbnail URL"
+                    class="w-full bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500" />
+                  <input
+                    id="course-category"
+                    type="text"
+                    placeholder="Category"
+                    class="w-full bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500" />
+                  <input
+                    id="course-price"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Price"
+                    class="w-full bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500" />
+                  <label class="block text-xs text-gray-400">Link Media Files</label>
+                  <select
+                    id="course-media-links"
+                    multiple
+                    class="w-full h-28 bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"></select>
+
+                  <div class="flex gap-2 pt-2">
+                    <button
+                      type="submit"
+                      class="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg py-2 font-medium hover:shadow-lg hover:shadow-blue-500/25 transition-all">
+                      Save Course
+                    </button>
+                    <button
+                      type="button"
+                      onclick="resetCourseForm()"
+                      class="px-4 py-2 border border-white/15 rounded-lg hover:bg-white/5 transition-all">
+                      Reset
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <div class="col-span-2 glass-panel rounded-2xl p-4 overflow-auto">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="text-left text-gray-400 border-b border-white/10">
+                      <th class="py-3 px-2">Title</th>
+                      <th class="py-3 px-2">Category</th>
+                      <th class="py-3 px-2">Price</th>
+                      <th class="py-3 px-2">Published</th>
+                      <th class="py-3 px-2">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="courses-table-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Upload Section -->
         <div
           id="upload-section"
-          class="h-full overflow-y-auto custom-scrollbar p-8 relative z-10">
+          class="tab-section hidden h-full overflow-y-auto custom-scrollbar p-8 relative z-10">
           <div class="max-w-4xl mx-auto">
             <header class="mb-8">
               <h2 class="text-3xl font-bold mb-2">Upload Media</h2>
@@ -458,7 +709,7 @@
         <!-- Database Section -->
         <div
           id="database-section"
-          class="hidden h-full overflow-y-auto custom-scrollbar p-8 relative z-10">
+          class="tab-section hidden h-full overflow-y-auto custom-scrollbar p-8 relative z-10">
           <div class="max-w-6xl mx-auto">
             <header class="mb-8 flex items-center justify-between">
               <div>
@@ -589,6 +840,10 @@
       let currentFile = null;
       let currentFilter = "all";
       let mediaFiles = [];
+      let usersData = [];
+      let coursesData = [];
+      let recentActivity = [];
+      let overviewData = {};
 
       // Check authentication on load
       document.addEventListener("DOMContentLoaded", () => {
@@ -609,7 +864,8 @@
       function showApp() {
         document.getElementById("login-modal").classList.add("hidden");
         document.getElementById("main-app").classList.remove("hidden");
-        loadMedia();
+        // Remove initializeAdminData() as we will load from backend
+        switchTab("overview");
       }
 
       async function verifyToken() {
@@ -684,17 +940,395 @@
         document
           .getElementById(`nav-${tab}`)
           .classList.add("active", "bg-white/5");
+        document
+          .querySelectorAll(".tab-section")
+          .forEach((section) => section.classList.add("hidden"));
+        document.getElementById(`${tab}-section`).classList.remove("hidden");
 
-        if (tab === "upload") {
-          document.getElementById("upload-section").classList.remove("hidden");
-          document.getElementById("database-section").classList.add("hidden");
-        } else {
-          document.getElementById("upload-section").classList.add("hidden");
-          document
-            .getElementById("database-section")
-            .classList.remove("hidden");
-          loadMedia();
+        const isMediaTab = tab === "upload" || tab === "database";
+        document
+          .querySelectorAll(".filter-btn, #media-filters-block")
+          .forEach((el) => {
+            if (isMediaTab) {
+              el.classList.remove("hidden");
+            } else {
+              el.classList.add("hidden");
+            }
+          });
+
+        if (tab === "overview") loadAdminOverview();
+        if (tab === "users") loadUsers();
+        if (tab === "courses") loadCourses();
+        if (isMediaTab) loadMedia();
+      }
+
+      async function loadAdminOverview() {
+        try {
+          const range = document.getElementById("revenue-range").value;
+          const response = await fetch(`${API_URL}/admin/overview?range=${range}`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+          });
+          const data = await response.json();
+
+          if (data.success) {
+            overviewData = data.overview;
+            recentActivity = data.recentActivity;
+            
+            document.getElementById("overview-users").textContent = overviewData.totalUsers || 0;
+            document.getElementById("overview-courses").textContent = overviewData.totalCourses || 0;
+            document.getElementById("overview-enrollments").textContent = overviewData.totalEnrollments || 0;
+            
+            renderRevenueChart(data.revenue);
+            renderActivityFeed();
+          }
+        } catch (err) {
+          console.error("Load overview error:", err);
+          showToast("Error", "Failed to load dashboard data", "error");
         }
+      }
+
+      function renderRevenueChart(revenueData) {
+        const container = document.getElementById("revenue-chart");
+        if (!revenueData || !revenueData.points || revenueData.points.length === 0) {
+          container.innerHTML = `<div class="w-full h-full flex items-center justify-center text-gray-500">No revenue data available</div>`;
+          return;
+        }
+
+        const points = revenueData.points;
+        const max = Math.max(...points.map(p => p.amount), 1);
+
+        container.innerHTML = points
+          .map(
+            (point) => `
+          <div class="flex-1 flex flex-col items-center justify-end gap-2">
+            <div class="w-full bg-gradient-to-t from-blue-500 to-purple-500 rounded-t-md" style="height:${(point.amount / max) * 180}px"></div>
+            <span class="text-[10px] text-gray-400 truncate w-full text-center">${point.label}</span>
+            <span class="text-[10px] text-gray-500">$${point.amount}</span>
+          </div>
+        `,
+          )
+          .join("");
+      }
+
+      function renderActivityFeed() {
+        const feed = document.getElementById("activity-feed");
+        if (!recentActivity || recentActivity.length === 0) {
+          feed.innerHTML = `<p class="text-gray-500 text-sm">No recent activity</p>`;
+          return;
+        }
+
+        feed.innerHTML = recentActivity
+          .map(
+            (activity) => `
+          <div class="p-3 rounded-lg bg-slate-900/60 border border-white/5 text-sm text-gray-300">
+            <div class="flex justify-between items-start">
+              <div>
+                <i class="fas fa-circle text-[8px] text-blue-400 mr-2"></i>
+                <span class="font-medium text-white">${escapeHtml(activity.title || activity.type)}</span>
+                <p class="text-xs text-gray-400 mt-1">${escapeHtml(activity.description || "")}</p>
+                ${activity.user ? `<p class="text-[10px] text-blue-400 mt-1">User: ${escapeHtml(activity.user.name)} (${escapeHtml(activity.user.email)})</p>` : ""}
+              </div>
+              <span class="text-[10px] text-gray-500">${new Date(activity.createdAt).toLocaleDateString()}</span>
+            </div>
+          </div>
+        `,
+          )
+          .join("");
+      }
+
+      async function loadUsers() {
+        try {
+          const query = document.getElementById("user-search").value.toLowerCase();
+          const statusFilter = document.getElementById("user-status-filter").value;
+          const response = await fetch(`${API_URL}/admin/users?search=${query}&status=${statusFilter}`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+          });
+          const data = await response.json();
+          if (data.success) {
+            usersData = data.users;
+            renderUsersTable();
+          }
+        } catch (err) {
+          console.error("Load users error:", err);
+          showToast("Error", "Failed to load users", "error");
+        }
+      }
+
+      function renderUsersTable() {
+        document.getElementById("users-table-body").innerHTML = usersData
+          .map(
+            (user) => `
+          <tr class="border-b border-white/5 table-row-hover">
+            <td class="py-3 px-2 font-medium">${escapeHtml(user.name)}</td>
+            <td class="py-3 px-2 text-gray-300">${escapeHtml(user.email)}</td>
+            <td class="py-3 px-2 text-gray-400">${new Date(user.joinedDate).toLocaleDateString()}</td>
+            <td class="py-3 px-2">
+              <span class="px-2 py-1 rounded-full text-xs ${user.status === "active" ? "bg-emerald-500/20 text-emerald-400" : "bg-gray-500/20 text-gray-400"}">
+                ${user.status}
+              </span>
+            </td>
+            <td class="py-3 px-2">
+              <div class="flex gap-2">
+                <button onclick="viewUserProfile('${user.id}')" class="px-2 py-1 text-xs rounded bg-blue-500/20 text-blue-300 hover:bg-blue-500/30">View</button>
+                <button onclick="toggleUserStatus('${user.id}', '${user.status}')" class="px-2 py-1 text-xs rounded bg-amber-500/20 text-amber-300 hover:bg-amber-500/30">${user.status === "active" ? "Deactivate" : "Activate"}</button>
+                <button onclick="deleteUser('${user.id}')" class="px-2 py-1 text-xs rounded bg-red-500/20 text-red-300 hover:bg-red-500/30">Delete</button>
+              </div>
+            </td>
+          </tr>
+        `,
+          )
+          .join("");
+      }
+
+      async function viewUserProfile(userId) {
+        try {
+          const response = await fetch(`${API_URL}/admin/users/${userId}`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+          });
+          const data = await response.json();
+          if (data.success) {
+            const user = data.user;
+            const enrolledCourses = data.enrolledCourses;
+            document.getElementById("user-profile-panel").innerHTML = `
+              <h3 class="text-lg font-semibold text-white mb-2">User Profile</h3>
+              <p class="text-gray-300"><strong>Name:</strong> ${escapeHtml(user.name)}</p>
+              <p class="text-gray-300"><strong>Email:</strong> ${escapeHtml(user.email)}</p>
+              <p class="text-gray-300"><strong>Joined:</strong> ${new Date(user.joinedDate).toLocaleDateString()}</p>
+              <p class="text-gray-300 mb-3"><strong>Status:</strong> ${user.status}</p>
+              <h4 class="font-medium text-white mb-2">Enrolled Courses</h4>
+              <ul class="space-y-1">
+                ${
+                  enrolledCourses && enrolledCourses.length
+                    ? enrolledCourses
+                        .map(
+                          (course) =>
+                            `<li class="text-gray-300 bg-white/5 rounded px-2 py-1">
+                              ${escapeHtml(course.title)} (${course.percentage}%)
+                            </li>`,
+                        )
+                        .join("")
+                    : '<li class="text-gray-500">No enrolled courses.</li>'
+                }
+              </ul>
+            `;
+          }
+        } catch (err) {
+          console.error("View user profile error:", err);
+          showToast("Error", "Failed to load user profile", "error");
+        }
+      }
+
+      async function toggleUserStatus(userId, currentStatus) {
+        try {
+          const newStatus = currentStatus === "active" ? false : true;
+          const response = await fetch(`${API_URL}/admin/users/${userId}/status`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({ isActive: newStatus }),
+          });
+          const data = await response.json();
+          if (data.success) {
+            showToast("Success", data.message);
+            loadUsers();
+            loadAdminOverview();
+          }
+        } catch (err) {
+          console.error("Toggle user status error:", err);
+          showToast("Error", "Failed to update user status", "error");
+        }
+      }
+
+      async function deleteUser(userId) {
+        if (!confirm("Are you sure you want to delete this user? This action cannot be undone.")) return;
+        try {
+          const response = await fetch(`${API_URL}/admin/users/${userId}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${authToken}` },
+          });
+          const data = await response.json();
+          if (data.success) {
+            showToast("Success", "User deleted successfully");
+            loadUsers();
+            document.getElementById("user-profile-panel").textContent =
+              "Select a user to view profile and enrolled courses.";
+            loadAdminOverview();
+          }
+        } catch (err) {
+          console.error("Delete user error:", err);
+          showToast("Error", "Failed to delete user", "error");
+        }
+      }
+
+      async function loadCourses() {
+        try {
+          const response = await fetch(`${API_URL}/admin/courses`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+          });
+          const data = await response.json();
+          if (data.success) {
+            coursesData = data.courses;
+            populateCourseMediaOptions();
+            renderCoursesTable();
+          }
+        } catch (err) {
+          console.error("Load courses error:", err);
+          showToast("Error", "Failed to load courses", "error");
+        }
+      }
+
+      function populateCourseMediaOptions() {
+        const select = document.getElementById("course-media-links");
+        if (!select) return;
+        select.innerHTML = mediaFiles
+          .map(
+            (file) =>
+              `<option value="${file.id}">${escapeHtml(file.title)} (${file.type})</option>`,
+          )
+          .join("");
+      }
+
+      function renderCoursesTable() {
+        document.getElementById("courses-table-body").innerHTML = coursesData
+          .map(
+            (course) => `
+          <tr class="border-b border-white/5 table-row-hover">
+            <td class="py-3 px-2">
+              <p class="font-medium">${escapeHtml(course.title)}</p>
+              <p class="text-xs text-gray-500 truncate max-w-[250px]">${escapeHtml(course.description || "")}</p>
+            </td>
+            <td class="py-3 px-2 text-gray-300">${escapeHtml(course.category || "-")}</td>
+            <td class="py-3 px-2 text-gray-300">$${Number(course.price || 0).toFixed(2)}</td>
+            <td class="py-3 px-2">
+              <button onclick="toggleCoursePublish('${course.id}', ${course.published})" class="px-2 py-1 rounded text-xs ${course.published ? "bg-emerald-500/20 text-emerald-400" : "bg-gray-500/20 text-gray-400"}">
+                ${course.published ? "Published" : "Unpublished"}
+              </button>
+            </td>
+            <td class="py-3 px-2">
+              <div class="flex gap-2">
+                <button onclick="editCourse('${course.id}')" class="px-2 py-1 text-xs rounded bg-blue-500/20 text-blue-300 hover:bg-blue-500/30">Edit</button>
+                <button onclick="deleteCourse('${course.id}')" class="px-2 py-1 text-xs rounded bg-red-500/20 text-red-300 hover:bg-red-500/30">Delete</button>
+              </div>
+            </td>
+          </tr>
+        `,
+          )
+          .join("");
+      }
+
+      document.getElementById("course-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const id = document.getElementById("course-id").value;
+        const courseData = {
+          title: document.getElementById("course-title").value.trim(),
+          description: document.getElementById("course-description").value.trim(),
+          thumbnail: document.getElementById("course-thumbnail").value.trim(),
+          category: document.getElementById("course-category").value.trim(),
+          price: Number(document.getElementById("course-price").value || 0),
+          mediaFiles: Array.from(
+            document.getElementById("course-media-links").selectedOptions,
+          ).map((opt) => opt.value),
+        };
+
+        if (!courseData.title) {
+          showToast("Error", "Course title is required", "error");
+          return;
+        }
+
+        try {
+          const url = id ? `${API_URL}/admin/courses/${id}` : `${API_URL}/admin/courses`;
+          const method = id ? "PUT" : "POST";
+          const response = await fetch(url, {
+            method: method,
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify(courseData),
+          });
+          const data = await response.json();
+
+          if (data.success) {
+            showToast("Success", id ? "Course updated" : "Course created");
+            loadCourses();
+            resetCourseForm();
+            loadAdminOverview();
+          } else {
+            throw new Error(data.message || "Failed to save course");
+          }
+        } catch (err) {
+          console.error("Save course error:", err);
+          showToast("Error", err.message, "error");
+        }
+      });
+
+      function editCourse(courseId) {
+        const course = coursesData.find((c) => c.id === courseId);
+        if (!course) return;
+        document.getElementById("course-form-title").textContent = "Edit Course";
+        document.getElementById("course-id").value = course.id;
+        document.getElementById("course-title").value = course.title || "";
+        document.getElementById("course-description").value =
+          course.description || "";
+        document.getElementById("course-thumbnail").value = course.thumbnail || "";
+        document.getElementById("course-category").value = course.category || "";
+        document.getElementById("course-price").value = Number(course.price || 0);
+        
+        // Handle multi-select for media links
+        const mediaLinks = course.mediaFiles ? course.mediaFiles.map(m => m.id || m) : [];
+        Array.from(document.getElementById("course-media-links").options).forEach(
+          (option) => {
+            option.selected = mediaLinks.includes(option.value);
+          },
+        );
+      }
+
+      async function deleteCourse(courseId) {
+        if (!confirm("Are you sure you want to delete this course?")) return;
+        try {
+          const response = await fetch(`${API_URL}/admin/courses/${courseId}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${authToken}` },
+          });
+          const data = await response.json();
+          if (data.success) {
+            showToast("Success", "Course deleted successfully");
+            loadCourses();
+            loadAdminOverview();
+          }
+        } catch (err) {
+          console.error("Delete course error:", err);
+          showToast("Error", "Failed to delete course", "error");
+        }
+      }
+
+      async function toggleCoursePublish(courseId, currentStatus) {
+        try {
+          const response = await fetch(`${API_URL}/admin/courses/${courseId}/publish`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({ published: !currentStatus }),
+          });
+          const data = await response.json();
+          if (data.success) {
+            showToast("Success", data.message);
+            loadCourses();
+          }
+        } catch (err) {
+          console.error("Publish toggle error:", err);
+          showToast("Error", "Failed to update publish status", "error");
+        }
+      }
+
+      function resetCourseForm() {
+        document.getElementById("course-form-title").textContent = "Create Course";
+        document.getElementById("course-id").value = "";
+        document.getElementById("course-form").reset();
       }
 
       // Drag and Drop
@@ -829,6 +1463,7 @@
           const data = await response.json();
           mediaFiles = data.media;
           updateStats(data.stats);
+          populateCourseMediaOptions();
           renderFileList();
         } catch (err) {
           console.error("Load media error:", err);

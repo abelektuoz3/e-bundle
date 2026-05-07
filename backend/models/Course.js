@@ -31,6 +31,40 @@ const courseSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  category: {
+    type: String,
+    default: "",
+    trim: true,
+  },
+  price: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+  published: {
+    type: Boolean,
+    default: false,
+  },
+  mediaFiles: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Media",
+    },
+  ],
+  lessons: [
+    {
+      title: { type: String, trim: true, default: "" },
+      mediaId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Media",
+        default: null,
+      },
+    },
+  ],
+  thumbnail: {
+    type: String,
+    default: "",
+  },
   totalLessons: {
     type: Number,
     default: 0,
