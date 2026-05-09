@@ -1951,53 +1951,74 @@ app.post("/signup", async (req, res) => {
     const { email, studentId, password, firstName, lastName, grade, school } =
       req.body;
 
+    // Validate required fields
+    if (!email || !studentId || !password || !firstName || !lastName || !grade || !school) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required: email, studentId, password, firstName, lastName, grade, school"
+      });
+    }
+
+    // Check if user already exists
     const existingUser = await User.findOne({
-      $or: [{ email }, { studentId }],
+      $or: [{ email: email.toLowerCase() }, { studentId }],
     });
 
     if (existingUser) {
       return res.status(400).json({
+        success: false,
         message: "User already exists with this email or student ID",
       });
     }
 
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Generate OTP
     const otp = generateOTP();
     const otpExpire = new Date(Date.now() + 10 * 60 * 1000);
 
+    // Create new user
     const newUser = new User({
       firstName,
       lastName,
-      email,
+      email: email.toLowerCase(),
       studentId,
       password: hashedPassword,
-      grade,
+      grade: parseInt(grade),
       school,
       otp,
       otpExpire,
       isVerified: false,
+      createdAt: new Date(),
     });
 
     await newUser.save();
 
+    // Send OTP email
     const emailSent = await sendOTPEmail(email, otp, firstName);
 
     if (!emailSent) {
+      console.error(`Failed to send OTP email to ${email}`);
       return res.status(201).json({
-        message:
-          "Account created but failed to send verification email. Please use resend OTP.",
+        success: false,
+        message: "Account created but failed to send verification email. Please use resend OTP.",
         email: email,
       });
     }
 
+    console.log(`✅ User created successfully: ${email}`);
     res.status(201).json({
-      message:
-        "User created successfully. Please check your email for verification code.",
+      success: true,
+      message: "User created successfully. Please check your email for verification code.",
       email: email,
     });
   } catch (err) {
     console.error("Signup error:", err);
-    res.status(500).json({ message: "Error saving user" });
+    res.status(500).json({ 
+      success: false,
+      message: "Error saving user: " + err.message 
+    });
   }
 });
 
