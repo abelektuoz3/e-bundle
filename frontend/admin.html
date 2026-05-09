@@ -11,7 +11,141 @@
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-    <link rel="stylesheet" href="style/admin.css">
+    <style>
+      * {
+        font-family: "Space Grotesk", sans-serif;
+      }
+
+      body {
+        background: linear-gradient(
+          135deg,
+          #0f172a 0%,
+          #1e293b 50%,
+          #0f172a 100%
+        );
+        min-height: 100vh;
+      }
+
+      .glass-panel {
+        background: rgba(30, 41, 59, 0.7);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .upload-zone {
+        background: linear-gradient(
+          135deg,
+          rgba(59, 130, 246, 0.1) 0%,
+          rgba(147, 51, 234, 0.1) 100%
+        );
+        border: 2px dashed rgba(59, 130, 246, 0.5);
+        transition: all 0.3s ease;
+      }
+
+      .upload-zone:hover,
+      .upload-zone.dragover {
+        background: linear-gradient(
+          135deg,
+          rgba(59, 130, 246, 0.2) 0%,
+          rgba(147, 51, 234, 0.2) 100%
+        );
+        border-color: rgba(59, 130, 246, 0.8);
+        transform: translateY(-2px);
+      }
+
+      .file-card {
+        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .file-card:hover {
+        transform: translateX(8px);
+        border-color: rgba(59, 130, 246, 0.5);
+      }
+
+      .progress-bar {
+        background: linear-gradient(90deg, #3b82f6 0%, #9333ea 100%);
+      }
+
+      .nav-item {
+        position: relative;
+        overflow: hidden;
+      }
+
+      .nav-item::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        width: 3px;
+        background: linear-gradient(180deg, #3b82f6, #9333ea);
+        transform: scaleY(0);
+        transition: transform 0.3s ease;
+      }
+
+      .nav-item:hover::before,
+      .nav-item.active::before {
+        transform: scaleY(1);
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .animate-slide-in {
+        animation: slideIn 0.5s ease forwards;
+      }
+
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(59, 130, 246, 0.5);
+        border-radius: 3px;
+      }
+
+      .modal-backdrop {
+        background: rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(10px);
+      }
+
+      .loading-spinner {
+        border: 3px solid rgba(255, 255, 255, 0.1);
+        border-top: 3px solid #3b82f6;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        animation: spin 1s linear infinite;
+        display: inline-block;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .table-row-hover:hover {
+        background: rgba(59, 130, 246, 0.08);
+      }
+    </style>
   </head>
   <body class="text-gray-100 overflow-hidden">
     <!-- Login Modal -->
