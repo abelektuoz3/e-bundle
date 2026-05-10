@@ -15,6 +15,12 @@ const Course = require("./models/Course");
 const Progress = require("./models/Progress");
 const sgMail = require("@sendgrid/mail");
 const ChatMessage = require("./models/ChatMessage");
+const { authenticateToken, authenticateAdmin } = require("./middleware/auth");
+
+const dashboardRoutes = require("./routes/dashboard");
+const userRoutes = require("./routes/users");
+const courseRoutes = require("./routes/courses");
+const enrollmentRoutes = require("./routes/enrollments");
 
 const app = express();
 
@@ -119,68 +125,7 @@ mongoose.connection.on("disconnected", () => {
   setTimeout(connectDB, 5000);
 });
 
-// ================= MIDDLEWARE DEFINITIONS =================
-
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers["authorization"];
-  const tokenFromQuery = req.query.token;
-  const token = authHeader ? authHeader.split(" ")[1] : tokenFromQuery;
-
-  if (!token) {
-    return res.status(401).json({ message: "Access denied" });
-  }
-
-  jwt.verify(token, process.env.JWT_SECRET || "secretkey", (err, user) => {
-    if (err) {
-      return res.status(403).json({ message: "Invalid token" });
-    }
-    req.user = user;
-    next();
-  });
-};
-
-async function authenticateAdmin(req, res, next) {
-  try {
-    const authHeader = req.headers["authorization"];
-    const token = authHeader && authHeader.split(" ")[1];
-
-    if (!token) {
-      return res
-        .status(401)
-        .json({ message: "Access denied. No token provided." });
-    }
-
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || "adminsecretkey",
-    );
-    const admin = await Admin.findById(decoded.id).select(
-      "-password -resetToken -resetOTP",
-    );
-
-    if (!admin) {
-      return res
-        .status(403)
-        .json({ message: "Invalid token. Admin not found." });
-    }
-
-    if (!admin.isActive) {
-      return res.status(403).json({ message: "Account is deactivated." });
-    }
-
-    if (admin.isLocked()) {
-      return res.status(403).json({
-        message:
-          "Account is temporarily locked due to multiple failed login attempts.",
-      });
-    }
-
-    req.admin = admin;
-    next();
-  } catch (err) {
-    return res.status(403).json({ message: "Invalid token." });
-  }
-}
+// Authentication middleware removed and imported from middleware/auth.js
 
 // ================= MEDIA UPLOAD (Admin Only) =================
 app.post(
@@ -2558,177 +2503,6 @@ app.delete("/delete-account", authenticateToken, async (req, res) => {
   }
 });
 
-// ================= DASHBOARD ENDPOINTS =================
-
-app.get("/dashboard", authenticateToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select(
-      "-password -otp -resetToken",
-    );
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    const courses = await Course.find({
-      grade: parseInt(user.grade) || 9,
-    }).limit(6);
-
-    const userProgress = await Progress.find({ userId: user._id }).populate(
-      "courseId",
-    );
-
-    const totalLessons = courses.reduce(
-      (acc, course) => acc + (course.totalLessons || 0),
-      0,
-    );
-    const completedLessons = userProgress.reduce(
-      (acc, p) => acc + (p.completedLessons || 0),
-      0,
-    );
-    const studyHours = Math.floor((user.totalStudyTime || 0) / 60);
-
-    const higherScoredUsers = await User.countDocuments({
-      quizScore: { $gt: user.quizScore || 0 },
-    });
-    const rank = higherScoredUsers + 1;
-
-    const leaderboard = await User.find({})
-      .select("firstName lastName streak avatar")
-      .sort({ streak: -1 })
-      .limit(10);
-
-    const recentActivity = await Activity.find({ userId: user._id })
-      .sort({ createdAt: -1 })
-      .limit(5);
-
-    const coursesWithProgress = courses.map((course) => {
-      const progress = userProgress.find(
-        (p) =>
-          p.courseId && p.courseId._id.toString() === course._id.toString(),
-      );
-      return {
-        id: course._id,
-        title: course.title,
-        subject: course.subject,
-        grade: course.grade,
-        description: course.description,
-        progress: progress ? progress.percentage : 0,
-        total: course.totalLessons || 0,
-        completed: progress ? progress.completedLessons : 0,
-        color: course.color || "from-blue-500 to-cyan-500",
-        icon: course.icon || "fa-book",
-      };
-    });
-
-    res.json({
-      success: true,
-      user: {
-        id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        studentId: user.studentId,
-        grade: user.grade,
-        school: user.school,
-        role: user.role || "student",
-        isVerified: user.isVerified,
-        bio: user.bio,
-        avatar:
-          user.avatar ||
-          `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.firstName}`,
-        streak: user.streak || 0,
-        quizScore: user.quizScore || 0,
-        quizTotal: user.quizTotal || 0,
-        progress: user.progress || 0,
-        totalStudyTime: user.totalStudyTime || 0,
-      },
-      stats: {
-        courses: courses.length,
-        completedLessons: completedLessons,
-        totalLessons: totalLessons,
-        studyHours: studyHours,
-        rank: rank,
-      },
-      courses: coursesWithProgress,
-      leaderboard: leaderboard.map((u, index) => ({
-        rank: index + 1,
-        name: `${u.firstName} ${u.lastName ? u.lastName.charAt(0) + "." : ""}`,
-        streak: u.streak || 0,
-        avatar:
-          u.avatar ||
-          `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.firstName}`,
-      })),
-      recentActivity: recentActivity.map((activity) => ({
-        type: activity.type,
-        title: activity.title,
-        description: activity.description,
-        xp: activity.xp || 0,
-        createdAt: activity.createdAt,
-      })),
-    });
-  } catch (err) {
-    console.error("Dashboard error:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-app.post("/update-streak", authenticateToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const lastActive = user.lastActive ? new Date(user.lastActive) : null;
-    let streakUpdated = false;
-
-    if (lastActive) {
-      lastActive.setHours(0, 0, 0, 0);
-      const diffTime = today - lastActive;
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffDays === 1) {
-        user.streak = (user.streak || 0) + 1;
-        streakUpdated = true;
-      } else if (diffDays > 1) {
-        user.streak = 1;
-        streakUpdated = true;
-      }
-    } else {
-      user.streak = 1;
-      streakUpdated = true;
-    }
-
-    user.lastActive = new Date();
-    await user.save();
-
-    if (streakUpdated && user.streak > 1) {
-      const activity = new Activity({
-        userId: user._id,
-        type: "streak",
-        title: `${user.streak} Day Streak!`,
-        description: `You've maintained a ${user.streak}-day learning streak!`,
-        xp: 10,
-      });
-      await activity.save();
-    }
-
-    res.json({
-      success: true,
-      streak: user.streak,
-      message: "Streak updated successfully",
-    });
-  } catch (err) {
-    console.error("Update streak error:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
 app.post("/log-activity", authenticateToken, async (req, res) => {
   try {
     const { type, title, description, xp, courseId, timeSpent } = req.body;
@@ -3503,6 +3277,12 @@ app.get("/api/courses/:id", authenticateToken, async (req, res) => {
     });
   }
 });
+
+// ================= API ROUTES =================
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/admin/users", userRoutes);
+app.use("/api/admin/courses", courseRoutes);
+app.use("/api/admin/enrollments", enrollmentRoutes);
 
 // ================= AI TUTOR CHAT (GROQ API) =================
 const axios = require("axios");

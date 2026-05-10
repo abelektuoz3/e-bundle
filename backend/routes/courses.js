@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 const Course = require('../models/Course');
 const Enrollment = require('../models/Enrollment');
+const { authenticateToken, authenticateAdmin } = require('../middleware/auth');
 
 // Get all courses
-router.get('/', async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
     const courses = await Course.find().sort({ createdAt: -1 });
     res.json(courses);
@@ -14,7 +15,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get single course
-router.get('/:id', async (req, res) => {
+router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const course = await Course.findById(req.params.id);
     const enrollmentCount = await Enrollment.countDocuments({ courseId: req.params.id });
@@ -25,7 +26,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create course
-router.post('/', async (req, res) => {
+router.post('/', authenticateAdmin, async (req, res) => {
   try {
     const course = new Course(req.body);
     await course.save();
@@ -36,7 +37,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update course
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticateAdmin, async (req, res) => {
   try {
     const course = await Course.findByIdAndUpdate(
       req.params.id,
@@ -50,7 +51,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete course
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticateAdmin, async (req, res) => {
   try {
     await Course.findByIdAndDelete(req.params.id);
     await Enrollment.deleteMany({ courseId: req.params.id });
@@ -61,7 +62,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Add module to course
-router.post('/:id/modules', async (req, res) => {
+router.post('/:id/modules', authenticateAdmin, async (req, res) => {
   try {
     const course = await Course.findById(req.params.id);
     course.modules.push(req.body);
@@ -73,7 +74,7 @@ router.post('/:id/modules', async (req, res) => {
 });
 
 // Add lesson to module
-router.post('/:courseId/modules/:moduleIndex/lessons', async (req, res) => {
+router.post('/:courseId/modules/:moduleIndex/lessons', authenticateAdmin, async (req, res) => {
   try {
     const course = await Course.findById(req.params.courseId);
     const module = course.modules[req.params.moduleIndex];

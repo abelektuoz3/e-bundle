@@ -3,9 +3,10 @@ const router = express.Router();
 const User = require('../models/User');
 const Enrollment = require('../models/Enrollment');
 const bcrypt = require('bcryptjs');
+const { authenticateAdmin } = require('../middleware/auth');
 
 // Get all users (admin only)
-router.get('/', async (req, res) => {
+router.get('/', authenticateAdmin, async (req, res) => {
   try {
     const users = await User.find().select('-password');
     res.json(users);
@@ -15,7 +16,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get single user with enrollments
-router.get('/:id', async (req, res) => {
+router.get('/:id', authenticateAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select('-password');
     const enrollments = await Enrollment.find({ userId: req.params.id }).populate('courseId');
@@ -26,7 +27,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create/Update user
-router.post('/', async (req, res) => {
+router.post('/', authenticateAdmin, async (req, res) => {
   try {
     const { name, email, password, role, grade, isActive } = req.body;
     let user = await User.findOne({ email });
@@ -59,7 +60,7 @@ router.post('/', async (req, res) => {
 });
 
 // Delete user
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticateAdmin, async (req, res) => {
   try {
     await User.findByIdAndDelete(req.params.id);
     await Enrollment.deleteMany({ userId: req.params.id });

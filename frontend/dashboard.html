@@ -463,7 +463,7 @@
       // =============================================
       // API CONFIGURATION - UPDATED FOR PRODUCTION
       // =============================================
-      const API_URL = "https://e-bundle.onrender.com";
+      const API_URL = "https://e-bundle.onrender.com/api";
 
       // =============================================
       // AUTH & USER MANAGEMENT
@@ -617,7 +617,7 @@
       async function updateStreak() {
         try {
           const token = getToken();
-          await fetch(`${API_URL}/update-streak`, {
+          await fetch(`${API_URL}/dashboard/update-streak`, {
             method: "POST",
             headers: {
               Authorization: `Bearer ${token}`,
