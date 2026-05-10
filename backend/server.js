@@ -3847,7 +3847,8 @@ io.on("connection", (socket) => {
       return;
     }
     
-    if (room.size >= 2) {
+    // Increased capacity to 20 for group sessions
+    if (room.size >= 20) {
       socket.emit("room-error", "Room is already full.");
       return;
     }
@@ -3855,37 +3856,44 @@ io.on("connection", (socket) => {
     socket.join(pin);
     currentRoom = pin;
 
-    const sockets = Array.from(room);
-    const otherSocketId = sockets.find((id) => id !== socket.id);
-    const otherSocket = io.sockets.sockets.get(otherSocketId);
+    let thisUser = Array.from(connectedUsers.values()).find(
+      (u) => u.socketId === socket.id,
+    );
+    if (!thisUser) thisUser = { socketId: socket.id, name: "Student", grade: "?", avatar: "" };
 
-    if (otherSocket) {
-      let otherUser = Array.from(connectedUsers.values()).find(
-        (u) => u.socketId === otherSocketId,
-      );
-      let thisUser = Array.from(connectedUsers.values()).find(
-        (u) => u.socketId === socket.id,
-      );
+    // Update participants in activeRooms
+    let participants = activeRooms.get(pin) || [];
+    participants.push(socket.id);
+    activeRooms.set(pin, participants);
 
-      // Fallback if not found in connectedUsers map (e.g., anonymous overwrites)
-      if (!otherUser) otherUser = { socketId: otherSocketId, name: "Partner", grade: "?", avatar: "" };
-      if (!thisUser) thisUser = { socketId: socket.id, name: "You", grade: "?", avatar: "" };
+    // Notify others in the room that someone new joined
+    socket.to(pin).emit("user-joined", {
+      socketId: socket.id,
+      name: thisUser.name,
+      grade: thisUser.grade,
+      avatar: thisUser.avatar
+    });
 
-      socket.emit("matched", {
-        partner: { socketId: otherUser.socketId, name: otherUser.name, grade: otherUser.grade, avatar: otherUser.avatar },
-        room: pin,
-        initiator: true
+    // Send existing participants to the new user so they can initiate connections
+    const existingParticipants = participants
+      .filter(id => id !== socket.id)
+      .map(id => {
+        const u = Array.from(connectedUsers.values()).find(user => user.socketId === id);
+        return {
+          socketId: id,
+          name: u ? u.name : "Partner",
+          grade: u ? u.grade : "?",
+          avatar: u ? u.avatar : ""
+        };
       });
-      otherSocket.emit("matched", {
-        partner: { socketId: thisUser.socketId, name: thisUser.name, grade: thisUser.grade, avatar: thisUser.avatar },
-        room: pin,
-        initiator: false
-      });
-      activeRooms.set(pin, [socket.id, otherSocketId]);
-      isInCall = true;
-    } else {
-      socket.emit("room-error", "Failed to connect to partner.");
-    }
+
+    socket.emit("room-joined", {
+      pin: pin,
+      participants: existingParticipants
+    });
+
+    isInCall = true;
+    console.log(`User ${thisUser.name} joined room ${pin}. Total: ${participants.length}`);
   });
 
   function generatePIN() {
@@ -3996,16 +4004,16 @@ io.on("connection", (socket) => {
     }
 
     if (currentRoom) {
-      const room = activeRooms.get(currentRoom);
-      if (room && room.includes(socket.id)) {
-        const partnerId = room.find((id) => id !== socket.id);
-        if (partnerId) {
-          const partnerSocket = io.sockets.sockets.get(partnerId);
-          if (partnerSocket) {
-            partnerSocket.emit("partner-disconnected");
-          }
+      const participants = activeRooms.get(currentRoom);
+      if (participants) {
+        const updatedParticipants = participants.filter(id => id !== socket.id);
+        if (updatedParticipants.length > 0) {
+          activeRooms.set(currentRoom, updatedParticipants);
+          // Notify others in the room
+          socket.to(currentRoom).emit("user-left", { socketId: socket.id });
+        } else {
+          activeRooms.delete(currentRoom);
         }
-        activeRooms.delete(currentRoom);
       }
       socket.leave(currentRoom);
     }
