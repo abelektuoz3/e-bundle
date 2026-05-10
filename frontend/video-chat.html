@@ -44,85 +44,30 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 1;
+        z-index: 10;
       }
       .video-stage video {
         width: 100%;
         height: 100%;
         object-fit: cover;
-        transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
       }
       .local-pip {
         position: fixed;
         bottom: 120px;
         right: 20px;
-        width: 120px;
-        height: 180px;
+        width: 130px;
+        height: 200px;
         background: #1e1b4b;
-        border-radius: 16px;
+        border-radius: 20px;
         overflow: hidden;
-        z-index: 30;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-        border: 2px solid rgba(255, 255, 255, 0.1);
+        z-index: 40;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+        border: 2px solid rgba(255, 255, 255, 0.2);
         cursor: move;
         transition: transform 0.3s ease;
       }
-      .local-pip:hover {
-        transform: scale(1.05);
-      }
-      .local-pip video {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-      }
       .remote-participants {
-        position: fixed;
-        bottom: 120px;
-        left: 20px;
-        right: 150px;
-        display: flex;
-        gap: 12px;
-        overflow-x: auto;
-        padding: 10px;
-        z-index: 20;
-        scrollbar-width: none;
-      }
-      .remote-participants::-webkit-scrollbar {
-        display: none;
-      }
-      .participant-card {
-        min-width: 100px;
-        height: 150px;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-        overflow: hidden;
-        position: relative;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        cursor: pointer;
-        transition: all 0.3s ease;
-      }
-      .participant-card.active {
-        border: 2px solid #4f46e5;
-        transform: translateY(-5px);
-      }
-      .participant-card video {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-      }
-      .participant-info {
-        position: absolute;
-        bottom: 5px;
-        left: 5px;
-        right: 5px;
-        background: rgba(0, 0, 0, 0.5);
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-size: 10px;
-        color: white;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        display: none; /* Hide thumbnails as per user request */
       }
       .controls {
         position: fixed;
@@ -200,54 +145,23 @@
   </head>
   <body class="antialiased min-h-screen relative">
     <!-- Navigation -->
-    <nav
-      class="w-full glass border-b border-white/10 px-4 md:px-6 py-4 flex justify-between items-center sticky top-0 z-50">
-      <div
-        class="flex items-center space-x-3 cursor-pointer"
-        onclick="window.location.href = 'dashboard.html'">
-        <div
-          class="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center">
+    <!-- Navigation Overlay -->
+    <nav class="fixed top-0 left-0 right-0 z-[100] glass px-6 py-4 flex justify-between items-center border-b border-white/5">
+      <div class="flex items-center space-x-3 cursor-pointer" onclick="window.location.href = 'dashboard.html'">
+        <div class="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center">
           <i class="fas fa-graduation-cap text-white text-lg"></i>
         </div>
         <span class="text-xl font-bold text-white">E-Bundle</span>
       </div>
       <div class="hidden md:flex items-center space-x-1">
-        <a
-          href="dashboard.html"
-          class="px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all"
-          >Dashboard</a
-        >
-        <a
-          href="library.html"
-          class="px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all"
-          >Library</a
-        >
-        <a
-          href="ai-tutor.html"
-          class="px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all"
-          >AI Tutor</a
-        >
-        <a
-          href="community.html"
-          class="px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all"
-          >Community</a
-        >
-        <a
-          href="kahoot.html"
-          class="px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all"
-          >Kahoot</a
-        >
-        <a
-          href="video-chat.html"
-          class="px-4 py-2 rounded-lg text-white bg-white/10 transition-all"
-          >Video Chat</a
-        >
+        <a href="dashboard.html" class="px-4 py-2 rounded-lg text-gray-300 hover:text-white transition-all">Dashboard</a>
+        <a href="library.html" class="px-4 py-2 rounded-lg text-gray-300 hover:text-white transition-all">Library</a>
+        <a href="ai-tutor.html" class="px-4 py-2 rounded-lg text-gray-300 hover:text-white transition-all">AI Tutor</a>
+        <a href="community.html" class="px-4 py-2 rounded-lg text-gray-300 hover:text-white transition-all">Community</a>
+        <a href="kahoot.html" class="px-4 py-2 rounded-lg text-gray-300 hover:text-white transition-all">Kahoot</a>
+        <a href="video-chat.html" class="px-4 py-2 rounded-lg text-white bg-white/10">Video Chat</a>
       </div>
-      <button
-        id="mobileMenuBtn"
-        class="md:hidden w-10 h-10 rounded-lg border border-white/10 hover:bg-white/10 transition-colors flex items-center justify-center"
-        aria-label="Toggle menu"
-        onclick="toggleMobileMenu()">
+      <button id="mobileMenuBtn" class="md:hidden w-10 h-10 text-white" onclick="toggleMobileMenu()">
         <i class="fas fa-bars"></i>
       </button>
     </nav>
@@ -433,7 +347,9 @@
 
           videoChat.socket.on("user-joined", (user) => {
             videoChat.participants[user.socketId] = user;
-            videoChat.showToast(`${user.name} joined`, "info");
+            videoChat.showToast(`${user.name} joined. Connecting...`, "info");
+            // Host doesn't need to initiate, the guest will do it upon joining.
+            // But we keep track of the participant data.
           });
 
           videoChat.socket.on("user-left", (data) => {
