@@ -79,10 +79,65 @@ router.get('/', authenticateToken, async (req, res) => {
       .limit(5)
       .lean();
 
+    // Fetch recommended courses (in their grade but not enrolled)
+    const enrolledCourseIds = courses.map(c => c.id);
+    const recommendedCourses = await Course.find({
+      grade: user.grade || 9,
+      _id: { $not: { $in: enrolledCourseIds } },
+      isActive: true
+    }).limit(3).lean();
+
+    const formattedRecommended = recommendedCourses.map(course => {
+      const subjectConfigs = {
+        math: { color: 'from-blue-500 to-cyan-500', icon: 'fa-calculator' },
+        physics: { color: 'from-purple-500 to-indigo-500', icon: 'fa-atom' },
+        chemistry: { color: 'from-emerald-500 to-teal-500', icon: 'fa-flask' },
+        biology: { color: 'from-green-500 to-emerald-500', icon: 'fa-dna' },
+        english: { color: 'from-orange-500 to-amber-500', icon: 'fa-language' },
+        amharic: { color: 'from-red-500 to-orange-500', icon: 'fa-font' },
+        history: { color: 'from-yellow-600 to-orange-600', icon: 'fa-landmark' },
+        geography: { color: 'from-blue-600 to-teal-600', icon: 'fa-globe' },
+        cs: { color: 'from-gray-700 to-slate-900', icon: 'fa-code' }
+      };
+      const config = subjectConfigs[course.subject] || { color: 'from-primary to-secondary', icon: 'fa-book' };
+      
+      return {
+        id: course._id,
+        title: course.title,
+        subject: course.subject,
+        progress: 0,
+        completed: 0,
+        total: course.totalLessons || 0,
+        color: config.color,
+        icon: config.icon,
+        isRecommended: true
+      };
+    });
+
+    // Handle Daily Goal Logic
+    const today = new Date().toISOString().split('T')[0];
+    if (user.lastStudyDate !== today) {
+      user.dailyStudyTime = 0;
+      user.lastStudyDate = today;
+      await user.save();
+    }
+
+    // Calculate rank
+    const rank = await User.countDocuments({ 
+      role: 'student', 
+      quizScore: { $gt: user.quizScore || 0 } 
+    }) + 1;
+
     res.json({
       success: true,
-      user,
-      courses,
+      user: {
+        ...user.toObject(),
+        dailyStudyTime: user.dailyStudyTime || 0
+      },
+      stats: {
+        rank
+      },
+      courses: [...courses, ...formattedRecommended],
       leaderboard: formattedLeaderboard,
       recentActivity
     });

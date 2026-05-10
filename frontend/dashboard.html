@@ -207,10 +207,20 @@
               Welcome back,
               <span id="dashboardName" class="gradient-text">Student</span>! 👋
             </h1>
-            <p class="text-gray-400 mt-1">
-              Grade <span id="dashboardGrade">9</span> •
-              <span id="dashboardSchool">School</span>
-            </p>
+            <div class="flex items-center space-x-4 mt-2">
+              <p class="text-gray-400">
+                Grade <span id="dashboardGrade">9</span> •
+                <span id="dashboardSchool">School</span>
+              </p>
+              <div class="flex items-center space-x-2 bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
+                <i class="fas fa-star text-yellow-400 text-xs"></i>
+                <span class="text-xs font-bold text-primary" id="userXP">0 XP</span>
+              </div>
+              <div class="flex items-center space-x-2 bg-green-500/10 px-3 py-1 rounded-full border border-green-500/20">
+                <i class="fas fa-trophy text-yellow-500 text-xs"></i>
+                <span class="text-xs font-bold text-green-400" id="userRank">Rank #0</span>
+              </div>
+            </div>
           </div>
           <div class="flex items-center space-x-3">
             <div
@@ -657,11 +667,12 @@
 
       function renderCourseCard(course, showStatus = false) {
         const statusBadge = showStatus ? getStatusBadge(course.progress) : "";
+        const isRecommended = course.isRecommended || false;
 
         return `
           <div class="course-card glass-card p-4 rounded-2xl flex items-center space-x-4 hover-scale cursor-pointer fade-in" 
                style="--course-color: ${course.color || "#4F46E5"}"
-               onclick="window.location.href = 'library.html?course=${course.id}'">
+               onclick="window.location.href = 'library.html?course=${course.id}${isRecommended ? '&enroll=true' : ''}'">
             <div class="w-14 h-14 bg-gradient-to-br ${course.color} rounded-xl flex items-center justify-center flex-shrink-0">
               <i class="fas ${course.icon} text-white text-xl"></i>
             </div>
@@ -669,7 +680,7 @@
               <div class="flex justify-between items-start mb-2">
                 <div>
                   <h4 class="font-bold truncate">${escapeHtml(course.title)}</h4>
-                  <p class="text-xs text-gray-400">${course.subject || "General"}</p>
+                  <p class="text-xs text-gray-400">${course.subject || "General"}${isRecommended ? ' • Recommended' : ''}</p>
                 </div>
                 ${statusBadge}
               </div>
@@ -678,18 +689,18 @@
                      style="width: ${course.progress}%"></div>
               </div>
               <div class="flex justify-between items-center">
-                <p class="text-xs text-gray-400">${course.completed || 0} of ${course.total || 0} lessons</p>
+                <p class="text-xs text-gray-400">${isRecommended ? 'New Course' : `${course.completed || 0} of ${course.total || 0} lessons`}</p>
                 <span class="text-xs font-semibold ${course.progress === 100 ? "text-green-400" : "text-primary"}">
-                  ${course.progress}%
+                  ${isRecommended ? '0%' : `${course.progress}%`}
                 </span>
               </div>
             </div>
-            <button class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-primary transition-colors flex-shrink-0">
-              <i class="fas ${
-                course.progress === 100 ? "fa-redo"
-                : course.progress > 0 ? "fa-play"
-                : "fa-play"
-              } text-sm"></i>
+            <button class="px-3 py-2 bg-white/10 rounded-xl flex items-center justify-center hover:bg-primary transition-colors flex-shrink-0 text-xs font-bold">
+              ${
+                isRecommended ? "Enroll"
+                : course.progress === 100 ? '<i class="fas fa-redo"></i>'
+                : '<i class="fas fa-play"></i>'
+              }
             </button>
           </div>
         `;
@@ -853,6 +864,12 @@
           `${user.firstName} ${user.lastName || ""}`;
         document.getElementById("userStreak").textContent =
           `${user.streak || 0} Day Streak`;
+        document.getElementById("userXP").textContent =
+          `${user.quizScore || 0} XP`;
+        
+        const rank = stats?.rank || 0;
+        document.getElementById("userRank").textContent =
+          `Rank #${rank}`;
 
         const avatarUrl =
           user.avatar ||
@@ -860,7 +877,7 @@
         document.getElementById("userAvatar").src = avatarUrl;
 
         const dailyGoalMinutes = 60;
-        const todayMinutes = Math.floor((user.totalStudyTime % (24 * 60)) / 60);
+        const todayMinutes = user.dailyStudyTime || 0;
         const goalPercentage = Math.min(
           100,
           Math.round((todayMinutes / dailyGoalMinutes) * 100),

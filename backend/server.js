@@ -2537,19 +2537,16 @@ app.get("/user-stats", authenticateToken, async (req, res) => {
   }
 });
 
-app.post("/update-progress", authenticateToken, async (req, res) => {
+app.post("/api/update-progress", authenticateToken, async (req, res) => {
   try {
     const { courseId, completedLessons, totalLessons, timeSpent } = req.body;
+    const userId = req.user.id;
 
-    let progress = await Progress.findOne({
-      userId: req.user.id,
-      courseId: courseId,
-    });
-
+    let progress = await Progress.findOne({ userId, courseId });
     if (!progress) {
       progress = new Progress({
-        userId: req.user.id,
-        courseId: courseId,
+        userId,
+        courseId,
         completedLessons: 0,
         totalLessons: totalLessons || 0,
         percentage: 0,
@@ -2557,39 +2554,81 @@ app.post("/update-progress", authenticateToken, async (req, res) => {
       });
     }
 
-    progress.completedLessons = completedLessons || progress.completedLessons;
-    progress.totalLessons = totalLessons || progress.totalLessons;
-    progress.timeSpent = (progress.timeSpent || 0) + (timeSpent || 0);
+    if (completedLessons !== undefined) progress.completedLessons = completedLessons;
+    if (totalLessons !== undefined) progress.totalLessons = totalLessons;
+    if (timeSpent) progress.timeSpent = (progress.timeSpent || 0) + timeSpent;
     progress.lastAccessed = new Date();
 
     if (progress.totalLessons > 0) {
-      progress.percentage = Math.round(
-        (progress.completedLessons / progress.totalLessons) * 100,
-      );
+      progress.percentage = Math.round((progress.completedLessons / progress.totalLessons) * 100);
     }
-
     progress.completed = progress.percentage >= 100;
     await progress.save();
 
+    // Update User Stats
     if (timeSpent) {
-      await User.findByIdAndUpdate(req.user.id, {
-        $inc: { totalStudyTime: timeSpent },
+      const user = await User.findById(userId);
+      if (user) {
+        const today = new Date().toISOString().split('T')[0];
+        if (user.lastStudyDate !== today) {
+          user.dailyStudyTime = 0;
+          user.lastStudyDate = today;
+        }
+        user.dailyStudyTime += timeSpent;
+        user.totalStudyTime += timeSpent;
+        user.lastActive = new Date();
+        await user.save();
+      }
+    }
+
+    res.json({ success: true, progress: progress.percentage });
+  } catch (err) {
+    console.error("Update progress error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+app.post("/api/media-progress/report", authenticateToken, async (req, res) => {
+  try {
+    const { mediaId, progress, timeSpent, completed } = req.body;
+    const userId = req.user.id;
+
+    let p = await Progress.findOne({ userId, courseId: mediaId });
+    if (!p) {
+      p = new Progress({
+        userId,
+        courseId: mediaId,
+        percentage: 0,
+        timeSpent: 0
       });
     }
 
-    res.json({
-      success: true,
-      progress: {
-        courseId: progress.courseId,
-        completedLessons: progress.completedLessons,
-        totalLessons: progress.totalLessons,
-        percentage: progress.percentage,
-        completed: progress.completed,
-      },
-    });
+    p.percentage = Math.max(p.percentage || 0, progress || 0);
+    if (timeSpent) p.timeSpent = (p.timeSpent || 0) + timeSpent;
+    if (completed) p.completed = true;
+    p.lastAccessed = new Date();
+    await p.save();
+
+    // Update user stats
+    const user = await User.findById(userId);
+    if (user) {
+      const today = new Date().toISOString().split('T')[0];
+      if (user.lastStudyDate !== today) {
+        user.dailyStudyTime = 0;
+        user.lastStudyDate = today;
+      }
+      if (timeSpent) {
+        user.dailyStudyTime += timeSpent;
+        user.totalStudyTime += timeSpent;
+      }
+      user.lastActive = new Date();
+      await user.save();
+    }
+
+    res.json({ success: true, progress: p.percentage });
   } catch (err) {
-    console.error("Update progress error:", err);
-    res.status(500).json({ message: "Server error" });
+    console.error("Media progress report error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 

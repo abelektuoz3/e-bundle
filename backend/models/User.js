@@ -18,6 +18,8 @@ const userSchema = new mongoose.Schema({
   quizTotal: { type: Number, default: 0 },
   progress: { type: Number, default: 0 },
   totalStudyTime: { type: Number, default: 0 },
+  dailyStudyTime: { type: Number, default: 0 },
+  lastStudyDate: { type: String, default: '' },
   lastActive: { type: Date },
   createdAt: { type: Date, default: Date.now },
   lastLogin: { type: Date },
