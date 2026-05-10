@@ -3063,6 +3063,7 @@ app.post("/seed-courses", authenticateToken, async (req, res) => {
         grade: 9,
         description: "Algebra, Geometry, and Statistics",
         totalLessons: 45,
+        isPublished: true,
         color: "from-blue-500 to-cyan-500",
         icon: "fa-calculator",
       },
@@ -3072,6 +3073,7 @@ app.post("/seed-courses", authenticateToken, async (req, res) => {
         grade: 9,
         description: "Mechanics, Heat, and Waves",
         totalLessons: 38,
+        isPublished: true,
         color: "from-orange-500 to-red-500",
         icon: "fa-atom",
       },
@@ -3081,6 +3083,7 @@ app.post("/seed-courses", authenticateToken, async (req, res) => {
         grade: 9,
         description: "Atomic Structure and Reactions",
         totalLessons: 35,
+        isPublished: true,
         color: "from-green-500 to-emerald-500",
         icon: "fa-flask",
       },
@@ -3090,6 +3093,7 @@ app.post("/seed-courses", authenticateToken, async (req, res) => {
         grade: 9,
         description: "Cell Biology and Ecology",
         totalLessons: 42,
+        isPublished: true,
         color: "from-purple-500 to-pink-500",
         icon: "fa-dna",
       },
@@ -3099,6 +3103,7 @@ app.post("/seed-courses", authenticateToken, async (req, res) => {
         grade: 9,
         description: "Grammar and Literature",
         totalLessons: 50,
+        isPublished: true,
         color: "from-indigo-500 to-blue-500",
         icon: "fa-book",
       },
@@ -3108,6 +3113,7 @@ app.post("/seed-courses", authenticateToken, async (req, res) => {
         grade: 9,
         description: "Language and Literature",
         totalLessons: 48,
+        isPublished: true,
         color: "from-yellow-500 to-orange-500",
         icon: "fa-language",
       },
@@ -3117,6 +3123,7 @@ app.post("/seed-courses", authenticateToken, async (req, res) => {
         grade: 10,
         description: "Advanced Algebra and Geometry",
         totalLessons: 50,
+        isPublished: true,
         color: "from-blue-500 to-cyan-500",
         icon: "fa-calculator",
       },
@@ -3126,6 +3133,7 @@ app.post("/seed-courses", authenticateToken, async (req, res) => {
         grade: 10,
         description: "Electricity and Magnetism",
         totalLessons: 40,
+        isPublished: true,
         color: "from-orange-500 to-red-500",
         icon: "fa-atom",
       },
@@ -3288,6 +3296,7 @@ app.get("/api/courses/:id", authenticateToken, async (req, res) => {
 
 // ================= API ROUTES =================
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/enrollments", enrollmentRoutes);
 app.use("/api/admin/users", userRoutes);
 app.use("/api/admin/courses", courseRoutes);
 app.use("/api/admin/enrollments", enrollmentRoutes);

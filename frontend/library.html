@@ -824,7 +824,7 @@
         completed = false,
       ) {
         try {
-          const response = await fetch(`${API_URL}/api/track-media`, {
+          const response = await fetch(`${API_URL}/media-progress/report`, {
             method: "POST",
             headers: {
               Authorization: `Bearer ${authToken}`,
@@ -1010,8 +1010,37 @@
       }
 
       // Close modal on backdrop click
-      document.addEventListener("DOMContentLoaded", () => {
+      document.addEventListener("DOMContentLoaded", async () => {
         loadUserData();
+        
+        // Handle Enrollment if requested via URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const courseToEnroll = urlParams.get('course');
+        const shouldEnroll = urlParams.get('enroll') === 'true';
+        
+        if (courseToEnroll && shouldEnroll) {
+          try {
+            const user = getCurrentUser();
+            const response = await fetch(`${API_URL}/enrollments`, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${authToken}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ 
+                userId: user.id || user._id, 
+                courseId: courseToEnroll 
+              }),
+            });
+            
+            if (response.ok) {
+              showToast("Successfully enrolled in course!", "success");
+            }
+          } catch (err) {
+            console.error("Enrollment error:", err);
+          }
+        }
+
         loadMedia();
 
         const modal = document.getElementById("player-modal");
