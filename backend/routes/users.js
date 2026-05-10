@@ -29,12 +29,13 @@ router.get('/:id', authenticateAdmin, async (req, res) => {
 // Create/Update user
 router.post('/', authenticateAdmin, async (req, res) => {
   try {
-    const { name, email, password, role, grade, isActive } = req.body;
+    const { firstName, lastName, email, password, role, grade, isActive } = req.body;
     let user = await User.findOne({ email });
     
     if (user) {
       // Update existing
-      user.name = name || user.name;
+      user.firstName = firstName || user.firstName;
+      user.lastName = lastName || user.lastName;
       user.role = role || user.role;
       user.grade = grade || user.grade;
       user.isActive = isActive !== undefined ? isActive : user.isActive;
@@ -43,7 +44,8 @@ router.post('/', authenticateAdmin, async (req, res) => {
     } else {
       // Create new
       user = new User({
-        name,
+        firstName,
+        lastName,
         email,
         password: await bcrypt.hash(password, 10),
         role: role || 'student',

@@ -1,9 +1,11 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Admin = require('../models/Admin');
 
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
+  const tokenFromQuery = req.query.token;
+  const token = authHeader ? authHeader.split(" ")[1] : tokenFromQuery;
 
   if (!token) {
     return res.status(401).json({ message: "Access denied" });
@@ -20,7 +22,8 @@ const authenticateToken = (req, res, next) => {
 
 const authenticateAdmin = async (req, res, next) => {
   const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
+  const tokenFromQuery = req.query.token;
+  const token = authHeader ? authHeader.split(" ")[1] : tokenFromQuery;
 
   if (!token) {
     return res.status(401).json({ message: "Access denied" });
@@ -28,10 +31,18 @@ const authenticateAdmin = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || "secretkey");
-    // Supporting both 'id' and 'userId' in token payload
     const userId = decoded.id || decoded.userId;
     
-    const user = await User.findById(userId);
+    // Try finding in User collection first
+    let user = await User.findById(userId);
+    
+    // Fallback to Admin collection if not found in User or doesn't have role
+    if (!user || user.role !== 'admin') {
+      const admin = await Admin.findById(userId);
+      if (admin) {
+        user = admin;
+      }
+    }
     
     if (!user || user.role !== 'admin') {
       return res.status(403).json({ message: "Admin access required" });
