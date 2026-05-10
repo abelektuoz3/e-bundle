@@ -257,21 +257,20 @@
       const videoChat = {
         socket: null,
         localStream: null,
-        peerConnections: {}, // Multi-user: socketId -> RTCPeerConnection
-        remoteStreams: {}, // socketId -> MediaStream
-        participants: {}, // socketId -> userData
+        peerConnections: {}, 
+        remoteStreams: {}, 
+        participants: {}, 
         currentStageId: null,
         room: null,
         isMuted: false,
         isVideoOff: false,
-        isScreenSharing: false,
         userData: null,
-        screenStream: null,
 
         iceServers: {
           iceServers: [
             { urls: "stun:stun.l.google.com:19302" },
             { urls: "stun:stun1.l.google.com:19302" },
+            { urls: "stun:stun2.l.google.com:19302" },
           ],
         },
 
@@ -322,6 +321,7 @@
           videoChat.socket = io(serverUrl, { transports: ["websocket"] });
 
           videoChat.socket.on("connect", () => {
+            console.log("Socket connected:", videoChat.socket.id);
             videoChat.socket.emit("register", {
               userId: videoChat.userData?._id || "anonymous",
               name: videoChat.userData?.firstName || "Student",
@@ -335,6 +335,7 @@
           });
 
           videoChat.socket.on("room-joined", (data) => {
+            console.log("Joined room:", data.pin, "Existing participants:", data.participants.length);
             videoChat.room = data.pin;
             document.getElementById("waitingScreen").classList.add("hidden");
             document.getElementById("controls").classList.remove("hidden");
@@ -346,21 +347,23 @@
           });
 
           videoChat.socket.on("user-joined", (user) => {
+            console.log("New user joined room:", user.name);
             videoChat.participants[user.socketId] = user;
-            videoChat.showToast(`${user.name} joined. Connecting...`, "info");
-            // Host doesn't need to initiate, the guest will do it upon joining.
-            // But we keep track of the participant data.
+            videoChat.showToast(`${user.name} joined. Establishing connection...`, "info");
           });
 
           videoChat.socket.on("user-left", (data) => {
+            console.log("User left:", data.socketId);
             videoChat.handleUserLeft(data.socketId);
           });
 
           videoChat.socket.on("offer", async (data) => {
+            console.log("Received offer from:", data.from);
             await videoChat.handleOffer(data.offer, data.from, data.fromUser);
           });
 
           videoChat.socket.on("answer", async (data) => {
+            console.log("Received answer from:", data.from);
             await videoChat.handleAnswer(data.answer, data.from);
           });
 
@@ -385,12 +388,14 @@
             }
             return true;
           } catch (err) {
+            console.error("Media error:", err);
             videoChat.showToast("Camera access denied", "error");
             return false;
           }
         },
 
         createPeerConnection: (socketId) => {
+          console.log("Creating PeerConnection for:", socketId);
           const pc = new RTCPeerConnection(videoChat.iceServers);
 
           pc.onicecandidate = (e) => {
@@ -403,9 +408,21 @@
           };
 
           pc.ontrack = (e) => {
+            console.log("Received remote track from:", socketId);
             if (e.streams && e.streams[0]) {
               videoChat.remoteStreams[socketId] = e.streams[0];
               videoChat.addParticipantUI(socketId, e.streams[0]);
+              // Force switch if it's the only one or if stage is empty
+              if (!videoChat.currentStageId || Object.keys(videoChat.remoteStreams).length === 1) {
+                videoChat.switchStage(socketId);
+              }
+            }
+          };
+
+          pc.onconnectionstatechange = () => {
+            console.log(`Connection state with ${socketId}:`, pc.connectionState);
+            if (pc.connectionState === "failed") {
+              videoChat.showToast("Connection failed. Retrying...", "error");
             }
           };
 
@@ -446,44 +463,42 @@
             target: fromId,
             answer: answer
           });
+          
+          // Show controls for host
+          document.getElementById("hostWaitingScreen").classList.add("hidden");
+          document.getElementById("controls").classList.remove("hidden");
         },
 
         handleAnswer: async (answer, fromId) => {
           const pc = videoChat.peerConnections[fromId];
-          if (pc) await pc.setRemoteDescription(new RTCSessionDescription(answer));
+          if (pc) {
+            await pc.setRemoteDescription(new RTCSessionDescription(answer));
+          }
         },
 
         handleIceCandidate: async (candidate, fromId) => {
           const pc = videoChat.peerConnections[fromId];
-          if (pc) await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          if (pc) {
+            try {
+              await pc.addIceCandidate(new RTCIceCandidate(candidate));
+            } catch (e) {
+              console.error("Error adding ice candidate:", e);
+            }
+          }
         },
 
         addParticipantUI: (socketId, stream) => {
-          const grid = document.getElementById("remoteGrid");
-          const user = videoChat.participants[socketId] || { name: "Partner", grade: "?" };
-          
-          let card = document.getElementById(`participant-${socketId}`);
-          if (!card) {
-            card = document.createElement("div");
-            card.id = `participant-${socketId}`;
-            card.className = "participant-card";
-            card.onclick = () => videoChat.switchStage(socketId);
-            
-            card.innerHTML = `
-              <video id="video-${socketId}" autoplay playsinline></video>
-              <div class="participant-info">${user.name}</div>
-            `;
-            grid.appendChild(card);
-          }
-          
-          document.getElementById(`video-${socketId}`).srcObject = stream;
-          if (!videoChat.currentStageId) videoChat.switchStage(socketId);
+          // Store stream reference
+          videoChat.remoteStreams[socketId] = stream;
+          // In 1:1, we just switch the stage
+          videoChat.switchStage(socketId);
         },
 
         switchStage: (socketId) => {
+          console.log("Switching stage to:", socketId);
           const stageVideo = document.getElementById("stageVideo");
           const stream = videoChat.remoteStreams[socketId];
-          const user = videoChat.participants[socketId];
+          const user = videoChat.participants[socketId] || { name: "Participant", grade: "?" };
           
           if (stream) {
             stageVideo.srcObject = stream;
@@ -491,8 +506,10 @@
             document.getElementById("stageName").textContent = user.name;
             document.getElementById("stageGrade").textContent = `Grade ${user.grade}`;
             
+            // Highlight active if grid existed
             document.querySelectorAll(".participant-card").forEach(c => c.classList.remove("active"));
-            document.getElementById(`participant-${socketId}`)?.classList.add("active");
+            const card = document.getElementById(`participant-${socketId}`);
+            if (card) card.classList.add("active");
           }
         },
 
@@ -504,22 +521,23 @@
           delete videoChat.remoteStreams[socketId];
           delete videoChat.participants[socketId];
           
-          const card = document.getElementById(`participant-${socketId}`);
-          if (card) card.remove();
-          
           if (videoChat.currentStageId === socketId) {
             videoChat.currentStageId = null;
             const remaining = Object.keys(videoChat.remoteStreams);
-            if (remaining.length > 0) videoChat.switchStage(remaining[0]);
-            else {
+            if (remaining.length > 0) {
+              videoChat.switchStage(remaining[0]);
+            } else {
               document.getElementById("stageVideo").srcObject = null;
-              document.getElementById("stageName").textContent = "Waiting...";
+              document.getElementById("stageName").textContent = "Waiting for participants...";
+              document.getElementById("stageGrade").textContent = "";
             }
           }
         },
 
         createRoom: async () => {
-          await videoChat.getMedia();
+          const success = await videoChat.getMedia();
+          if (!success) return;
+          
           document.getElementById("waitingScreen").classList.add("hidden");
           document.getElementById("hostWaitingScreen").classList.remove("hidden");
           videoChat.socket.emit("create-room", {
@@ -532,27 +550,41 @@
         joinRoom: async () => {
           const pin = document.getElementById("pinInput").value.trim();
           if (pin.length !== 6) return videoChat.showToast("Invalid PIN", "error");
-          await videoChat.getMedia();
+          
+          const success = await videoChat.getMedia();
+          if (!success) return;
+          
           videoChat.socket.emit("join-room", pin);
         },
 
         toggleMute: () => {
-          videoChat.isMuted = !videoChat.isMuted;
-          videoChat.localStream.getAudioTracks()[0].enabled = !videoChat.isMuted;
-          document.getElementById("muteBtn").classList.toggle("active", videoChat.isMuted);
-          document.getElementById("muteBtn").innerHTML = videoChat.isMuted ? 
-            '<i class="fas fa-microphone-slash"></i>' : '<i class="fas fa-microphone"></i>';
+          if (videoChat.localStream) {
+            videoChat.isMuted = !videoChat.isMuted;
+            videoChat.localStream.getAudioTracks().forEach(t => t.enabled = !videoChat.isMuted);
+            document.getElementById("muteBtn").classList.toggle("active", videoChat.isMuted);
+            document.getElementById("muteBtn").innerHTML = videoChat.isMuted ? 
+              '<i class="fas fa-microphone-slash"></i>' : '<i class="fas fa-microphone"></i>';
+          }
         },
 
         toggleVideo: () => {
-          videoChat.isVideoOff = !videoChat.isVideoOff;
-          videoChat.localStream.getVideoTracks()[0].enabled = !videoChat.isVideoOff;
-          document.getElementById("videoBtn").classList.toggle("active", videoChat.isVideoOff);
-          document.getElementById("videoBtn").innerHTML = videoChat.isVideoOff ? 
-            '<i class="fas fa-video-slash"></i>' : '<i class="fas fa-video"></i>';
+          if (videoChat.localStream) {
+            videoChat.isVideoOff = !videoChat.isVideoOff;
+            videoChat.localStream.getVideoTracks().forEach(t => t.enabled = !videoChat.isVideoOff);
+            document.getElementById("videoBtn").classList.toggle("active", videoChat.isVideoOff);
+            document.getElementById("videoBtn").innerHTML = videoChat.isVideoOff ? 
+              '<i class="fas fa-video-slash"></i>' : '<i class="fas fa-video"></i>';
+          }
         },
 
         endCall: () => {
+          window.location.reload();
+        },
+
+        cleanup: () => {
+          Object.values(videoChat.peerConnections).forEach(pc => pc.close());
+          videoChat.peerConnections = {};
+          if (videoChat.localStream) videoChat.localStream.getTracks().forEach(t => t.stop());
           window.location.reload();
         },
 
