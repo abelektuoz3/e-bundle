@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="e-bundle.png" alt="E-Bundle Logo" width="120" style="border-radius: 20px" onerror="this.style.display='none'"/>
+  <img src="e-bundle.png" alt="E-Bundle Logo" width="220" height="220" style="border-radius: 20px" onerror="this.style.display='none'"/>
   
   # 🎓 E-Bundle
 
