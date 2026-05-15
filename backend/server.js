@@ -841,19 +841,35 @@ const sendResetLinkEmail = async (email, resetLink, firstName) => {
 
 const sendSMS = async (phoneNumber, message) => {
   if (!sms) {
-    console.error("❌ SMS service not initialized");
+    console.error("❌ SMS service not initialized. Check your environment variables.");
     return false;
+  }
+
+  // Normalize phone number (ensure it starts with +)
+  let normalizedPhone = phoneNumber.trim();
+  if (!normalizedPhone.startsWith("+")) {
+    normalizedPhone = "+" + normalizedPhone;
+    console.log(`ℹ️ Normalized phone number to: ${normalizedPhone}`);
   }
 
   try {
     const result = await sms.send({
-      to: [phoneNumber],
+      to: [normalizedPhone],
       message: message,
+      // from: 'YOUR_SHORT_CODE' // Optional: Uncomment if you have a Sender ID
     });
-    console.log(`✅ SMS sent to ${phoneNumber}:`, result);
-    return true;
+    
+    // Africa's Talking returns a complex object. Let's check the status of each recipient.
+    const recipient = result.SMSMessageData.Recipients[0];
+    if (recipient && (recipient.status === "Success" || recipient.statusCode === 101)) {
+      console.log(`✅ SMS successfully handed to Africa's Talking for ${normalizedPhone}`);
+      return true;
+    } else {
+      console.error(`❌ Africa's Talking failed for ${normalizedPhone}:`, recipient);
+      return false;
+    }
   } catch (error) {
-    console.error(`❌ Failed to send SMS to ${phoneNumber}:`, error);
+    console.error(`❌ Africa's Talking API Error for ${normalizedPhone}:`, error);
     return false;
   }
 };
@@ -2269,6 +2285,20 @@ app.post("/verify-phone-otp", async (req, res) => {
       success: false,
       message: "Server error",
     });
+  }
+});
+
+app.get("/test-sms", async (req, res) => {
+  const { phone } = req.query;
+  if (!phone) return res.send("Please provide a phone number: /test-sms?phone=+251...");
+  
+  const testOtp = Math.floor(100000 + Math.random() * 900000).toString();
+  const success = await sendPhoneOTP(phone, testOtp);
+  
+  if (success) {
+    res.send(`✅ Test SMS successfully handed to Africa's Talking for ${phone}. OTP was ${testOtp}. Please check your phone.`);
+  } else {
+    res.status(500).send(`❌ Test SMS failed for ${phone}. Check server logs for details.`);
   }
 });
 
