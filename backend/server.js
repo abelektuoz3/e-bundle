@@ -1973,21 +1973,24 @@ app.post("/signup", async (req, res) => {
 
     await newUser.save();
 
-    // Send OTP email
-    const emailSent = await sendOTPEmail(email, otp, firstName);
-
-    // Send Phone OTP if provided
+    // Send OTP based on preference
+    const { verificationMethod } = req.body;
+    let emailSent = false;
     let phoneSent = false;
-    if (phoneNumber) {
+
+    if (verificationMethod === "phone" && phoneNumber) {
       phoneSent = await sendPhoneOTP(phoneNumber, phoneOtp);
+    } else {
+      // Default to email if no preference or email preferred
+      emailSent = await sendOTPEmail(email, otp, firstName);
     }
 
     if (!emailSent && !phoneSent) {
-      console.error(`Failed to send any verification code to ${email}`);
+      console.error(`Failed to send verification code to ${email}`);
       return res.status(201).json({
         success: false,
         message:
-          "Account created but failed to send verification codes. Please use resend OTP.",
+          "Account created but failed to send verification code. Please use resend OTP.",
         email: email,
       });
     }
@@ -1995,9 +1998,10 @@ app.post("/signup", async (req, res) => {
     console.log(`✅ User created successfully: ${email}`);
     res.status(201).json({
       success: true,
-      message: phoneNumber ?
-        "User created successfully. Please check your email or phone for verification code."
-      : "User created successfully. Please check your email for verification code.",
+      message:
+        verificationMethod === "phone" ?
+          "User created successfully. Please check your phone for verification code."
+        : "User created successfully. Please check your email for verification code.",
       email: email,
       phoneNumber: phoneNumber,
     });

@@ -417,8 +417,11 @@
           urlParams.get("phone") ||
           sessionStorage.getItem("pendingPhone") ||
           "";
+        
+        const preferredMethod = urlParams.get("method") || "email";
 
-        document.getElementById("userIdentifier").textContent = userEmail;
+        document.getElementById("userIdentifier").textContent = 
+          preferredMethod === "phone" ? userPhone : userEmail;
 
         // Store in session storage
         if (userEmail !== "your@email.com") {
@@ -428,6 +431,10 @@
           sessionStorage.setItem("pendingPhone", userPhone);
           // Show method switcher if phone exists
           document.getElementById("methodSwitcher").classList.remove("hidden");
+          
+          if (preferredMethod === "phone") {
+            setVerificationMethod("phone", true); // true to skip toast on initial load
+          }
         }
 
         // Start countdown timer
@@ -437,8 +444,8 @@
         setupOTPInputs();
       });
 
-      window.setVerificationMethod = function (method) {
-        if (verificationMethod === method) return;
+      window.setVerificationMethod = function (method, skipToast = false) {
+        if (verificationMethod === method && !skipToast) return;
 
         verificationMethod = method;
         const emailBtn = document.getElementById("emailMethodBtn");
@@ -464,7 +471,9 @@
 
         clearOTPInputs();
         startTimer(); // Reset timer for the new method
-        showToast(`Switched to ${method} verification`, "info");
+        if (!skipToast) {
+          showToast(`Switched to ${method} verification`, "info");
+        }
       };
 
       // Toast notification system
