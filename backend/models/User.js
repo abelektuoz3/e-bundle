@@ -25,6 +25,10 @@ const userSchema = new mongoose.Schema({
   lastLogin: { type: Date },
   otp: { type: String },
   otpExpire: { type: Date },
+  phoneNumber: { type: String },
+  isPhoneVerified: { type: Boolean, default: false },
+  phoneOtp: { type: String },
+  phoneOtpExpire: { type: Date },
   resetToken: { type: String },
   resetTokenExpire: { type: Date }
 });

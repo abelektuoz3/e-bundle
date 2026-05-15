@@ -50,6 +50,22 @@ if (process.env.SENDGRID_API_KEY) {
   console.warn("⚠️ SENDGRID_API_KEY not found in environment variables");
 }
 
+// Initialize Africa's Talking
+let africastalking;
+let sms;
+if (process.env.AFRICASTALKING_USERNAME && process.env.AFRICASTALKING_API_KEY) {
+  africastalking = require("africastalking")({
+    username: process.env.AFRICASTALKING_USERNAME,
+    apiKey: process.env.AFRICASTALKING_API_KEY,
+  });
+  sms = africastalking.SMS;
+  console.log("✅ Africa's Talking initialized");
+} else {
+  console.warn(
+    "⚠️ AFRICASTALKING_USERNAME or AFRICASTALKING_API_KEY not found in environment variables",
+  );
+}
+
 // ================= CORS CONFIGURATION =================
 const allowedOrigins =
   process.env.ALLOWED_ORIGINS ?
@@ -821,6 +837,30 @@ const sendResetLinkEmail = async (email, resetLink, firstName) => {
     );
     return false;
   }
+};
+
+const sendSMS = async (phoneNumber, message) => {
+  if (!sms) {
+    console.error("❌ SMS service not initialized");
+    return false;
+  }
+
+  try {
+    const result = await sms.send({
+      to: [phoneNumber],
+      message: message,
+    });
+    console.log(`✅ SMS sent to ${phoneNumber}:`, result);
+    return true;
+  } catch (error) {
+    console.error(`❌ Failed to send SMS to ${phoneNumber}:`, error);
+    return false;
+  }
+};
+
+const sendPhoneOTP = async (phoneNumber, otp) => {
+  const message = `Your E-Bundle Ethiopia verification code is: ${otp}. This code will expire in 10 minutes.`;
+  return await sendSMS(phoneNumber, message);
 };
 
 const generateOTP = () => {
@@ -1862,14 +1902,31 @@ app.delete("/api/admin/courses/:id", authenticateAdmin, async (req, res) => {
 
 app.post("/signup", async (req, res) => {
   try {
-    const { email, studentId, password, firstName, lastName, grade, school } =
-      req.body;
+    const {
+      email,
+      studentId,
+      password,
+      firstName,
+      lastName,
+      grade,
+      school,
+      phoneNumber,
+    } = req.body;
 
     // Validate required fields
-    if (!email || !studentId || !password || !firstName || !lastName || !grade || !school) {
+    if (
+      !email ||
+      !studentId ||
+      !password ||
+      !firstName ||
+      !lastName ||
+      !grade ||
+      !school
+    ) {
       return res.status(400).json({
         success: false,
-        message: "All fields are required: email, studentId, password, firstName, lastName, grade, school"
+        message:
+          "All fields are required: email, studentId, password, firstName, lastName, grade, school",
       });
     }
 
@@ -1887,10 +1944,13 @@ app.post("/signup", async (req, res) => {
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
-    
-    // Generate OTP
+
+    // Generate OTPs
     const otp = generateOTP();
     const otpExpire = new Date(Date.now() + 10 * 60 * 1000);
+
+    const phoneOtp = generateOTP();
+    const phoneOtpExpire = new Date(Date.now() + 10 * 60 * 1000);
 
     // Create new user
     const newUser = new User({
@@ -1903,7 +1963,11 @@ app.post("/signup", async (req, res) => {
       school,
       otp,
       otpExpire,
+      phoneNumber,
+      phoneOtp: phoneNumber ? phoneOtp : undefined,
+      phoneOtpExpire: phoneNumber ? phoneOtpExpire : undefined,
       isVerified: false,
+      isPhoneVerified: false,
       createdAt: new Date(),
     });
 
@@ -1912,11 +1976,18 @@ app.post("/signup", async (req, res) => {
     // Send OTP email
     const emailSent = await sendOTPEmail(email, otp, firstName);
 
-    if (!emailSent) {
-      console.error(`Failed to send OTP email to ${email}`);
+    // Send Phone OTP if provided
+    let phoneSent = false;
+    if (phoneNumber) {
+      phoneSent = await sendPhoneOTP(phoneNumber, phoneOtp);
+    }
+
+    if (!emailSent && !phoneSent) {
+      console.error(`Failed to send any verification code to ${email}`);
       return res.status(201).json({
         success: false,
-        message: "Account created but failed to send verification email. Please use resend OTP.",
+        message:
+          "Account created but failed to send verification codes. Please use resend OTP.",
         email: email,
       });
     }
@@ -1924,14 +1995,17 @@ app.post("/signup", async (req, res) => {
     console.log(`✅ User created successfully: ${email}`);
     res.status(201).json({
       success: true,
-      message: "User created successfully. Please check your email for verification code.",
+      message: phoneNumber ?
+        "User created successfully. Please check your email or phone for verification code."
+      : "User created successfully. Please check your email for verification code.",
       email: email,
+      phoneNumber: phoneNumber,
     });
   } catch (err) {
     console.error("Signup error:", err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: "Error saving user: " + err.message 
+      message: "Error saving user: " + err.message,
     });
   }
 });
@@ -2067,6 +2141,129 @@ app.post("/resend-otp", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error while resending OTP",
+    });
+  }
+});
+
+app.post("/send-phone-otp", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required to find user",
+      });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (!user.phoneNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "No phone number associated with this account",
+      });
+    }
+
+    const otp = generateOTP();
+    const otpExpire = new Date(Date.now() + 10 * 60 * 1000);
+
+    user.phoneOtp = otp;
+    user.phoneOtpExpire = otpExpire;
+    await user.save();
+
+    const phoneSent = await sendPhoneOTP(user.phoneNumber, otp);
+
+    if (!phoneSent) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send SMS. Please try again later.",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "New verification code sent to your phone",
+    });
+  } catch (err) {
+    console.error("Send Phone OTP error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+});
+
+app.post("/verify-phone-otp", async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and OTP are required",
+      });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (!user.phoneOtp || user.phoneOtpExpire < Date.now()) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP has expired or not found. Please request a new one.",
+      });
+    }
+
+    if (user.phoneOtp !== otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP",
+      });
+    }
+
+    user.isPhoneVerified = true;
+    user.isVerified = true; // Either email or phone makes it verified
+    user.phoneOtp = null;
+    user.phoneOtpExpire = null;
+    await user.save();
+
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET || "secretkey",
+      { expiresIn: "7d" },
+    );
+
+    res.json({
+      success: true,
+      message: "Phone number verified successfully!",
+      token,
+      user: {
+        firstName: user.firstName,
+        email: user.email,
+        studentId: user.studentId,
+        isVerified: user.isVerified,
+        isPhoneVerified: user.isPhoneVerified,
+      },
+    });
+  } catch (err) {
+    console.error("Verify Phone OTP error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
     });
   }
 });

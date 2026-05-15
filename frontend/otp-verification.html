@@ -282,15 +282,32 @@
           <p id="statusMessage" class="text-gray-400 text-center px-4"></p>
         </div>
 
-        <div class="text-center mb-8">
+        <div class="text-center mb-6">
           <div
             class="w-16 h-16 mx-auto bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center mb-4">
-            <i class="fas fa-shield-alt text-white text-2xl"></i>
+            <i id="headerIcon" class="fas fa-shield-alt text-white text-2xl"></i>
           </div>
-          <h2 class="text-2xl font-bold">Verify Your Email</h2>
-          <p class="text-gray-400 text-sm mt-2">
+          <h2 id="verifyTitle" class="text-2xl font-bold">Verify Your Account</h2>
+
+          <!-- Verification Method Switcher -->
+          <div id="methodSwitcher" class="flex p-1 bg-white/5 rounded-xl mt-6 hidden">
+            <button
+              id="emailMethodBtn"
+              onclick="setVerificationMethod('email')"
+              class="flex-1 py-2 rounded-lg text-sm font-medium transition-all bg-primary text-white">
+              <i class="fas fa-envelope mr-2"></i> Email
+            </button>
+            <button
+              id="phoneMethodBtn"
+              onclick="setVerificationMethod('phone')"
+              class="flex-1 py-2 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white">
+              <i class="fas fa-phone mr-2"></i> Phone
+            </button>
+          </div>
+
+          <p id="verifyDesc" class="text-gray-400 text-sm mt-4">
             We've sent a 6-digit verification code to<br />
-            <span id="userEmail" class="text-primary font-semibold"
+            <span id="userIdentifier" class="text-primary font-semibold"
               >your@email.com</span
             >
           </p>
@@ -386,19 +403,31 @@
       let countdown = 60;
       let timerInterval;
       let userEmail = "";
+      let userPhone = "";
+      let verificationMethod = "email"; // 'email' or 'phone'
 
-      // Get email from URL parameter or session storage
+      // Get email/phone from URL parameter or session storage
       document.addEventListener("DOMContentLoaded", () => {
         const urlParams = new URLSearchParams(window.location.search);
         userEmail =
           urlParams.get("email") ||
           sessionStorage.getItem("pendingEmail") ||
           "your@email.com";
-        document.getElementById("userEmail").textContent = userEmail;
+        userPhone =
+          urlParams.get("phone") ||
+          sessionStorage.getItem("pendingPhone") ||
+          "";
 
-        // Store email in session storage
+        document.getElementById("userIdentifier").textContent = userEmail;
+
+        // Store in session storage
         if (userEmail !== "your@email.com") {
           sessionStorage.setItem("pendingEmail", userEmail);
+        }
+        if (userPhone) {
+          sessionStorage.setItem("pendingPhone", userPhone);
+          // Show method switcher if phone exists
+          document.getElementById("methodSwitcher").classList.remove("hidden");
         }
 
         // Start countdown timer
@@ -407,6 +436,36 @@
         // Setup OTP inputs
         setupOTPInputs();
       });
+
+      window.setVerificationMethod = function (method) {
+        if (verificationMethod === method) return;
+
+        verificationMethod = method;
+        const emailBtn = document.getElementById("emailMethodBtn");
+        const phoneBtn = document.getElementById("phoneMethodBtn");
+        const identifier = document.getElementById("userIdentifier");
+        const headerIcon = document.getElementById("headerIcon");
+
+        if (method === "email") {
+          emailBtn.className =
+            "flex-1 py-2 rounded-lg text-sm font-medium transition-all bg-primary text-white";
+          phoneBtn.className =
+            "flex-1 py-2 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white";
+          identifier.textContent = userEmail;
+          headerIcon.className = "fas fa-envelope text-white text-2xl";
+        } else {
+          phoneBtn.className =
+            "flex-1 py-2 rounded-lg text-sm font-medium transition-all bg-primary text-white";
+          emailBtn.className =
+            "flex-1 py-2 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white";
+          identifier.textContent = userPhone;
+          headerIcon.className = "fas fa-phone text-white text-2xl";
+        }
+
+        clearOTPInputs();
+        startTimer(); // Reset timer for the new method
+        showToast(`Switched to ${method} verification`, "info");
+      };
 
       // Toast notification system
       function showToast(message, type = "info") {
@@ -615,8 +674,11 @@
         btnText.textContent = "Verifying...";
         spinner.classList.remove("hidden");
 
+        const endpoint =
+          verificationMethod === "email" ? "/verify-otp" : "/verify-phone-otp";
+
         try {
-          const res = await fetch(`${API_URL}/verify-otp`, {
+          const res = await fetch(`${API_URL}${endpoint}`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -683,8 +745,11 @@
 
         resendBtn.disabled = true;
 
+        const endpoint =
+          verificationMethod === "email" ? "/resend-otp" : "/send-phone-otp";
+
         try {
-          const res = await fetch(`${API_URL}/resend-otp`, {
+          const res = await fetch(`${API_URL}${endpoint}`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
