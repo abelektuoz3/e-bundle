@@ -532,6 +532,33 @@
                     type="text"
                     placeholder="Category"
                     class="w-full bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500" />
+                  <div class="grid grid-cols-2 gap-2">
+                    <select
+                      id="course-subject"
+                      required
+                      class="w-full bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500">
+                      <option value="" disabled selected>Subject</option>
+                      <option value="math">Mathematics</option>
+                      <option value="physics">Physics</option>
+                      <option value="chemistry">Chemistry</option>
+                      <option value="biology">Biology</option>
+                      <option value="english">English</option>
+                      <option value="amharic">Amharic</option>
+                      <option value="history">History</option>
+                      <option value="geography">Geography</option>
+                      <option value="cs">Computer Science</option>
+                    </select>
+                    <select
+                      id="course-grade"
+                      required
+                      class="w-full bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500">
+                      <option value="" disabled selected>Grade</option>
+                      <option value="9">Grade 9</option>
+                      <option value="10">Grade 10</option>
+                      <option value="11">Grade 11</option>
+                      <option value="12">Grade 12</option>
+                    </select>
+                  </div>
                   <input
                     id="course-price"
                     type="number"
@@ -834,8 +861,10 @@
     </div>
 
     <script>
-      // ✅ FIXED: Use your deployed backend URL
-      const API_URL = "https://e-bundle.onrender.com/api";
+      // Dynamically set API URL based on environment
+      const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+        ? 'http://localhost:5000/api' 
+        : 'https://e-bundle.onrender.com/api';
       let authToken = localStorage.getItem("adminToken");
       let currentFile = null;
       let currentFilter = "all";
@@ -1226,6 +1255,8 @@
           description: document.getElementById("course-description").value.trim(),
           thumbnail: document.getElementById("course-thumbnail").value.trim(),
           category: document.getElementById("course-category").value.trim(),
+          subject: document.getElementById("course-subject").value,
+          grade: Number(document.getElementById("course-grade").value),
           price: Number(document.getElementById("course-price").value || 0),
           mediaFiles: Array.from(
             document.getElementById("course-media-links").selectedOptions,
@@ -1274,6 +1305,8 @@
           course.description || "";
         document.getElementById("course-thumbnail").value = course.thumbnail || "";
         document.getElementById("course-category").value = course.category || "";
+        document.getElementById("course-subject").value = course.subject || "";
+        document.getElementById("course-grade").value = course.grade || "";
         document.getElementById("course-price").value = Number(course.price || 0);
         
         // Handle multi-select for media links

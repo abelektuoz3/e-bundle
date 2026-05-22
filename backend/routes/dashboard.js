@@ -84,7 +84,7 @@ router.get('/', authenticateToken, async (req, res) => {
     const recommendedCourses = await Course.find({
       grade: user.grade || 9,
       _id: { $not: { $in: enrolledCourseIds } },
-      isPublished: true
+      published: true
     }).limit(3).lean();
 
     const formattedRecommended = recommendedCourses.map(course => {
