@@ -252,15 +252,6 @@
           </button>
 
           <button
-            onclick="switchTab('courses')"
-            id="nav-courses"
-            class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 transition-all group">
-            <i
-              class="fas fa-book-open text-amber-400 group-hover:scale-110 transition-transform"></i>
-            <span class="font-medium">Course Management</span>
-          </button>
-
-          <button
             onclick="switchTab('upload')"
             id="nav-upload"
             class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 transition-all group">
@@ -414,11 +405,7 @@
                     class="w-full text-left px-4 py-3 rounded-lg bg-blue-500/10 border border-blue-500/30 hover:bg-blue-500/20 transition-all">
                     <i class="fas fa-user-plus mr-2 text-blue-400"></i> Manage Users
                   </button>
-                  <button
-                    onclick="switchTab('courses')"
-                    class="w-full text-left px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 transition-all">
-                    <i class="fas fa-plus-square mr-2 text-amber-400"></i> Create or Edit Course
-                  </button>
+
                   <button
                     onclick="switchTab('upload')"
                     class="w-full text-left px-4 py-3 rounded-lg bg-violet-500/10 border border-violet-500/30 hover:bg-violet-500/20 transition-all">
@@ -487,120 +474,6 @@
                 id="user-profile-panel"
                 class="glass-panel rounded-2xl p-5 text-sm text-gray-400">
                 Select a user to view profile and enrolled courses.
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Course Management Section -->
-        <div
-          id="courses-section"
-          class="tab-section hidden h-full overflow-y-auto custom-scrollbar p-8 relative z-10">
-          <div class="max-w-7xl mx-auto">
-            <header class="mb-8">
-              <h2 class="text-3xl font-bold mb-2">Course Management</h2>
-              <p class="text-gray-400">
-                Create, edit, publish, and link media files to lessons
-              </p>
-            </header>
-
-            <div class="grid grid-cols-3 gap-6 mb-8">
-              <div class="col-span-1 glass-panel rounded-2xl p-5">
-                <h3 class="text-lg font-semibold mb-4" id="course-form-title">
-                  Create Course
-                </h3>
-                <form id="course-form" class="space-y-3">
-                  <input type="hidden" id="course-id" />
-                  <input
-                    id="course-title"
-                    type="text"
-                    required
-                    placeholder="Course title"
-                    class="w-full bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500" />
-                  <textarea
-                    id="course-description"
-                    rows="3"
-                    placeholder="Course description"
-                    class="w-full bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"></textarea>
-                  <input
-                    id="course-thumbnail"
-                    type="text"
-                    placeholder="Thumbnail URL"
-                    class="w-full bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500" />
-                  <input
-                    id="course-category"
-                    type="text"
-                    placeholder="Category"
-                    class="w-full bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500" />
-                  <div class="grid grid-cols-2 gap-2">
-                    <select
-                      id="course-subject"
-                      required
-                      class="w-full bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500">
-                      <option value="" disabled selected>Subject</option>
-                      <option value="math">Mathematics</option>
-                      <option value="physics">Physics</option>
-                      <option value="chemistry">Chemistry</option>
-                      <option value="biology">Biology</option>
-                      <option value="english">English</option>
-                      <option value="amharic">Amharic</option>
-                      <option value="history">History</option>
-                      <option value="geography">Geography</option>
-                      <option value="cs">Computer Science</option>
-                    </select>
-                    <select
-                      id="course-grade"
-                      required
-                      class="w-full bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500">
-                      <option value="" disabled selected>Grade</option>
-                      <option value="9">Grade 9</option>
-                      <option value="10">Grade 10</option>
-                      <option value="11">Grade 11</option>
-                      <option value="12">Grade 12</option>
-                    </select>
-                  </div>
-                  <input
-                    id="course-price"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="Price"
-                    class="w-full bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500" />
-                  <label class="block text-xs text-gray-400">Link Media Files</label>
-                  <select
-                    id="course-media-links"
-                    multiple
-                    class="w-full h-28 bg-slate-800/50 border border-white/10 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"></select>
-
-                  <div class="flex gap-2 pt-2">
-                    <button
-                      type="submit"
-                      class="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg py-2 font-medium hover:shadow-lg hover:shadow-blue-500/25 transition-all">
-                      Save Course
-                    </button>
-                    <button
-                      type="button"
-                      onclick="resetCourseForm()"
-                      class="px-4 py-2 border border-white/15 rounded-lg hover:bg-white/5 transition-all">
-                      Reset
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-              <div class="col-span-2 glass-panel rounded-2xl p-4 overflow-auto">
-                <table class="w-full text-sm">
-                  <thead>
-                    <tr class="text-left text-gray-400 border-b border-white/10">
-                      <th class="py-3 px-2">Title</th>
-                      <th class="py-3 px-2">Category</th>
-                      <th class="py-3 px-2">Price</th>
-                      <th class="py-3 px-2">Published</th>
-                      <th class="py-3 px-2">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody id="courses-table-body"></tbody>
-                </table>
               </div>
             </div>
           </div>
@@ -862,9 +735,8 @@
 
     <script>
       // Dynamically set API URL based on environment
-      const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-        ? 'http://localhost:5000/api' 
-        : 'https://e-bundle.onrender.com/api';
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
+      const API_URL = isLocal ? 'http://localhost:5000/api' : 'https://e-bundle.onrender.com/api';
       let authToken = localStorage.getItem("adminToken");
       let currentFile = null;
       let currentFilter = "all";
@@ -987,7 +859,6 @@
 
         if (tab === "overview") loadAdminOverview();
         if (tab === "users") loadUsers();
-        if (tab === "courses") loadCourses();
         if (isMediaTab) loadMedia();
       }
 
@@ -1118,25 +989,53 @@
           if (data.success) {
             const user = data.user;
             const enrolledCourses = data.enrolledCourses;
+            const activities = data.activities || [];
             document.getElementById("user-profile-panel").innerHTML = `
-              <h3 class="text-lg font-semibold text-white mb-2">User Profile</h3>
-              <p class="text-gray-300"><strong>Name:</strong> ${escapeHtml(user.name)}</p>
-              <p class="text-gray-300"><strong>Email:</strong> ${escapeHtml(user.email)}</p>
-              <p class="text-gray-300"><strong>Joined:</strong> ${new Date(user.joinedDate).toLocaleDateString()}</p>
-              <p class="text-gray-300 mb-3"><strong>Status:</strong> ${user.status}</p>
+              <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-white">User Profile</h3>
+              </div>
+              <div class="space-y-1 mb-4">
+                <p class="text-gray-300"><strong>Name:</strong> ${escapeHtml(user.name)}</p>
+                <p class="text-gray-300"><strong>Email:</strong> ${escapeHtml(user.email)}</p>
+                <p class="text-gray-300"><strong>Joined:</strong> ${new Date(user.joinedDate).toLocaleDateString()}</p>
+                <p class="text-gray-300"><strong>Status:</strong> <span class="${user.status === 'active' ? 'text-emerald-400' : 'text-gray-400'}">${user.status}</span></p>
+              </div>
+              
               <h4 class="font-medium text-white mb-2">Enrolled Courses</h4>
-              <ul class="space-y-1">
+              <ul class="space-y-1 mb-4 max-h-32 overflow-y-auto custom-scrollbar">
                 ${
                   enrolledCourses && enrolledCourses.length
                     ? enrolledCourses
                         .map(
                           (course) =>
-                            `<li class="text-gray-300 bg-white/5 rounded px-2 py-1">
-                              ${escapeHtml(course.title)} (${course.percentage}%)
+                            `<li class="text-gray-300 bg-white/5 rounded px-2 py-1 flex justify-between">
+                              <span>${escapeHtml(course.title)}</span>
+                              <span class="text-blue-400">${course.percentage}%</span>
                             </li>`,
                         )
                         .join("")
-                    : '<li class="text-gray-500">No enrolled courses.</li>'
+                    : '<li class="text-gray-500 italic">No enrolled courses.</li>'
+                }
+              </ul>
+
+              <h4 class="font-medium text-white mb-2">Recent Activity</h4>
+              <ul class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
+                ${
+                  activities && activities.length
+                    ? activities
+                        .map(
+                          (act) =>
+                            `<li class="text-gray-300 bg-white/5 rounded p-2 text-xs">
+                              <div class="flex justify-between text-gray-400 mb-1">
+                                <span class="uppercase tracking-wider font-semibold text-blue-400">${escapeHtml(act.type)}</span>
+                                <span>${new Date(act.createdAt).toLocaleDateString()}</span>
+                              </div>
+                              <div class="font-medium text-white">${escapeHtml(act.title)}</div>
+                              <div class="text-gray-400">${escapeHtml(act.description || "")}</div>
+                            </li>`,
+                        )
+                        .join("")
+                    : '<li class="text-gray-500 italic">No recent activity.</li>'
                 }
               </ul>
             `;
@@ -1191,178 +1090,7 @@
         }
       }
 
-      async function loadCourses() {
-        try {
-          const response = await fetch(`${API_URL}/admin/courses`, {
-            headers: { Authorization: `Bearer ${authToken}` },
-          });
-          const data = await response.json();
-          if (data.success) {
-            coursesData = data.courses;
-            populateCourseMediaOptions();
-            renderCoursesTable();
-          }
-        } catch (err) {
-          console.error("Load courses error:", err);
-          showToast("Error", "Failed to load courses", "error");
-        }
-      }
 
-      function populateCourseMediaOptions() {
-        const select = document.getElementById("course-media-links");
-        if (!select) return;
-        select.innerHTML = mediaFiles
-          .map(
-            (file) =>
-              `<option value="${file.id}">${escapeHtml(file.title)} (${file.type})</option>`,
-          )
-          .join("");
-      }
-
-      function renderCoursesTable() {
-        document.getElementById("courses-table-body").innerHTML = coursesData
-          .map(
-            (course) => `
-          <tr class="border-b border-white/5 table-row-hover">
-            <td class="py-3 px-2">
-              <p class="font-medium">${escapeHtml(course.title)}</p>
-              <p class="text-xs text-gray-500 truncate max-w-[250px]">${escapeHtml(course.description || "")}</p>
-            </td>
-            <td class="py-3 px-2 text-gray-300">${escapeHtml(course.category || "-")}</td>
-            <td class="py-3 px-2 text-gray-300">$${Number(course.price || 0).toFixed(2)}</td>
-            <td class="py-3 px-2">
-              <button onclick="toggleCoursePublish('${course.id}', ${course.published})" class="px-2 py-1 rounded text-xs ${course.published ? "bg-emerald-500/20 text-emerald-400" : "bg-gray-500/20 text-gray-400"}">
-                ${course.published ? "Published" : "Unpublished"}
-              </button>
-            </td>
-            <td class="py-3 px-2">
-              <div class="flex gap-2">
-                <button onclick="editCourse('${course.id}')" class="px-2 py-1 text-xs rounded bg-blue-500/20 text-blue-300 hover:bg-blue-500/30">Edit</button>
-                <button onclick="deleteCourse('${course.id}')" class="px-2 py-1 text-xs rounded bg-red-500/20 text-red-300 hover:bg-red-500/30">Delete</button>
-              </div>
-            </td>
-          </tr>
-        `,
-          )
-          .join("");
-      }
-
-      document.getElementById("course-form").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const id = document.getElementById("course-id").value;
-        const courseData = {
-          title: document.getElementById("course-title").value.trim(),
-          description: document.getElementById("course-description").value.trim(),
-          thumbnail: document.getElementById("course-thumbnail").value.trim(),
-          category: document.getElementById("course-category").value.trim(),
-          subject: document.getElementById("course-subject").value,
-          grade: Number(document.getElementById("course-grade").value),
-          price: Number(document.getElementById("course-price").value || 0),
-          mediaFiles: Array.from(
-            document.getElementById("course-media-links").selectedOptions,
-          ).map((opt) => opt.value),
-        };
-
-        if (!courseData.title) {
-          showToast("Error", "Course title is required", "error");
-          return;
-        }
-
-        try {
-          const url = id ? `${API_URL}/admin/courses/${id}` : `${API_URL}/admin/courses`;
-          const method = id ? "PUT" : "POST";
-          const response = await fetch(url, {
-            method: method,
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${authToken}`,
-            },
-            body: JSON.stringify(courseData),
-          });
-          const data = await response.json();
-
-          if (data.success) {
-            showToast("Success", id ? "Course updated" : "Course created");
-            loadCourses();
-            resetCourseForm();
-            loadAdminOverview();
-          } else {
-            throw new Error(data.message || "Failed to save course");
-          }
-        } catch (err) {
-          console.error("Save course error:", err);
-          showToast("Error", err.message, "error");
-        }
-      });
-
-      function editCourse(courseId) {
-        const course = coursesData.find((c) => c.id === courseId);
-        if (!course) return;
-        document.getElementById("course-form-title").textContent = "Edit Course";
-        document.getElementById("course-id").value = course.id;
-        document.getElementById("course-title").value = course.title || "";
-        document.getElementById("course-description").value =
-          course.description || "";
-        document.getElementById("course-thumbnail").value = course.thumbnail || "";
-        document.getElementById("course-category").value = course.category || "";
-        document.getElementById("course-subject").value = course.subject || "";
-        document.getElementById("course-grade").value = course.grade || "";
-        document.getElementById("course-price").value = Number(course.price || 0);
-        
-        // Handle multi-select for media links
-        const mediaLinks = course.mediaFiles ? course.mediaFiles.map(m => m.id || m) : [];
-        Array.from(document.getElementById("course-media-links").options).forEach(
-          (option) => {
-            option.selected = mediaLinks.includes(option.value);
-          },
-        );
-      }
-
-      async function deleteCourse(courseId) {
-        if (!confirm("Are you sure you want to delete this course?")) return;
-        try {
-          const response = await fetch(`${API_URL}/admin/courses/${courseId}`, {
-            method: "DELETE",
-            headers: { Authorization: `Bearer ${authToken}` },
-          });
-          const data = await response.json();
-          if (data.success) {
-            showToast("Success", "Course deleted successfully");
-            loadCourses();
-            loadAdminOverview();
-          }
-        } catch (err) {
-          console.error("Delete course error:", err);
-          showToast("Error", "Failed to delete course", "error");
-        }
-      }
-
-      async function toggleCoursePublish(courseId, currentStatus) {
-        try {
-          const response = await fetch(`${API_URL}/admin/courses/${courseId}/publish`, {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${authToken}`,
-            },
-            body: JSON.stringify({ published: !currentStatus }),
-          });
-          const data = await response.json();
-          if (data.success) {
-            showToast("Success", data.message);
-            loadCourses();
-          }
-        } catch (err) {
-          console.error("Publish toggle error:", err);
-          showToast("Error", "Failed to update publish status", "error");
-        }
-      }
-
-      function resetCourseForm() {
-        document.getElementById("course-form-title").textContent = "Create Course";
-        document.getElementById("course-id").value = "";
-        document.getElementById("course-form").reset();
-      }
 
       // Drag and Drop
       function setupDragAndDrop() {

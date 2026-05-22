@@ -1503,6 +1503,11 @@ app.get("/api/admin/users/:id", authenticateAdmin, async (req, res) => {
       .populate("courseId", "title subject grade")
       .lean();
 
+    const activities = await Activity.find({ userId: id })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
+
     res.json({
       success: true,
       user: {
@@ -1526,6 +1531,13 @@ app.get("/api/admin/users/:id", authenticateAdmin, async (req, res) => {
         percentage: progress.percentage || 0,
         completedLessons: progress.completedLessons || 0,
       })),
+      activities: activities.map(act => ({
+        id: act._id,
+        type: act.type,
+        title: act.title,
+        description: act.description,
+        createdAt: act.createdAt
+      }))
     });
   } catch (err) {
     console.error("Admin user detail error:", err);
@@ -1599,6 +1611,7 @@ app.delete("/api/admin/users/:id", authenticateAdmin, async (req, res) => {
     await Promise.all([
       Progress.deleteMany({ userId: id }),
       Activity.deleteMany({ userId: id }),
+      mongoose.model('Enrollment').deleteMany({ userId: id }),
     ]);
 
     res.json({
@@ -3528,9 +3541,6 @@ app.get("/api/courses/:id", authenticateToken, async (req, res) => {
 // ================= API ROUTES =================
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/enrollments", enrollmentRoutes);
-app.use("/api/admin/users", userRoutes);
-app.use("/api/admin/courses", courseRoutes);
-app.use("/api/admin/enrollments", enrollmentRoutes);
 
 // ================= AI TUTOR CHAT (GROQ API) =================
 const axios = require("axios");
