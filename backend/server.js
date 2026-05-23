@@ -839,6 +839,125 @@ const sendResetLinkEmail = async (email, resetLink, firstName) => {
   }
 };
 
+const generateAndSendModerationEmail = async (user, actionType, reason = "") => {
+  const axios = require("axios");
+  const userName = `${user.firstName || ""} ${user.lastName || ""}`.trim() || "Student";
+  const actionText = actionType === "suspension" ? "Suspended" : "Removed / Deleted";
+  
+  let subject = "";
+  let htmlBody = "";
+  let textContent = "";
+
+  const groqApiKey = process.env.GROQ_API_KEY;
+
+  if (groqApiKey) {
+    try {
+      console.log(`🤖 Requesting Groq AI explanation for user ${user.email} (${actionType})...`);
+      const response = await axios.post(
+        "https://api.groq.com/openai/v1/chat/completions",
+        {
+          model: "llama-3.3-70b-versatile",
+          messages: [
+            {
+              role: "system",
+              content: `You are an AI administrator for E-Bundle Ethiopia, a premium unified learning platform for Ethiopian students. 
+Draft a professional, respectful, empathetic yet firm email notifying a student about their account action (${actionType}).
+You must output a raw JSON object containing exactly two keys: "subject" and "htmlBody".
+The "htmlBody" must be beautiful HTML with inline CSS. Use a premium card layout with dark or styled background, rounded borders, standard typography, clear headings, and custom highlights. The design should align with E-Bundle Ethiopia's Indigo/Violet/Slate aesthetic. 
+Do not include any markdown backticks or formatting outside the JSON itself. Returning valid JSON is critical.`
+            },
+            {
+              role: "user",
+              content: `Draft a ${actionType} email for student "${userName}".
+Admin Reason for ${actionType}: "${reason || "Violating platform guidelines"}"`
+            }
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.7
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${groqApiKey}`
+          },
+          timeout: 10000
+        }
+      );
+
+      const responseText = response.data.choices[0].message.content.trim();
+      const parsed = JSON.parse(responseText);
+      subject = parsed.subject;
+      htmlBody = parsed.htmlBody;
+      textContent = htmlBody.replace(/<[^>]*>/g, "");
+      console.log(`🤖 Groq AI email draft generated successfully!`);
+    } catch (err) {
+      console.error("❌ Groq API failed or returned invalid JSON. Using fallback template.", err.message);
+    }
+  }
+
+  // Fallback if GROQ_API_KEY is missing or request fails
+  if (!subject || !htmlBody) {
+    const isSuspension = actionType === "suspension";
+    subject = isSuspension 
+      ? "Account Status Update: Suspended - E-Bundle Ethiopia" 
+      : "Account Status Update: Removed - E-Bundle Ethiopia";
+
+    const reasonText = reason || "Violating the terms of service and community guidelines.";
+
+    htmlBody = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
+        <div style="background: linear-gradient(135deg, #EF4444, #B91C1C); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 24px;">E-Bundle Ethiopia</h1>
+          <p style="color: #fca5a5; margin: 10px 0 0 0;">Account ${actionText}</p>
+        </div>
+        <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <h2 style="color: #333; margin-top: 0;">Hello ${userName},</h2>
+          <p style="color: #666; font-size: 16px; line-height: 1.6;">
+            We are writing to inform you that your E-Bundle Ethiopia account has been <strong>${actionText.toLowerCase()}</strong>.
+          </p>
+          <div style="background-color: #FEF2F2; border-left: 4px solid #EF4444; padding: 15px; margin: 20px 0; border-radius: 4px;">
+            <p style="margin: 0; color: #991B1B; font-weight: bold;">Reason for Action:</p>
+            <p style="margin: 5px 0 0 0; color: #7F1D1D; line-height: 1.5;">${reasonText}</p>
+          </div>
+          ${isSuspension ? `
+          <p style="color: #666; font-size: 15px; line-height: 1.6;">
+            If you believe this was done in error or would like to request an appeal, please reply to this email or contact support.
+          </p>
+          ` : `
+          <p style="color: #666; font-size: 15px; line-height: 1.6;">
+            Your personal data, enrolled courses, and activity history have been removed from our system. If you wish to rejoin the platform, you will need to register for a new account in compliance with our policies.
+          </p>
+          `}
+          <p style="color: #999; font-size: 12px; text-align: center; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+            This is an automated notification. E-Bundle Ethiopia Administration.
+          </p>
+        </div>
+      </div>
+    `;
+    textContent = `Hello ${userName},\n\nWe are writing to inform you that your E-Bundle Ethiopia account has been ${actionText.toLowerCase()}.\n\nReason: ${reasonText}\n\nE-Bundle Ethiopia Administration.`;
+  }
+
+  const msg = {
+    to: user.email,
+    from: FROM_EMAIL,
+    subject: subject,
+    html: htmlBody,
+    text: textContent
+  };
+
+  try {
+    await sgMail.send(msg);
+    console.log(`✅ Moderation email (${actionType}) sent to ${user.email}`);
+    return true;
+  } catch (error) {
+    console.error(
+      `❌ Failed to send moderation email to ${user.email}:`,
+      error.response?.body || error.message
+    );
+    return false;
+  }
+};
+
 const sendSMS = async (phoneNumber, message) => {
   if (!sms) {
     console.error("❌ SMS service not initialized. Check your environment variables.");
@@ -1551,7 +1670,7 @@ app.get("/api/admin/users/:id", authenticateAdmin, async (req, res) => {
 app.patch("/api/admin/users/:id/status", authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { isActive } = req.body;
+    const { isActive, reason } = req.body;
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, message: "Invalid user id" });
     }
@@ -1572,6 +1691,13 @@ app.patch("/api/admin/users/:id/status", authenticateAdmin, async (req, res) => 
       return res
         .status(404)
         .json({ success: false, message: "User not found" });
+    }
+
+    if (isActive === false) {
+      console.log(`User deactivation/suspension requested. Sending moderation email to ${updated.email}`);
+      generateAndSendModerationEmail(updated, "suspension", reason).catch((err) => {
+        console.error("Failed to send suspension email in background:", err);
+      });
     }
 
     res.json({
@@ -1597,16 +1723,24 @@ app.patch("/api/admin/users/:id/status", authenticateAdmin, async (req, res) => 
 app.delete("/api/admin/users/:id", authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    const reason = req.body.reason || req.query.reason;
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, message: "Invalid user id" });
     }
 
-    const user = await User.findByIdAndDelete(id);
+    const user = await User.findById(id);
     if (!user) {
       return res
         .status(404)
         .json({ success: false, message: "User not found" });
     }
+
+    console.log(`User deletion requested. Sending moderation email to ${user.email}`);
+    generateAndSendModerationEmail(user, "removal", reason).catch((err) => {
+      console.error("Failed to send account removal email in background:", err);
+    });
+
+    await User.findByIdAndDelete(id);
 
     await Promise.all([
       Progress.deleteMany({ userId: id }),

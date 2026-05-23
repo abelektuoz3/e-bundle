@@ -1049,13 +1049,20 @@
       async function toggleUserStatus(userId, currentStatus) {
         try {
           const newStatus = currentStatus === "active" ? false : true;
+          let reason = "";
+
+          if (newStatus === false) {
+            reason = prompt("Enter the reason for suspension (optional - will be enhanced by AI and emailed to the user):");
+            if (reason === null) return; // User cancelled suspension action
+          }
+
           const response = await fetch(`${API_URL}/admin/users/${userId}/status`, {
             method: "PATCH",
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${authToken}`,
             },
-            body: JSON.stringify({ isActive: newStatus }),
+            body: JSON.stringify({ isActive: newStatus, reason: reason }),
           });
           const data = await response.json();
           if (data.success) {
@@ -1071,10 +1078,18 @@
 
       async function deleteUser(userId) {
         if (!confirm("Are you sure you want to delete this user? This action cannot be undone.")) return;
+        
+        const reason = prompt("Enter the reason for account removal (optional - will be enhanced by AI and emailed to the user):");
+        if (reason === null) return; // Cancel deletion action
+
         try {
           const response = await fetch(`${API_URL}/admin/users/${userId}`, {
             method: "DELETE",
-            headers: { Authorization: `Bearer ${authToken}` },
+            headers: { 
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${authToken}` 
+            },
+            body: JSON.stringify({ reason: reason })
           });
           const data = await response.json();
           if (data.success) {
