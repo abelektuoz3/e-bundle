@@ -2327,6 +2327,12 @@ app.post("/login", async (req, res) => {
       return res.status(400).json({ message: "User not found" });
     }
 
+    if (user.isActive === false) {
+      return res.status(403).json({
+        message: "you're suspended by the admin",
+      });
+    }
+
     if (!user.isVerified) {
       return res.status(403).json({
         message:
