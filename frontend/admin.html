@@ -1224,7 +1224,9 @@
           const data = await response.json();
           mediaFiles = data.media;
           updateStats(data.stats);
-          populateCourseMediaOptions();
+          if (typeof populateCourseMediaOptions === "function") {
+            populateCourseMediaOptions();
+          }
           renderFileList();
         } catch (err) {
           console.error("Load media error:", err);

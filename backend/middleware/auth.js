@@ -49,6 +49,7 @@ const authenticateAdmin = async (req, res, next) => {
     }
     
     req.user = user;
+    req.admin = user;
     next();
   } catch (err) {
     return res.status(403).json({ message: "Invalid token" });
