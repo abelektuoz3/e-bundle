@@ -863,7 +863,7 @@ const generateAndSendModerationEmail = async (user, actionType, reason = "") => 
               content: `You are an AI administrator for E-Bundle Ethiopia, a premium unified learning platform for Ethiopian students. 
 Draft a professional, respectful, empathetic yet firm email notifying a student about their account action (${actionType}).
 You must output a raw JSON object containing exactly two keys: "subject" and "htmlBody".
-The "htmlBody" must be beautiful HTML with inline CSS. Use a premium card layout with dark or styled background, rounded borders, standard typography, clear headings, and custom highlights. The design should align with E-Bundle Ethiopia's Indigo/Violet/Slate aesthetic. 
+The "htmlBody" must be beautiful HTML with inline CSS. Use a premium card layout on a light gray (#f4f4f4) body wrapper background, with a header banner using background: linear-gradient(135deg, #4F46E5, #7C3AED) (white E-Bundle Ethiopia title, light gray subtitle), a white card container with border-radius: 0 0 10px 10px and box-shadow: 0 2px 10px rgba(0,0,0,0.1), and an account action reason block styled with background-color: #F5F3FF and border-left: 4px solid #7C3AED. 
 Do not include any markdown backticks or formatting outside the JSON itself. Returning valid JSON is critical.`
             },
             {
@@ -906,18 +906,18 @@ Admin Reason for ${actionType}: "${reason || "Violating platform guidelines"}"`
 
     htmlBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
-        <div style="background: linear-gradient(135deg, #EF4444, #B91C1C); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <div style="background: linear-gradient(135deg, #4F46E5, #7C3AED); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
           <h1 style="color: white; margin: 0; font-size: 24px;">E-Bundle Ethiopia</h1>
-          <p style="color: #fca5a5; margin: 10px 0 0 0;">Account ${actionText}</p>
+          <p style="color: #e0e0e0; margin: 10px 0 0 0;">Account ${actionText}</p>
         </div>
         <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
           <h2 style="color: #333; margin-top: 0;">Hello ${userName},</h2>
           <p style="color: #666; font-size: 16px; line-height: 1.6;">
             We are writing to inform you that your E-Bundle Ethiopia account has been <strong>${actionText.toLowerCase()}</strong>.
           </p>
-          <div style="background-color: #FEF2F2; border-left: 4px solid #EF4444; padding: 15px; margin: 20px 0; border-radius: 4px;">
-            <p style="margin: 0; color: #991B1B; font-weight: bold;">Reason for Action:</p>
-            <p style="margin: 5px 0 0 0; color: #7F1D1D; line-height: 1.5;">${reasonText}</p>
+          <div style="background-color: #F5F3FF; border-left: 4px solid #7C3AED; padding: 15px; margin: 20px 0; border-radius: 4px;">
+            <p style="margin: 0; color: #5B21B6; font-weight: bold;">Reason for Action:</p>
+            <p style="margin: 5px 0 0 0; color: #4C1D95; line-height: 1.5;">${reasonText}</p>
           </div>
           ${isSuspension ? `
           <p style="color: #666; font-size: 15px; line-height: 1.6;">
