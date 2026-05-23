@@ -842,7 +842,7 @@ const sendResetLinkEmail = async (email, resetLink, firstName) => {
 const generateAndSendModerationEmail = async (user, actionType, reason = "") => {
   const axios = require("axios");
   const userName = `${user.firstName || ""} ${user.lastName || ""}`.trim() || "Student";
-  const actionText = actionType === "suspension" ? "Suspended" : "Removed / Deleted";
+  const actionText = actionType === "suspension" ? "Suspended" : (actionType === "removal" ? "Removed / Deleted" : "Activated");
   
   let subject = "";
   let htmlBody = "";
@@ -861,9 +861,10 @@ const generateAndSendModerationEmail = async (user, actionType, reason = "") => 
             {
               role: "system",
               content: `You are an AI administrator for E-Bundle Ethiopia, a premium unified learning platform for Ethiopian students. 
-Draft a professional, respectful, empathetic yet firm email notifying a student about their account action (${actionType}).
+Draft a professional, respectful, empathetic email notifying a student about their account action (${actionType}).
 You must output a raw JSON object containing exactly two keys: "subject" and "htmlBody".
-The "htmlBody" must be beautiful HTML with inline CSS. Use a premium card layout on a light gray (#f4f4f4) body wrapper background, with a header banner using background: linear-gradient(135deg, #4F46E5, #7C3AED) (white E-Bundle Ethiopia title, light gray subtitle), a white card container with border-radius: 0 0 10px 10px and box-shadow: 0 2px 10px rgba(0,0,0,0.1), and an account action reason block styled with background-color: #F5F3FF and border-left: 4px solid #7C3AED. 
+The "htmlBody" must be beautiful HTML with inline CSS. Use a premium card layout on a light gray (#f4f4f4) body wrapper background, with a header banner using background: linear-gradient(135deg, #4F46E5, #7C3AED) (white E-Bundle Ethiopia title, light gray subtitle), a white card container with border-radius: 0 0 10px 10px and box-shadow: 0 2px 10px rgba(0,0,0,0.1).
+If the action is "activation", styled with background-color: #ECFDF5 and border-left: 4px solid #10B981 to welcome them back. Otherwise, styled with background-color: #F5F3FF and border-left: 4px solid #7C3AED.
 Do not include any markdown backticks or formatting outside the JSON itself. Returning valid JSON is critical.`
             },
             {
@@ -898,43 +899,77 @@ Admin Reason for ${actionType}: "${reason || "Violating platform guidelines"}"`
   // Fallback if GROQ_API_KEY is missing or request fails
   if (!subject || !htmlBody) {
     const isSuspension = actionType === "suspension";
-    subject = isSuspension 
-      ? "Account Status Update: Suspended - E-Bundle Ethiopia" 
-      : "Account Status Update: Removed - E-Bundle Ethiopia";
+    const isActivation = actionType === "activation";
 
-    const reasonText = reason || "Violating the terms of service and community guidelines.";
-
-    htmlBody = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
-        <div style="background: linear-gradient(135deg, #4F46E5, #7C3AED); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0; font-size: 24px;">E-Bundle Ethiopia</h1>
-          <p style="color: #e0e0e0; margin: 10px 0 0 0;">Account ${actionText}</p>
-        </div>
-        <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-          <h2 style="color: #333; margin-top: 0;">Hello ${userName},</h2>
-          <p style="color: #666; font-size: 16px; line-height: 1.6;">
-            We are writing to inform you that your E-Bundle Ethiopia account has been <strong>${actionText.toLowerCase()}</strong>.
-          </p>
-          <div style="background-color: #F5F3FF; border-left: 4px solid #7C3AED; padding: 15px; margin: 20px 0; border-radius: 4px;">
-            <p style="margin: 0; color: #5B21B6; font-weight: bold;">Reason for Action:</p>
-            <p style="margin: 5px 0 0 0; color: #4C1D95; line-height: 1.5;">${reasonText}</p>
+    if (isActivation) {
+      subject = "Your Account Has Been Reactivated - E-Bundle Ethiopia";
+      htmlBody = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
+          <div style="background: linear-gradient(135deg, #4F46E5, #7C3AED); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 24px;">E-Bundle Ethiopia</h1>
+            <p style="color: #e0e0e0; margin: 10px 0 0 0;">Account Reactivated</p>
           </div>
-          ${isSuspension ? `
-          <p style="color: #666; font-size: 15px; line-height: 1.6;">
-            If you believe this was done in error or would like to request an appeal, please reply to this email or contact support.
-          </p>
-          ` : `
-          <p style="color: #666; font-size: 15px; line-height: 1.6;">
-            Your personal data, enrolled courses, and activity history have been removed from our system. If you wish to rejoin the platform, you will need to register for a new account in compliance with our policies.
-          </p>
-          `}
-          <p style="color: #999; font-size: 12px; text-align: center; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
-            This is an automated notification. E-Bundle Ethiopia Administration.
-          </p>
+          <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <h2 style="color: #333; margin-top: 0;">Welcome Back, ${userName}!</h2>
+            <p style="color: #666; font-size: 16px; line-height: 1.6;">
+              We are pleased to inform you that your E-Bundle Ethiopia account has been successfully <strong>reactivated</strong> by the administration.
+            </p>
+            <div style="background-color: #ECFDF5; border-left: 4px solid #10B981; padding: 15px; margin: 20px 0; border-radius: 4px;">
+              <p style="margin: 0; color: #065F46; font-weight: bold;">Status Update:</p>
+              <p style="margin: 5px 0 0 0; color: #047857; line-height: 1.5;">Your account is fully active now and you can use all features and courses freely.</p>
+            </div>
+            <p style="color: #666; font-size: 15px; line-height: 1.6;">
+              You can log in now using your existing credentials and start learning right away!
+            </p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="https://ebundle-ethiopia.netlify.app/login.html" style="display: inline-block; background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Log In to E-Bundle</a>
+            </div>
+            <p style="color: #999; font-size: 12px; text-align: center; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+              This is an automated notification. E-Bundle Ethiopia Administration.
+            </p>
+          </div>
         </div>
-      </div>
-    `;
-    textContent = `Hello ${userName},\n\nWe are writing to inform you that your E-Bundle Ethiopia account has been ${actionText.toLowerCase()}.\n\nReason: ${reasonText}\n\nE-Bundle Ethiopia Administration.`;
+      `;
+      textContent = `Hello ${userName},\n\nWe are pleased to inform you that your E-Bundle Ethiopia account has been reactivated. Your account is fully active now and you can use all features and courses freely.\n\nE-Bundle Ethiopia Administration.`;
+    } else {
+      subject = isSuspension 
+        ? "Account Status Update: Suspended - E-Bundle Ethiopia" 
+        : "Account Status Update: Removed - E-Bundle Ethiopia";
+
+      const reasonText = reason || "Violating the terms of service and community guidelines.";
+
+      htmlBody = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
+          <div style="background: linear-gradient(135deg, #4F46E5, #7C3AED); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 24px;">E-Bundle Ethiopia</h1>
+            <p style="color: #e0e0e0; margin: 10px 0 0 0;">Account ${actionText}</p>
+          </div>
+          <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <h2 style="color: #333; margin-top: 0;">Hello ${userName},</h2>
+            <p style="color: #666; font-size: 16px; line-height: 1.6;">
+              We are writing to inform you that your E-Bundle Ethiopia account has been <strong>${actionText.toLowerCase()}</strong>.
+            </p>
+            <div style="background-color: #F5F3FF; border-left: 4px solid #7C3AED; padding: 15px; margin: 20px 0; border-radius: 4px;">
+              <p style="margin: 0; color: #5B21B6; font-weight: bold;">Reason for Action:</p>
+              <p style="margin: 5px 0 0 0; color: #4C1D95; line-height: 1.5;">${reasonText}</p>
+            </div>
+            ${isSuspension ? `
+            <p style="color: #666; font-size: 15px; line-height: 1.6;">
+              If you believe this was done in error or would like to request an appeal, please reply to this email or contact support.
+            </p>
+            ` : `
+            <p style="color: #666; font-size: 15px; line-height: 1.6;">
+              Your personal data, enrolled courses, and activity history have been removed from our system. If you wish to rejoin the platform, you will need to register for a new account in compliance with our policies.
+            </p>
+            `}
+            <p style="color: #999; font-size: 12px; text-align: center; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+              This is an automated notification. E-Bundle Ethiopia Administration.
+            </p>
+          </div>
+        </div>
+      `;
+      textContent = `Hello ${userName},\n\nWe are writing to inform you that your E-Bundle Ethiopia account has been ${actionText.toLowerCase()}.\n\nReason: ${reasonText}\n\nE-Bundle Ethiopia Administration.`;
+    }
   }
 
   const msg = {
@@ -1697,6 +1732,11 @@ app.patch("/api/admin/users/:id/status", authenticateAdmin, async (req, res) => 
       console.log(`User deactivation/suspension requested. Sending moderation email to ${updated.email}`);
       generateAndSendModerationEmail(updated, "suspension", reason).catch((err) => {
         console.error("Failed to send suspension email in background:", err);
+      });
+    } else {
+      console.log(`User activation requested. Sending reinstatement email to ${updated.email}`);
+      generateAndSendModerationEmail(updated, "activation").catch((err) => {
+        console.error("Failed to send activation email in background:", err);
       });
     }
 
