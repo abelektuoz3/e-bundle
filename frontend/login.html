@@ -184,8 +184,9 @@
     </div>
 
     <script>
-      // ✅ UPDATED: API Configuration - Your deployed backend
-      const API_URL = "https://e-bundle.onrender.com";
+      // ✅ UPDATED: API Configuration - Dynamic
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
+      const API_URL = isLocal ? 'http://localhost:5000' : 'https://e-bundle.onrender.com';
 
       // Toast notification system
       function showToast(message, type = "info") {

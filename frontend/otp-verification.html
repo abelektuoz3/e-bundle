@@ -383,44 +383,27 @@
     </div>
 
     <script>
-      // ✅ UPDATED: API Configuration - Your deployed backend
-      const API_URL = "https://e-bundle.onrender.com";
+      // ✅ UPDATED: Dynamic API Configuration
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
+      const API_URL = isLocal ? 'http://localhost:5000' : 'https://e-bundle.onrender.com';
 
       let countdown = 60;
       let timerInterval;
       let userEmail = "";
-      let userPhone = "";
-      let verificationMethod = "email"; // 'email' or 'phone'
 
-      // Get email/phone from URL parameter or session storage
+      // Get email from URL parameter or session storage
       document.addEventListener("DOMContentLoaded", () => {
         const urlParams = new URLSearchParams(window.location.search);
         userEmail =
           urlParams.get("email") ||
           sessionStorage.getItem("pendingEmail") ||
           "your@email.com";
-        userPhone =
-          urlParams.get("phone") ||
-          sessionStorage.getItem("pendingPhone") ||
-          "";
-        
-        const preferredMethod = urlParams.get("method") || "email";
 
-        document.getElementById("userIdentifier").textContent = 
-          preferredMethod === "phone" ? userPhone : userEmail;
+        document.getElementById("userIdentifier").textContent = userEmail;
 
         // Store in session storage
         if (userEmail !== "your@email.com") {
           sessionStorage.setItem("pendingEmail", userEmail);
-        }
-        if (userPhone) {
-          sessionStorage.setItem("pendingPhone", userPhone);
-          // Show method switcher if phone exists
-          document.getElementById("methodSwitcher").classList.remove("hidden");
-          
-          if (preferredMethod === "phone") {
-            setVerificationMethod("phone", true); // true to skip toast on initial load
-          }
         }
 
         // Start countdown timer
@@ -429,38 +412,6 @@
         // Setup OTP inputs
         setupOTPInputs();
       });
-
-      window.setVerificationMethod = function (method, skipToast = false) {
-        if (verificationMethod === method && !skipToast) return;
-
-        verificationMethod = method;
-        const emailBtn = document.getElementById("emailMethodBtn");
-        const phoneBtn = document.getElementById("phoneMethodBtn");
-        const identifier = document.getElementById("userIdentifier");
-        const headerIcon = document.getElementById("headerIcon");
-
-        if (method === "email") {
-          emailBtn.className =
-            "flex-1 py-2 rounded-lg text-sm font-medium transition-all bg-primary text-white";
-          phoneBtn.className =
-            "flex-1 py-2 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white";
-          identifier.textContent = userEmail;
-          headerIcon.className = "fas fa-envelope text-white text-2xl";
-        } else {
-          phoneBtn.className =
-            "flex-1 py-2 rounded-lg text-sm font-medium transition-all bg-primary text-white";
-          emailBtn.className =
-            "flex-1 py-2 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white";
-          identifier.textContent = userPhone;
-          headerIcon.className = "fas fa-phone text-white text-2xl";
-        }
-
-        clearOTPInputs();
-        startTimer(); // Reset timer for the new method
-        if (!skipToast) {
-          showToast(`Switched to ${method} verification`, "info");
-        }
-      };
 
       // Toast notification system
       function showToast(message, type = "info") {
@@ -669,11 +620,8 @@
         btnText.textContent = "Verifying...";
         spinner.classList.remove("hidden");
 
-        const endpoint =
-          verificationMethod === "email" ? "/verify-otp" : "/verify-phone-otp";
-
         try {
-          const res = await fetch(`${API_URL}${endpoint}`, {
+          const res = await fetch(`${API_URL}/verify-otp`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -740,11 +688,8 @@
 
         resendBtn.disabled = true;
 
-        const endpoint =
-          verificationMethod === "email" ? "/resend-otp" : "/send-phone-otp";
-
         try {
-          const res = await fetch(`${API_URL}${endpoint}`, {
+          const res = await fetch(`${API_URL}/resend-otp`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

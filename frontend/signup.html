@@ -339,9 +339,10 @@
 
     <script>
       // =============================================
-      // API Configuration - Your deployed backend
+      // API Configuration - Dynamic
       // =============================================
-      const API_URL = "https://e-bundle.onrender.com";
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
+      const API_URL = isLocal ? 'http://localhost:5000' : 'https://e-bundle.onrender.com';
 
       let currentStep = 1;
 
