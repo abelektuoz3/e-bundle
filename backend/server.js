@@ -1709,6 +1709,44 @@ app.patch("/api/admin/users/:id/status", authenticateAdmin, async (req, res) => 
   }
 });
 
+app.patch("/api/admin/users/:id/verify", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid user id" });
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    user.isVerified = true;
+    user.otp = null;
+    user.otpExpire = null;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "User verified successfully",
+      user: {
+        id: user._id,
+        name: `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+        email: user.email,
+        status: user.isActive ? "active" : "inactive",
+        isVerified: true,
+        joinedDate: user.createdAt,
+      },
+    });
+  } catch (err) {
+    console.error("Admin user verify error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to verify user",
+    });
+  }
+});
+
 app.delete("/api/admin/users/:id", authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
