@@ -464,6 +464,7 @@
                       <th class="py-3 px-2">Email</th>
                       <th class="py-3 px-2">Joined Date</th>
                       <th class="py-3 px-2">Status</th>
+                      <th class="py-3 px-2">Verified</th>
                       <th class="py-3 px-2">Actions</th>
                     </tr>
                   </thead>
@@ -968,6 +969,11 @@
               </span>
             </td>
             <td class="py-3 px-2">
+              <span class="px-2 py-1 rounded-full text-xs ${user.isVerified ? "bg-blue-500/20 text-blue-400" : "bg-red-500/20 text-red-400"}">
+                ${user.isVerified ? "Verified" : "Unverified"}
+              </span>
+            </td>
+            <td class="py-3 px-2">
               <div class="flex gap-2">
                 <button onclick="viewUserProfile('${user.id}')" class="px-2 py-1 text-xs rounded bg-blue-500/20 text-blue-300 hover:bg-blue-500/30">View</button>
                 <button onclick="toggleUserStatus('${user.id}', '${user.status}')" class="px-2 py-1 text-xs rounded bg-amber-500/20 text-amber-300 hover:bg-amber-500/30">${user.status === "active" ? "Deactivate" : "Activate"}</button>
@@ -999,6 +1005,7 @@
                 <p class="text-gray-300"><strong>Email:</strong> ${escapeHtml(user.email)}</p>
                 <p class="text-gray-300"><strong>Joined:</strong> ${new Date(user.joinedDate).toLocaleDateString()}</p>
                 <p class="text-gray-300"><strong>Status:</strong> <span class="${user.status === 'active' ? 'text-emerald-400' : 'text-gray-400'}">${user.status}</span></p>
+                <p class="text-gray-300"><strong>Verified:</strong> <span class="${user.isVerified ? 'text-blue-400' : 'text-red-400'}">${user.isVerified ? 'Verified' : 'Unverified'}</span></p>
               </div>
               
               <h4 class="font-medium text-white mb-2">Enrolled Courses</h4>

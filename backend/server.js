@@ -1623,6 +1623,7 @@ app.get("/api/admin/users/:id", authenticateAdmin, async (req, res) => {
         school: user.school,
         status: user.isActive === false ? "inactive" : "active",
         joinedDate: user.createdAt,
+        isVerified: !!user.isVerified,
       },
       enrolledCourses: progressDocs.map((progress) => ({
         progressId: progress._id,
