@@ -112,16 +112,16 @@
         <form id="login-form" class="space-y-5" onsubmit="handleLogin(event)">
           <div class="input-group">
             <input
-              type="email"
-              id="login-email"
+              type="text"
+              id="login-username"
               class="input-field w-full px-4 py-4 rounded-xl text-white placeholder-transparent"
-              placeholder="Email"
+              placeholder="Username"
               required />
-            <label class="input-label" for="login-email">Email Address</label>
+            <label class="input-label" for="login-username">Username</label>
             <i
-              class="fas fa-envelope absolute right-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
-            <p class="error-message" id="login-email-error">
-              Please enter a valid email address
+              class="fas fa-user absolute right-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+            <p class="error-message" id="login-username-error">
+              Please enter a valid username
             </p>
           </div>
 
@@ -239,18 +239,18 @@
 
       async function handleLogin(e) {
         e.preventDefault();
-        const email = document.getElementById("login-email");
+        const username = document.getElementById("login-username");
         const password = document.getElementById("login-password");
         const btn = document.getElementById("login-btn");
         const rememberMe = document.getElementById("remember-me").checked;
 
-        showError("login-email", false);
+        showError("login-username", false);
         showError("login-password", false);
 
         let valid = true;
-        if (!validateEmail(email.value)) {
-          showError("login-email");
-          email.parentElement.classList.add("shake");
+        if (!username.value.trim() || username.value.trim().length < 3) {
+          showError("login-username");
+          username.parentElement.classList.add("shake");
           valid = false;
         }
         if (password.value.length < 1) {
@@ -283,7 +283,7 @@
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              email: email.value.trim(),
+              username: username.value.trim(),
               password: password.value,
             }),
           });
@@ -295,9 +295,9 @@
             localStorage.setItem("adminToken", data.token);
             localStorage.setItem("adminData", JSON.stringify(data.admin));
             if (rememberMe) {
-              localStorage.setItem("rememberedEmail", email.value.trim());
+              localStorage.setItem("rememberedUsername", username.value.trim());
             } else {
-              localStorage.removeItem("rememberedEmail");
+              localStorage.removeItem("rememberedUsername");
             }
             showToast(
               "Welcome back!",
@@ -377,9 +377,9 @@
       }
 
       window.addEventListener("load", () => {
-        const rememberedEmail = localStorage.getItem("rememberedEmail");
-        if (rememberedEmail) {
-          document.getElementById("login-email").value = rememberedEmail;
+        const rememberedUsername = localStorage.getItem("rememberedUsername");
+        if (rememberedUsername) {
+          document.getElementById("login-username").value = rememberedUsername;
           document.getElementById("remember-me").checked = true;
         }
       });

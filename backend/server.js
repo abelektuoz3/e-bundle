@@ -991,12 +991,19 @@ const generateOTP = () => {
 
 app.post("/api/admin/signup", async (req, res) => {
   try {
-    const { firstName, lastName, email, password } = req.body;
+    const { firstName, lastName, username, email, password } = req.body;
 
-    if (!firstName || !lastName || !email || !password) {
+    if (!firstName || !lastName || !username || !email || !password) {
       return res.status(400).json({
         success: false,
         message: "All fields are required",
+      });
+    }
+
+    if (username.trim().length < 3) {
+      return res.status(400).json({
+        success: false,
+        message: "Username must be at least 3 characters long",
       });
     }
 
@@ -1004,6 +1011,14 @@ app.post("/api/admin/signup", async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Password must be at least 8 characters long",
+      });
+    }
+
+    const existingUsername = await Admin.findOne({ username: username.toLowerCase().trim() });
+    if (existingUsername) {
+      return res.status(400).json({
+        success: false,
+        message: "An account with this username already exists",
       });
     }
 
@@ -1018,6 +1033,7 @@ app.post("/api/admin/signup", async (req, res) => {
     const newAdmin = new Admin({
       firstName,
       lastName,
+      username: username.toLowerCase().trim(),
       email: email.toLowerCase(),
       password,
     });
@@ -1025,7 +1041,7 @@ app.post("/api/admin/signup", async (req, res) => {
     await newAdmin.save();
 
     const token = jwt.sign(
-      { id: newAdmin._id, email: newAdmin.email, role: newAdmin.role },
+      { id: newAdmin._id, username: newAdmin.username, role: newAdmin.role },
       process.env.JWT_SECRET || "adminsecretkey",
       { expiresIn: "7d" },
     );
@@ -1038,6 +1054,7 @@ app.post("/api/admin/signup", async (req, res) => {
         id: newAdmin._id,
         firstName: newAdmin.firstName,
         lastName: newAdmin.lastName,
+        username: newAdmin.username,
         email: newAdmin.email,
         role: newAdmin.role,
       },
@@ -1053,21 +1070,21 @@ app.post("/api/admin/signup", async (req, res) => {
 
 app.post("/api/admin/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { username, password } = req.body;
 
-    if (!email || !password) {
+    if (!username || !password) {
       return res.status(400).json({
         success: false,
-        message: "Email and password are required",
+        message: "Username and password are required",
       });
     }
 
-    const admin = await Admin.findOne({ email: email.toLowerCase() });
+    const admin = await Admin.findOne({ username: username.toLowerCase().trim() });
 
     if (!admin) {
       return res.status(400).json({
         success: false,
-        message: "Invalid email or password",
+        message: "Invalid username or password",
       });
     }
 
@@ -1097,7 +1114,7 @@ app.post("/api/admin/login", async (req, res) => {
 
       return res.status(400).json({
         success: false,
-        message: "Invalid email or password",
+        message: "Invalid username or password",
         attemptsLeft: Math.max(0, 5 - admin.loginAttempts),
       });
     }
@@ -1108,7 +1125,7 @@ app.post("/api/admin/login", async (req, res) => {
     await admin.save();
 
     const token = jwt.sign(
-      { id: admin._id, email: admin.email, role: admin.role },
+      { id: admin._id, username: admin.username, role: admin.role },
       process.env.JWT_SECRET || "adminsecretkey",
       { expiresIn: "7d" },
     );
@@ -1121,6 +1138,7 @@ app.post("/api/admin/login", async (req, res) => {
         id: admin._id,
         firstName: admin.firstName,
         lastName: admin.lastName,
+        username: admin.username,
         email: admin.email,
         role: admin.role,
         lastLogin: admin.lastLogin,
@@ -1147,6 +1165,7 @@ app.get("/api/admin/profile", authenticateAdmin, async (req, res) => {
         id: admin._id,
         firstName: admin.firstName,
         lastName: admin.lastName,
+        username: admin.username,
         email: admin.email,
         role: admin.role,
         isActive: admin.isActive,
@@ -1165,13 +1184,33 @@ app.get("/api/admin/profile", authenticateAdmin, async (req, res) => {
 
 app.put("/api/admin/profile", authenticateAdmin, async (req, res) => {
   try {
-    const { firstName, lastName, email } = req.body;
+    const { firstName, lastName, username, email } = req.body;
     const updates = {};
 
     if (firstName) updates.firstName = firstName;
     if (lastName) updates.lastName = lastName;
+    if (username) updates.username = username.toLowerCase().trim();
     if (email) updates.email = email.toLowerCase();
     updates.updatedAt = new Date();
+
+    if (username) {
+      if (username.trim().length < 3) {
+        return res.status(400).json({
+          success: false,
+          message: "Username must be at least 3 characters long",
+        });
+      }
+      const existingUsername = await Admin.findOne({
+        username: username.toLowerCase().trim(),
+        _id: { $ne: req.admin.id },
+      });
+      if (existingUsername) {
+        return res.status(400).json({
+          success: false,
+          message: "Username is already in use by another account",
+        });
+      }
+    }
 
     if (email) {
       const existingAdmin = await Admin.findOne({

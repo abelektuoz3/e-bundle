@@ -160,6 +160,22 @@
                 </div>
                 <div class="input-group">
                   <input
+                    type="text"
+                    id="signup-username"
+                    class="input-field w-full px-4 py-3.5 rounded-xl text-white placeholder-transparent"
+                    placeholder="Username"
+                    required />
+                  <label class="input-label" for="signup-username"
+                    >Username</label
+                  >
+                  <i
+                    class="fas fa-user absolute right-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                  <p class="error-message" id="username-error">
+                    Please enter a valid username (min 3 characters)
+                  </p>
+                </div>
+                <div class="input-group">
+                  <input
                     type="email"
                     id="signup-email"
                     class="input-field w-full px-4 py-3.5 rounded-xl text-white placeholder-transparent"
@@ -287,6 +303,10 @@
                       ><span class="text-white" id="summary-name">-</span>
                     </div>
                     <div class="flex justify-between">
+                      <span class="text-slate-400">Username:</span
+                      ><span class="text-white" id="summary-username">-</span>
+                    </div>
+                    <div class="flex justify-between">
                       <span class="text-slate-400">Email:</span
                       ><span class="text-white" id="summary-email">-</span>
                     </div>
@@ -375,7 +395,7 @@
       const API_BASE_URL = "https://e-bundle.onrender.com"; // Production backend
 
       let currentStep = 1;
-      let formData = { firstName: "", lastName: "", email: "", password: "" };
+      let formData = { firstName: "", lastName: "", username: "", email: "", password: "" };
 
       function nextStep(step) {
         if (!validateStep(currentStep)) return;
@@ -386,9 +406,13 @@
           formData.lastName = document
             .getElementById("signup-lastname")
             .value.trim();
+          formData.username = document
+            .getElementById("signup-username")
+            .value.trim();
           formData.email = document.getElementById("signup-email").value.trim();
           document.getElementById("summary-name").textContent =
             `${formData.firstName} ${formData.lastName}`;
+          document.getElementById("summary-username").textContent = formData.username;
           document.getElementById("summary-email").textContent = formData.email;
         }
         if (currentStep === 2) {
@@ -440,6 +464,7 @@
         if (step === 1) {
           const firstname = document.getElementById("signup-firstname");
           const lastname = document.getElementById("signup-lastname");
+          const username = document.getElementById("signup-username");
           const email = document.getElementById("signup-email");
           if (!firstname.value.trim()) {
             document.getElementById("firstname-error").classList.add("show");
@@ -454,6 +479,13 @@
             valid = false;
           } else {
             document.getElementById("lastname-error").classList.remove("show");
+          }
+          if (!username.value.trim() || username.value.trim().length < 3) {
+            document.getElementById("username-error").classList.add("show");
+            username.parentElement.classList.add("shake");
+            valid = false;
+          } else {
+            document.getElementById("username-error").classList.remove("show");
           }
           if (!validateEmail(email.value)) {
             document.getElementById("signup-email-error").classList.add("show");
@@ -592,6 +624,7 @@
             body: JSON.stringify({
               firstName: formData.firstName,
               lastName: formData.lastName,
+              username: formData.username,
               email: formData.email,
               password: formData.password,
             }),
