@@ -989,85 +989,6 @@ const generateOTP = () => {
 
 // ================= ADMIN AUTHENTICATION ENDPOINTS =================
 
-app.post("/api/admin/signup", async (req, res) => {
-  try {
-    const { firstName, lastName, username, email, password } = req.body;
-
-    if (!firstName || !lastName || !username || !email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: "All fields are required",
-      });
-    }
-
-    if (username.trim().length < 3) {
-      return res.status(400).json({
-        success: false,
-        message: "Username must be at least 3 characters long",
-      });
-    }
-
-    if (password.length < 8) {
-      return res.status(400).json({
-        success: false,
-        message: "Password must be at least 8 characters long",
-      });
-    }
-
-    const existingUsername = await Admin.findOne({ username: username.toLowerCase().trim() });
-    if (existingUsername) {
-      return res.status(400).json({
-        success: false,
-        message: "An account with this username already exists",
-      });
-    }
-
-    const existingAdmin = await Admin.findOne({ email: email.toLowerCase() });
-    if (existingAdmin) {
-      return res.status(400).json({
-        success: false,
-        message: "An account with this email already exists",
-      });
-    }
-
-    const newAdmin = new Admin({
-      firstName,
-      lastName,
-      username: username.toLowerCase().trim(),
-      email: email.toLowerCase(),
-      password,
-    });
-
-    await newAdmin.save();
-
-    const token = jwt.sign(
-      { id: newAdmin._id, username: newAdmin.username, role: newAdmin.role },
-      process.env.JWT_SECRET || "adminsecretkey",
-      { expiresIn: "7d" },
-    );
-
-    res.status(201).json({
-      success: true,
-      message: "Admin account created successfully",
-      token,
-      admin: {
-        id: newAdmin._id,
-        firstName: newAdmin.firstName,
-        lastName: newAdmin.lastName,
-        username: newAdmin.username,
-        email: newAdmin.email,
-        role: newAdmin.role,
-      },
-    });
-  } catch (err) {
-    console.error("Admin signup error:", err);
-    res.status(500).json({
-      success: false,
-      message: "Server error during signup",
-    });
-  }
-});
-
 app.post("/api/admin/login", async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -4323,7 +4244,6 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`📹 WebRTC signaling server ready`);
   console.log(`🏥 Health check: http://localhost:${PORT}/health`);
   console.log(`👨‍💼 Admin endpoints:`);
-  console.log(`   - POST /api/admin/signup`);
   console.log(`   - POST /api/admin/login`);
   console.log(`   - GET  /api/admin/profile`);
   console.log(`   - PUT  /api/admin/profile`);
