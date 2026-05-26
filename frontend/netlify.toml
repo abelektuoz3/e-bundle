@@ -13,9 +13,9 @@
   status = 200
 
 [[redirects]]
-  # Handle 404 errors - redirect to landing page
+  # Handle 404 errors - show custom 404 page
   from = "/*"
-  to = "/landing.html"
+  to = "/404.html"
   status = 404
 
 [[headers]]
