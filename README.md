@@ -9,7 +9,6 @@
   
   [![Frontend](https://img.shields.io/badge/Frontend-Netlify-00C7B7?style=flat-square&logo=netlify)](https://ebundle-ethiopia.netlify.app)
   [![Backend](https://img.shields.io/badge/Backend-Render-46E3B7?style=flat-square&logo=render)](https://e-bundle.onrender.com)
-  [![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 
 </div>
 
@@ -17,9 +16,13 @@
 
 ## 🌟 Overview
 
-**E-Bundle** is a comprehensive, full-stack educational platform designed to elevate the learning experience for students in Ethiopia. By combining high-quality educational materials with modern web technologies, E-Bundle creates an engaging environment where students can study, collaborate, and track their progress seamlessly.
+**E‑Bundle** is a comprehensive, full‑stack educational platform designed to elevate the learning experience for students in Ethiopia. By combining high‑quality educational materials with modern web technologies, E‑Bundle creates an engaging environment where students can study, collaborate, and track their progress seamlessly.
+
+**Note:** This is a private, proprietary project; the source code is not publicly available.
 
 Featuring a beautiful **Glassmorphism UI**, the platform is responsive and highly intuitive across mobile phones, tablets, and desktop computers.
+
+**About:** E‑Bundle is a private, proprietary e‑learning platform tailored for Ethiopian secondary education, providing AI‑assisted tutoring, collaborative video study rooms, gamified progress tracking, and secure JWT‑based authentication. All content and services are hosted internally and not intended for public distribution.
 
 ## ✨ Core Features
 
@@ -47,64 +50,7 @@ E-Bundle is built with a decoupled architecture, separating the client interface
 *   **SendGrid:** Reliable email delivery for OTP verification.
 *   **JWT & bcryptjs:** Secure authentication and password hashing.
 
-## 🚀 Getting Started
 
-Want to run E-Bundle locally? Follow these steps:
-
-### Prerequisites
-*   [Node.js](https://nodejs.org/) (v16 or higher)
-*   [MongoDB](https://www.mongodb.com/) (Local instance or MongoDB Atlas)
-*   A [SendGrid](https://sendgrid.com/) API Key (for emails)
-
-### 1. Clone the Repository
-```bash
-git clone https://github.com/abelektuoz3/e-bundle.git
-cd e-bundle
-```
-
-### 2. Setup the Backend
-```bash
-cd backend
-npm install
-```
-
-Create a `.env` file in the `backend` directory with the following variables:
-```env
-PORT=5000
-MONGO_URI=your_mongodb_connection_string
-JWT_SECRET=your_super_secret_jwt_key
-SENDGRID_API_KEY=your_sendgrid_api_key
-EMAIL_FROM=your_verified_sender_email@domain.com
-ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
-```
-
-Start the development server:
-```bash
-npm run dev
-```
-
-### 3. Setup the Frontend
-The frontend requires no build step. Simply serve the `frontend` folder using any static server.
-Using `npx` (Live Server):
-```bash
-cd ../frontend
-npx serve .
-```
-Navigate to `http://localhost:3000` (or whichever port the server uses) in your browser.
-
-## 🌐 Deployment Architecture
-
-E-Bundle is optimized for modern cloud hosting:
-*   **Frontend Hosting:** Deployed on **Netlify** for fast global CDN delivery.
-*   **Backend API:** Hosted on **Render** utilizing web services for Node.js.
-*   **Database:** Hosted securely on **MongoDB Atlas**.
-
-## 📞 Real-Time Video Chat Flow (WebRTC)
-The Video Chat feature was custom-built using standard WebRTC API. 
-1. **Host Room:** User creates a room. The server generates a unique `6-digit PIN` and opens a Socket.io room.
-2. **Join Room:** Partner enters the `PIN`. The server validates the room size.
-3. **Signaling:** If valid, the server emits a `matched` event, designating one peer as the `initiator`.
-4. **P2P Connection:** The initiator creates an Offer, the partner creates an Answer, and ICE Candidates are safely queued and exchanged to establish a direct video/audio stream!
 
 ---
 <div align="center">

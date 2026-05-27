@@ -351,36 +351,5 @@
       </div>
     </footer>
 
-    <!-- Mouse Parallax Script -->
-    <script>
-      const parallaxSection = document.getElementById('parallax-section');
-      const layers = document.querySelectorAll('.parallax-layer');
-
-      if (parallaxSection) {
-        window.addEventListener('mousemove', (e) => {
-          const width = window.innerWidth;
-          const height = parallaxSection.offsetHeight;
-          
-          // Compute offsets relative to center (-1 to 1)
-          const mouseX = (e.clientX - width / 2) / (width / 2);
-          const mouseY = (e.clientY - height / 2) / (height / 2);
-
-          // Displace layers
-          layers.forEach(layer => {
-            const depth = parseFloat(layer.getAttribute('data-depth')) || 0;
-            const moveX = mouseX * depth * 35; 
-            const moveY = mouseY * depth * 15; 
-            layer.style.transform = `translate3d(${moveX}px, ${moveY}px, 0px)`;
-          });
-        });
-
-        // Reset elements if mouse leaves
-        parallaxSection.addEventListener('mouseleave', () => {
-          layers.forEach(layer => {
-            layer.style.transform = `translate3d(0px, 0px, 0px)`;
-          });
-        });
-      }
-    </script>
   </body>
 </html>
