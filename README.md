@@ -26,13 +26,19 @@ Featuring a beautiful **Glassmorphism UI**, the platform is responsive and highl
 
 ## ✨ Core Features
 
-*   📚 **Interactive Library:** Access course materials, stream educational videos, and read PDFs. The platform tracks your media progress automatically.
-*   🤖 **AI Tutor:** A smart, AI-powered assistant ready to explain complex concepts, answer questions, and guide students through their curriculum.
-*   🎥 **Peer-to-Peer Video Chat:** Start collaborative study sessions! Host a room, get a secure 6-digit PIN, and invite peers to study together using robust WebRTC technology.
-*   🎮 **Gamification & Streaks:** Stay motivated! The dashboard tracks daily learning streaks and rewards consistent study habits.
-*   🌐 **Community Hub:** Connect with other students, share notes, and participate in discussions.
-*   🧩 **Kahoot Integration:** Play interactive quizzes and test your knowledge directly within the platform.
-*   🛡️ **Secure Authentication:** JWT-based authentication with OTP email verification (via SendGrid) for password recovery and account security.
+*   📚 **Interactive Library:** A curated collection of Ethiopian curriculum PDFs, video lessons, and interactive quizzes. Media files are streamed from a CDN, and the frontend records watch progress in the user’s profile, enabling resume‑watch and progress analytics.
+
+*   🤖 **AI Tutor:** Powered by OpenAI’s GPT‑4 (or a locally hosted LLM), the AI tutor receives student queries via the `/api/ai` endpoint, processes context‑aware prompts, and returns concise explanations, step‑by‑step solutions, or personalized study suggestions. It adapts to grade level and tracks usage for analytics.
+
+*   🎥 **Peer-to-Peer Video Chat:** Built on WebRTC with Socket.io signaling. When a student creates a room, the server generates a unique 6‑digit PIN and stores the session metadata. Peers join by entering the PIN; signaling messages (SDP offers, ICE candidates) are exchanged through Socket.io channels, establishing a direct encrypted media stream. Supports screen sharing and in‑call chat.
+
+*   🎮 **Gamification & Streaks:** Daily learning streak counters, achievement badges, and point rewards encourage consistent study habits. Leaderboards showcase top learners within each class.
+
+*   🌐 **Community Hub:** Forum‑style discussion boards where students can post questions, share notes, and collaborate on projects. Threads are tagged by subject and grade, with moderation tools for teachers.
+
+*   🧩 **Kahoot Integration:** Embedded Kahoot‑style quizzes that sync with the platform’s scoring system, providing immediate feedback and reinforcing concepts.
+
+*   🛡️ **Secure Authentication:** JWT‑based authentication with OTP email verification (via SendGrid) for password recovery and account security. Passwords are hashed with bcryptjs; tokens include role claims for admin/student separation.
 
 ## 🛠️ Technology Stack
 
