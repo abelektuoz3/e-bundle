@@ -383,7 +383,7 @@
     </div>
 
     <script>
-      // ✅ UPDATED: Dynamic API Configuration
+      // Dynamic API Configuration
       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
       const API_URL = isLocal ? 'http://localhost:5000' : 'https://e-bundle.onrender.com';
 
@@ -650,8 +650,8 @@
             showStatus(
               "success",
               "Email Verified!",
-              "Your email has been verified. Redirecting to dashboard...",
-              "dashboard.html",
+              "Your email has been verified. Redirecting to login...",
+              "login.html",
             );
           } else {
             showStatus(
