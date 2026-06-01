@@ -13,7 +13,15 @@ const User = require("./models/User");
 const Activity = require("./models/Activity");
 const Course = require("./models/Course");
 const Progress = require("./models/Progress");
-const sgMail = require("@sendgrid/mail");
+const { Resend } = require('resend');
+let resend = null;
+if (process.env.RESEND_API_KEY) {
+  resend = new Resend(process.env.RESEND_API_KEY);
+  console.log("✅ Resend initialized");
+} else {
+  console.warn("⚠️ RESEND_API_KEY not found in environment variables");
+}
+const FROM_EMAIL = process.env.EMAIL_FROM || "E-Bundle Ethiopia <onboarding@resend.dev>"; // Use verified domain for Resend
 const ChatMessage = require("./models/ChatMessage");
 const Admin = require("./models/Admin");
 const { authenticateToken, authenticateAdmin } = require("./middleware/auth");
@@ -42,13 +50,32 @@ if (missingEnvVars.length > 0) {
   }
 }
 
-// Initialize SendGrid with API key
-if (process.env.SENDGRID_API_KEY) {
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-  console.log("✅ SendGrid initialized");
-} else {
-  console.warn("⚠️ SENDGRID_API_KEY not found in environment variables");
+// Helper function to send emails with Resend
+async function sendEmailWithResend({ to, subject, html, text }) {
+  if (!resend) {
+    console.error("❌ Resend not initialized");
+    return { success: false, error: "Email service not configured" };
+  }
+  try {
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to,
+      subject,
+      html,
+      text: text || html.replace(/<[^>]*>/g, ''),
+    });
+    if (error) {
+      console.error("❌ Resend error:", error);
+      return { success: false, error };
+    }
+    console.log(`✅ Email sent to ${to} (ID: ${data?.id})`);
+    return { success: true, data };
+  } catch (err) {
+    console.error("❌ Failed to send email:", err);
+    return { success: false, error: err };
+  }
 }
+
 
 
 
@@ -686,143 +713,96 @@ app.get("/api/media/diagnose/:id", authenticateAdmin, async (req, res) => {
   }
 });
 
-// ================= SENDGRID EMAIL FUNCTIONS =================
+// ================= RESEND EMAIL FUNCTIONS =================
 
-const FROM_EMAIL =
-  process.env.EMAIL_FROM ||
-  process.env.EMAIL_USER ||
-  "noreply@ebundleethiopia.com";
+
 
 const sendAdminResetEmail = async (email, otp, firstName) => {
-  const msg = {
-    to: email,
-    from: FROM_EMAIL,
-    subject: "Admin Password Reset Code - E-Bundle Ethiopia",
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
-        <div style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0; font-size: 24px;">E-Bundle Ethiopia</h1>
-          <p style="color: #e0e0e0; margin: 10px 0 0 0;">Admin Portal - Password Reset</p>
-        </div>
-        <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-          <h2 style="color: #333; margin-top: 0;">Hello ${firstName || "Admin"},</h2>
-          <p style="color: #666; font-size: 16px; line-height: 1.6;">
-            You requested a password reset for your admin account. Use the following verification code to complete the process:
-          </p>
-          <div style="text-align: center; margin: 30px 0;">
-            <div style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; font-size: 32px; font-weight: bold; letter-spacing: 10px; padding: 20px; border-radius: 10px; display: inline-block;">
-              ${otp}
-            </div>
-          </div>
-          <p style="color: #666; font-size: 14px; text-align: center;">
-            This code will expire in <strong>10 minutes</strong>.
-          </p>
-          <p style="color: #999; font-size: 12px; text-align: center; margin-top: 30px;">
-            If you didn't request this code, please ignore this email or contact support immediately.
-          </p>
-        </div>
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
+      <div style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0; font-size: 24px;">E-Bundle Ethiopia</h1>
+        <p style="color: #e0e0e0; margin: 10px 0 0 0;">Admin Portal - Password Reset</p>
       </div>
-    `,
-    text: `Your E-Bundle Ethiopia admin password reset code is: ${otp}. This code will expire in 10 minutes.`,
-  };
-
-  try {
-    await sgMail.send(msg);
-    console.log(`✅ Admin reset email sent to ${email}`);
-    return true;
-  } catch (error) {
-    console.error(
-      `❌ Failed to send admin reset email to ${email}:`,
-      error.response?.body || error.message,
-    );
-    return false;
-  }
+      <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <h2 style="color: #333; margin-top: 0;">Hello ${firstName || "Admin"},</h2>
+        <p style="color: #666; font-size: 16px; line-height: 1.6;">
+          You requested a password reset for your admin account. Use the following verification code to complete the process:
+        </p>
+        <div style="text-align: center; margin: 30px 0;">
+          <div style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; font-size: 32px; font-weight: bold; letter-spacing: 10px; padding: 20px; border-radius: 10px; display: inline-block;">
+            ${otp}
+          </div>
+        </div>
+        <p style="color: #666; font-size: 14px; text-align: center;">
+          This code will expire in <strong>10 minutes</strong>.
+        </p>
+        <p style="color: #999; font-size: 12px; text-align: center; margin-top: 30px;">
+          If you didn't request this code, please ignore this email or contact support immediately.
+        </p>
+      </div>
+    </div>
+  `;
+  const text = `Your E-Bundle Ethiopia admin password reset code is: ${otp}. This code will expire in 10 minutes.`;
+  const result = await sendEmailWithResend({ to: email, subject: "Admin Password Reset Code - E-Bundle Ethiopia", html, text });
+  return result.success;
 };
 
+// ================= ADDED MISSING sendOTPEmail FUNCTION =================
 const sendOTPEmail = async (email, otp, firstName) => {
-  const msg = {
-    to: email,
-    from: FROM_EMAIL,
-    subject: "Your Email Verification Code - E-Bundle Ethiopia",
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
-        <div style="background: linear-gradient(135deg, #4F46E5, #7C3AED); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0; font-size: 24px;">E-Bundle Ethiopia</h1>
-          <p style="color: #e0e0e0; margin: 10px 0 0 0;">Email Verification</p>
-        </div>
-        <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-          <h2 style="color: #333; margin-top: 0;">Hello ${firstName || "Student"},</h2>
-          <p style="color: #666; font-size: 16px; line-height: 1.6;">
-            Thank you for signing up with E-Bundle Ethiopia! To complete your registration, please use the following verification code:
-          </p>
-          <div style="text-align: center; margin: 30px 0;">
-            <div style="background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; font-size: 32px; font-weight: bold; letter-spacing: 10px; padding: 20px; border-radius: 10px; display: inline-block;">
-              ${otp}
-            </div>
-          </div>
-          <p style="color: #666; font-size: 14px; text-align: center;">
-            This code will expire in <strong>10 minutes</strong>.
-          </p>
-          <p style="color: #999; font-size: 12px; text-align: center; margin-top: 30px;">
-            If you didn't request this code, please ignore this email.
-          </p>
-        </div>
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
+      <div style="background: linear-gradient(135deg, #4F46E5, #7C3AED); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0; font-size: 24px;">E-Bundle Ethiopia</h1>
+        <p style="color: #e0e0e0; margin: 10px 0 0 0;">Email Verification</p>
       </div>
-    `,
-    text: `Your E-Bundle Ethiopia verification code is: ${otp}. This code will expire in 10 minutes.`,
-  };
-
-  try {
-    await sgMail.send(msg);
-    console.log(`✅ OTP email sent to ${email}`);
-    return true;
-  } catch (error) {
-    console.error(
-      `❌ Failed to send OTP email to ${email}:`,
-      error.response?.body || error.message,
-    );
-    return false;
-  }
+      <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <h2 style="color: #333; margin-top: 0;">Hello ${firstName || "Student"},</h2>
+        <p style="color: #666; font-size: 16px; line-height: 1.6;">
+          Thank you for signing up with E-Bundle Ethiopia! To complete your registration, please use the following verification code:
+        </p>
+        <div style="text-align: center; margin: 30px 0;">
+          <div style="background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; font-size: 32px; font-weight: bold; letter-spacing: 10px; padding: 20px; border-radius: 10px; display: inline-block;">
+            ${otp}
+          </div>
+        </div>
+        <p style="color: #666; font-size: 14px; text-align: center;">
+          This code will expire in <strong>10 minutes</strong>.
+        </p>
+        <p style="color: #999; font-size: 12px; text-align: center; margin-top: 30px;">
+          If you didn't request this code, please ignore this email.
+        </p>
+      </div>
+    </div>
+  `;
+  const text = `Your E-Bundle Ethiopia verification code is: ${otp}. This code will expire in 10 minutes.`;
+  const result = await sendEmailWithResend({ to: email, subject: "Your Email Verification Code - E-Bundle Ethiopia", html, text });
+  return result.success;
 };
 
 const sendResetLinkEmail = async (email, resetLink, firstName) => {
-  const msg = {
-    to: email,
-    from: FROM_EMAIL,
-    subject: "Reset Your Password - E-Bundle Ethiopia",
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
-        <div style="background: linear-gradient(135deg, #4F46E5, #7C3AED); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0;">E-Bundle Ethiopia</h1>
-        </div>
-        <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px;">
-          <h2 style="color: #333;">Password Reset Request</h2>
-          <p style="color: #666;">Hello ${firstName || "Student"},</p>
-          <p style="color: #666;">Click the link below to reset your password:</p>
-          <div style="text-align: center; margin: 20px 0;">
-            <a href="${resetLink}" style="display: inline-block; background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">Reset Password</a>
-          </div>
-          <p style="color: #666; font-size: 14px;">Or copy and paste this link into your browser:</p>
-          <p style="color: #4F46E5; font-size: 12px; word-break: break-all;">${resetLink}</p>
-          <p style="color: #999; font-size: 12px; margin-top: 20px;">This link expires in 1 hour.</p>
-          <p style="color: #999; font-size: 12px;">If you didn't request this, please ignore this email.</p>
-        </div>
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
+      <div style="background: linear-gradient(135deg, #4F46E5, #7C3AED); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0;">E-Bundle Ethiopia</h1>
       </div>
-    `,
-    text: `Hello ${firstName || "Student"},\n\nClick the link below to reset your password:\n${resetLink}\n\nThis link expires in 1 hour.\n\nIf you didn't request this, please ignore this email.`,
-  };
-
-  try {
-    await sgMail.send(msg);
-    console.log(`✅ Reset link email sent to ${email}`);
-    return true;
-  } catch (error) {
-    console.error(
-      `❌ Failed to send reset link email to ${email}:`,
-      error.response?.body || error.message,
-    );
-    return false;
-  }
+      <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px;">
+        <h2 style="color: #333;">Password Reset Request</h2>
+        <p style="color: #666;">Hello ${firstName || "Student"},</p>
+        <p style="color: #666;">Click the link below to reset your password:</p>
+        <div style="text-align: center; margin: 20px 0;">
+          <a href="${resetLink}" style="display: inline-block; background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">Reset Password</a>
+        </div>
+        <p style="color: #666; font-size: 14px;">Or copy and paste this link into your browser:</p>
+        <p style="color: #4F46E5; font-size: 12px; word-break: break-all;">${resetLink}</p>
+        <p style="color: #999; font-size: 12px; margin-top: 20px;">This link expires in 1 hour.</p>
+        <p style="color: #999; font-size: 12px;">If you didn't request this, please ignore this email.</p>
+      </div>
+    </div>
+  `;
+  const text = `Hello ${firstName || "Student"},\n\nClick the link below to reset your password:\n${resetLink}\n\nThis link expires in 1 hour.\n\nIf you didn't request this, please ignore this email.`;
+  const result = await sendEmailWithResend({ to: email, subject: "Reset Your Password - E-Bundle Ethiopia", html, text });
+  return result.success;
 };
 
 const generateAndSendModerationEmail = async (user, actionType, reason = "") => {
@@ -958,23 +938,12 @@ Admin Reason for ${actionType}: "${reason || "Violating platform guidelines"}"`
     }
   }
 
-  const msg = {
-    to: user.email,
-    from: FROM_EMAIL,
-    subject: subject,
-    html: htmlBody,
-    text: textContent
-  };
-
-  try {
-    await sgMail.send(msg);
+  const result = await sendEmailWithResend({ to: user.email, subject, html: htmlBody, text: textContent });
+  if (result.success) {
     console.log(`✅ Moderation email (${actionType}) sent to ${user.email}`);
     return true;
-  } catch (error) {
-    console.error(
-      `❌ Failed to send moderation email to ${user.email}:`,
-      error.response?.body || error.message
-    );
+  } else {
+    console.error(`❌ Failed to send moderation email to ${user.email}:`, result.error);
     return false;
   }
 };
@@ -4236,7 +4205,7 @@ io.on("connection", (socket) => {
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`\n✅ Server running on http://localhost:${PORT}`);
-  console.log(`📧 SendGrid email service ready (From: ${FROM_EMAIL})`);
+  console.log(`📧 Resend email service ready (From: ${FROM_EMAIL})`);
   console.log(`📊 Dashboard endpoints ready`);
   console.log(`📚 Library endpoints ready`);
   console.log(`💬 Community endpoints ready`);
