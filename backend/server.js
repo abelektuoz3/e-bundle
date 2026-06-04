@@ -13,15 +13,10 @@ const User = require("./models/User");
 const Activity = require("./models/Activity");
 const Course = require("./models/Course");
 const Progress = require("./models/Progress");
-const { Resend } = require('resend');
-let resend = null;
-if (process.env.RESEND_API_KEY) {
-  resend = new Resend(process.env.RESEND_API_KEY);
-  console.log("✅ Resend initialized");
-} else {
-  console.warn("⚠️ RESEND_API_KEY not found in environment variables");
-}
-const FROM_EMAIL = process.env.EMAIL_FROM || "E-Bundle Ethiopia <onboarding@resend.dev>"; // Use verified domain for Resend
+const axios = require('axios');
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
+const BREVO_SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || process.env.SENDER_EMAIL || "no-reply@example.com";
+const FROM_EMAIL = process.env.EMAIL_FROM || "E-Bundle Ethiopia <onboarding@resend.dev>";
 const ChatMessage = require("./models/ChatMessage");
 const Admin = require("./models/Admin");
 const { authenticateToken, authenticateAdmin } = require("./middleware/auth");
@@ -50,34 +45,285 @@ if (missingEnvVars.length > 0) {
   }
 }
 
-// Helper function to send emails with Resend
-async function sendEmailWithResend({ to, subject, html, text }) {
-  if (!resend) {
-    console.error("❌ Resend not initialized");
-    return { success: false, error: "Email service not configured" };
+// Validate Brevo configuration
+if (!BREVO_API_KEY) {
+  console.error("❌ BREVO_API_KEY is missing! Email sending will fail.");
+  console.error("   Please add BREVO_API_KEY to your Render environment variables.");
+}
+if (!BREVO_SENDER_EMAIL) {
+  console.error("❌ BREVO_SENDER_EMAIL is missing! Email sending will fail.");
+  console.error("   Please add BREVO_SENDER_EMAIL to your Render environment variables.");
+}
+
+// ================= FIXED EMAIL FUNCTIONS WITH BREVO =================
+async function sendEmail(to, subject, html) {
+  if (!BREVO_API_KEY) {
+    console.error("❌ Cannot send email: BREVO_API_KEY not configured");
+    return { success: false, error: "BREVO_API_KEY not configured" };
   }
+
+  const text = html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+  const url = 'https://api.brevo.com/v3/smtp/email';
+  const payload = {
+    sender: { 
+      email: BREVO_SENDER_EMAIL,
+      name: "E-Bundle Ethiopia"
+    },
+    to: [{ email: to }],
+    subject: subject,
+    htmlContent: html,
+    textContent: text,
+  };
+  
   try {
-    const { data, error } = await resend.emails.send({
-      from: FROM_EMAIL,
-      to,
-      subject,
-      html,
-      text: text || html.replace(/<[^>]*>/g, ''),
+    const response = await axios.post(url, payload, {
+      headers: {
+        'api-key': BREVO_API_KEY,
+        'Content-Type': 'application/json',
+      },
+      timeout: 10000,
     });
-    if (error) {
-      console.error("❌ Resend error:", error);
-      return { success: false, error };
-    }
-    console.log(`✅ Email sent to ${to} (ID: ${data?.id})`);
-    return { success: true, data };
+    console.log(`✅ Brevo email sent to ${to} (ID: ${response.data.messageId || 'N/A'})`);
+    return { success: true, data: response.data };
   } catch (err) {
-    console.error("❌ Failed to send email:", err);
-    return { success: false, error: err };
+    console.error('❌ Brevo email error:', err.response?.data?.message || err.message);
+    if (err.response?.data) {
+      console.error('Details:', JSON.stringify(err.response.data, null, 2));
+    }
+    return { success: false, error: err.response?.data?.message || err.message };
   }
 }
 
+// Wrapper function for compatibility with existing code
+async function sendEmailWithResend({ to, subject, html, text }) {
+  return sendEmail(to, subject, html);
+}
 
+const sendAdminResetEmail = async (email, otp, firstName) => {
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
+      <div style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0; font-size: 24px;">E-Bundle Ethiopia</h1>
+        <p style="color: #e0e0e0; margin: 10px 0 0 0;">Admin Portal - Password Reset</p>
+      </div>
+      <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <h2 style="color: #333; margin-top: 0;">Hello ${firstName || "Admin"},</h2>
+        <p style="color: #666; font-size: 16px; line-height: 1.6;">
+          You requested a password reset for your admin account. Use the following verification code to complete the process:
+        </p>
+        <div style="text-align: center; margin: 30px 0;">
+          <div style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; font-size: 32px; font-weight: bold; letter-spacing: 10px; padding: 20px; border-radius: 10px; display: inline-block;">
+            ${otp}
+          </div>
+        </div>
+        <p style="color: #666; font-size: 14px; text-align: center;">
+          This code will expire in <strong>10 minutes</strong>.
+        </p>
+        <p style="color: #999; font-size: 12px; text-align: center; margin-top: 30px;">
+          If you didn't request this code, please ignore this email or contact support immediately.
+        </p>
+      </div>
+    </div>
+  `;
+  const result = await sendEmail(email, "Admin Password Reset Code - E-Bundle Ethiopia", html);
+  return result.success;
+};
 
+const sendOTPEmail = async (email, otp, firstName) => {
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
+      <div style="background: linear-gradient(135deg, #4F46E5, #7C3AED); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0; font-size: 24px;">E-Bundle Ethiopia</h1>
+        <p style="color: #e0e0e0; margin: 10px 0 0 0;">Email Verification</p>
+      </div>
+      <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <h2 style="color: #333; margin-top: 0;">Hello ${firstName || "Student"},</h2>
+        <p style="color: #666; font-size: 16px; line-height: 1.6;">
+          Thank you for signing up with E-Bundle Ethiopia! To complete your registration, please use the following verification code:
+        </p>
+        <div style="text-align: center; margin: 30px 0;">
+          <div style="background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; font-size: 32px; font-weight: bold; letter-spacing: 10px; padding: 20px; border-radius: 10px; display: inline-block;">
+            ${otp}
+          </div>
+        </div>
+        <p style="color: #666; font-size: 14px; text-align: center;">
+          This code will expire in <strong>10 minutes</strong>.
+        </p>
+        <p style="color: #999; font-size: 12px; text-align: center; margin-top: 30px;">
+          If you didn't request this code, please ignore this email.
+        </p>
+      </div>
+    </div>
+  `;
+  const result = await sendEmail(email, "Your Email Verification Code - E-Bundle Ethiopia", html);
+  return result.success;
+};
+
+const sendResetLinkEmail = async (email, resetLink, firstName) => {
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
+      <div style="background: linear-gradient(135deg, #4F46E5, #7C3AED); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0;">E-Bundle Ethiopia</h1>
+      </div>
+      <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px;">
+        <h2 style="color: #333;">Password Reset Request</h2>
+        <p style="color: #666;">Hello ${firstName || "Student"},</p>
+        <p style="color: #666;">Click the link below to reset your password:</p>
+        <div style="text-align: center; margin: 20px 0;">
+          <a href="${resetLink}" style="display: inline-block; background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">Reset Password</a>
+        </div>
+        <p style="color: #666; font-size: 14px;">Or copy and paste this link into your browser:</p>
+        <p style="color: #4F46E5; font-size: 12px; word-break: break-all;">${resetLink}</p>
+        <p style="color: #999; font-size: 12px; margin-top: 20px;">This link expires in 1 hour.</p>
+        <p style="color: #999; font-size: 12px;">If you didn't request this, please ignore this email.</p>
+      </div>
+    </div>
+  `;
+  const result = await sendEmail(email, "Reset Your Password - E-Bundle Ethiopia", html);
+  return result.success;
+};
+
+const generateAndSendModerationEmail = async (user, actionType, reason = "") => {
+  const userName = `${user.firstName || ""} ${user.lastName || ""}`.trim() || "Student";
+  const actionText = actionType === "suspension" ? "Suspended" : (actionType === "removal" ? "Removed / Deleted" : "Activated");
+  
+  let subject = "";
+  let htmlBody = "";
+
+  const groqApiKey = process.env.GROQ_API_KEY;
+
+  if (groqApiKey) {
+    try {
+      console.log(`🤖 Requesting Groq AI explanation for user ${user.email} (${actionType})...`);
+      const response = await axios.post(
+        "https://api.groq.com/openai/v1/chat/completions",
+        {
+          model: "llama-3.3-70b-versatile",
+          messages: [
+            {
+              role: "system",
+              content: `You are an AI administrator for E-Bundle Ethiopia, a premium unified learning platform for Ethiopian students. 
+Draft a professional, respectful, empathetic email notifying a student about their account action (${actionType}).
+You must output a raw JSON object containing exactly two keys: "subject" and "htmlBody".
+The "htmlBody" must be beautiful HTML with inline CSS. Use a premium card layout on a light gray (#f4f4f4) body wrapper background, with a header banner using background: linear-gradient(135deg, #4F46E5, #7C3AED) (white E-Bundle Ethiopia title, light gray subtitle), a white card container with border-radius: 0 0 10px 10px and box-shadow: 0 2px 10px rgba(0,0,0,0.1).
+If the action is "activation", styled with background-color: #ECFDF5 and border-left: 4px solid #10B981 to welcome them back. Otherwise, styled with background-color: #F5F3FF and border-left: 4px solid #7C3AED.
+Do not include any markdown backticks or formatting outside the JSON itself. Returning valid JSON is critical.`
+            },
+            {
+              role: "user",
+              content: `Draft a ${actionType} email for student "${userName}".
+Admin Reason for ${actionType}: "${reason || "Violating platform guidelines"}"`
+            }
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.7
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${groqApiKey}`
+          },
+          timeout: 10000
+        }
+      );
+
+      const responseText = response.data.choices[0].message.content.trim();
+      const parsed = JSON.parse(responseText);
+      subject = parsed.subject;
+      htmlBody = parsed.htmlBody;
+      console.log(`🤖 Groq AI email draft generated successfully!`);
+    } catch (err) {
+      console.error("❌ Groq API failed or returned invalid JSON. Using fallback template.", err.message);
+    }
+  }
+
+  // Fallback if GROQ_API_KEY is missing or request fails
+  if (!subject || !htmlBody) {
+    const isSuspension = actionType === "suspension";
+    const isActivation = actionType === "activation";
+
+    if (isActivation) {
+      subject = "Your Account Has Been Reactivated - E-Bundle Ethiopia";
+      htmlBody = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
+          <div style="background: linear-gradient(135deg, #4F46E5, #7C3AED); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 24px;">E-Bundle Ethiopia</h1>
+            <p style="color: #e0e0e0; margin: 10px 0 0 0;">Account Reactivated</p>
+          </div>
+          <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <h2 style="color: #333; margin-top: 0;">Welcome Back, ${userName}!</h2>
+            <p style="color: #666; font-size: 16px; line-height: 1.6;">
+              We are pleased to inform you that your E-Bundle Ethiopia account has been successfully <strong>reactivated</strong> by the administration.
+            </p>
+            <div style="background-color: #ECFDF5; border-left: 4px solid #10B981; padding: 15px; margin: 20px 0; border-radius: 4px;">
+              <p style="margin: 0; color: #065F46; font-weight: bold;">Status Update:</p>
+              <p style="margin: 5px 0 0 0; color: #047857; line-height: 1.5;">Your account is fully active now and you can use all features and courses freely.</p>
+            </div>
+            <p style="color: #666; font-size: 15px; line-height: 1.6;">
+              You can log in now using your existing credentials and start learning right away!
+            </p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="https://ebundle-ethiopia.netlify.app/login.html" style="display: inline-block; background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Log In to E-Bundle</a>
+            </div>
+            <p style="color: #999; font-size: 12px; text-align: center; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+              This is an automated notification. E-Bundle Ethiopia Administration.
+            </p>
+          </div>
+        </div>
+      `;
+    } else {
+      subject = isSuspension 
+        ? "Account Status Update: Suspended - E-Bundle Ethiopia" 
+        : "Account Status Update: Removed - E-Bundle Ethiopia";
+
+      const reasonText = reason || "Violating the terms of service and community guidelines.";
+
+      htmlBody = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
+          <div style="background: linear-gradient(135deg, #4F46E5, #7C3AED); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 24px;">E-Bundle Ethiopia</h1>
+            <p style="color: #e0e0e0; margin: 10px 0 0 0;">Account ${actionText}</p>
+          </div>
+          <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <h2 style="color: #333; margin-top: 0;">Hello ${userName},</h2>
+            <p style="color: #666; font-size: 16px; line-height: 1.6;">
+              We are writing to inform you that your E-Bundle Ethiopia account has been <strong>${actionText.toLowerCase()}</strong>.
+            </p>
+            <div style="background-color: #F5F3FF; border-left: 4px solid #7C3AED; padding: 15px; margin: 20px 0; border-radius: 4px;">
+              <p style="margin: 0; color: #5B21B6; font-weight: bold;">Reason for Action:</p>
+              <p style="margin: 5px 0 0 0; color: #4C1D95; line-height: 1.5;">${reasonText}</p>
+            </div>
+            ${isSuspension ? `
+            <p style="color: #666; font-size: 15px; line-height: 1.6;">
+              If you believe this was done in error or would like to request an appeal, please reply to this email or contact support.
+            </p>
+            ` : `
+            <p style="color: #666; font-size: 15px; line-height: 1.6;">
+              Your personal data, enrolled courses, and activity history have been removed from our system. If you wish to rejoin the platform, you will need to register for a new account in compliance with our policies.
+            </p>
+            `}
+            <p style="color: #999; font-size: 12px; text-align: center; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+              This is an automated notification. E-Bundle Ethiopia Administration.
+            </p>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  const result = await sendEmail(user.email, subject, htmlBody);
+  if (result.success) {
+    console.log(`✅ Moderation email (${actionType}) sent to ${user.email}`);
+    return true;
+  } else {
+    console.error(`❌ Failed to send moderation email to ${user.email}:`, result.error);
+    return false;
+  }
+};
+
+const generateOTP = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
 
 // ================= CORS CONFIGURATION =================
 const allowedOrigins =
@@ -712,247 +958,6 @@ app.get("/api/media/diagnose/:id", authenticateAdmin, async (req, res) => {
     });
   }
 });
-
-// ================= RESEND EMAIL FUNCTIONS =================
-
-
-
-const sendAdminResetEmail = async (email, otp, firstName) => {
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
-      <div style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 24px;">E-Bundle Ethiopia</h1>
-        <p style="color: #e0e0e0; margin: 10px 0 0 0;">Admin Portal - Password Reset</p>
-      </div>
-      <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-        <h2 style="color: #333; margin-top: 0;">Hello ${firstName || "Admin"},</h2>
-        <p style="color: #666; font-size: 16px; line-height: 1.6;">
-          You requested a password reset for your admin account. Use the following verification code to complete the process:
-        </p>
-        <div style="text-align: center; margin: 30px 0;">
-          <div style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; font-size: 32px; font-weight: bold; letter-spacing: 10px; padding: 20px; border-radius: 10px; display: inline-block;">
-            ${otp}
-          </div>
-        </div>
-        <p style="color: #666; font-size: 14px; text-align: center;">
-          This code will expire in <strong>10 minutes</strong>.
-        </p>
-        <p style="color: #999; font-size: 12px; text-align: center; margin-top: 30px;">
-          If you didn't request this code, please ignore this email or contact support immediately.
-        </p>
-      </div>
-    </div>
-  `;
-  const text = `Your E-Bundle Ethiopia admin password reset code is: ${otp}. This code will expire in 10 minutes.`;
-  const result = await sendEmailWithResend({ to: email, subject: "Admin Password Reset Code - E-Bundle Ethiopia", html, text });
-  return result.success;
-};
-
-// ================= ADDED MISSING sendOTPEmail FUNCTION =================
-const sendOTPEmail = async (email, otp, firstName) => {
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
-      <div style="background: linear-gradient(135deg, #4F46E5, #7C3AED); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 24px;">E-Bundle Ethiopia</h1>
-        <p style="color: #e0e0e0; margin: 10px 0 0 0;">Email Verification</p>
-      </div>
-      <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-        <h2 style="color: #333; margin-top: 0;">Hello ${firstName || "Student"},</h2>
-        <p style="color: #666; font-size: 16px; line-height: 1.6;">
-          Thank you for signing up with E-Bundle Ethiopia! To complete your registration, please use the following verification code:
-        </p>
-        <div style="text-align: center; margin: 30px 0;">
-          <div style="background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; font-size: 32px; font-weight: bold; letter-spacing: 10px; padding: 20px; border-radius: 10px; display: inline-block;">
-            ${otp}
-          </div>
-        </div>
-        <p style="color: #666; font-size: 14px; text-align: center;">
-          This code will expire in <strong>10 minutes</strong>.
-        </p>
-        <p style="color: #999; font-size: 12px; text-align: center; margin-top: 30px;">
-          If you didn't request this code, please ignore this email.
-        </p>
-      </div>
-    </div>
-  `;
-  const text = `Your E-Bundle Ethiopia verification code is: ${otp}. This code will expire in 10 minutes.`;
-  const result = await sendEmailWithResend({ to: email, subject: "Your Email Verification Code - E-Bundle Ethiopia", html, text });
-  return result.success;
-};
-
-const sendResetLinkEmail = async (email, resetLink, firstName) => {
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
-      <div style="background: linear-gradient(135deg, #4F46E5, #7C3AED); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-        <h1 style="color: white; margin: 0;">E-Bundle Ethiopia</h1>
-      </div>
-      <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px;">
-        <h2 style="color: #333;">Password Reset Request</h2>
-        <p style="color: #666;">Hello ${firstName || "Student"},</p>
-        <p style="color: #666;">Click the link below to reset your password:</p>
-        <div style="text-align: center; margin: 20px 0;">
-          <a href="${resetLink}" style="display: inline-block; background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">Reset Password</a>
-        </div>
-        <p style="color: #666; font-size: 14px;">Or copy and paste this link into your browser:</p>
-        <p style="color: #4F46E5; font-size: 12px; word-break: break-all;">${resetLink}</p>
-        <p style="color: #999; font-size: 12px; margin-top: 20px;">This link expires in 1 hour.</p>
-        <p style="color: #999; font-size: 12px;">If you didn't request this, please ignore this email.</p>
-      </div>
-    </div>
-  `;
-  const text = `Hello ${firstName || "Student"},\n\nClick the link below to reset your password:\n${resetLink}\n\nThis link expires in 1 hour.\n\nIf you didn't request this, please ignore this email.`;
-  const result = await sendEmailWithResend({ to: email, subject: "Reset Your Password - E-Bundle Ethiopia", html, text });
-  return result.success;
-};
-
-const generateAndSendModerationEmail = async (user, actionType, reason = "") => {
-  const axios = require("axios");
-  const userName = `${user.firstName || ""} ${user.lastName || ""}`.trim() || "Student";
-  const actionText = actionType === "suspension" ? "Suspended" : (actionType === "removal" ? "Removed / Deleted" : "Activated");
-  
-  let subject = "";
-  let htmlBody = "";
-  let textContent = "";
-
-  const groqApiKey = process.env.GROQ_API_KEY;
-
-  if (groqApiKey) {
-    try {
-      console.log(`🤖 Requesting Groq AI explanation for user ${user.email} (${actionType})...`);
-      const response = await axios.post(
-        "https://api.groq.com/openai/v1/chat/completions",
-        {
-          model: "llama-3.3-70b-versatile",
-          messages: [
-            {
-              role: "system",
-              content: `You are an AI administrator for E-Bundle Ethiopia, a premium unified learning platform for Ethiopian students. 
-Draft a professional, respectful, empathetic email notifying a student about their account action (${actionType}).
-You must output a raw JSON object containing exactly two keys: "subject" and "htmlBody".
-The "htmlBody" must be beautiful HTML with inline CSS. Use a premium card layout on a light gray (#f4f4f4) body wrapper background, with a header banner using background: linear-gradient(135deg, #4F46E5, #7C3AED) (white E-Bundle Ethiopia title, light gray subtitle), a white card container with border-radius: 0 0 10px 10px and box-shadow: 0 2px 10px rgba(0,0,0,0.1).
-If the action is "activation", styled with background-color: #ECFDF5 and border-left: 4px solid #10B981 to welcome them back. Otherwise, styled with background-color: #F5F3FF and border-left: 4px solid #7C3AED.
-Do not include any markdown backticks or formatting outside the JSON itself. Returning valid JSON is critical.`
-            },
-            {
-              role: "user",
-              content: `Draft a ${actionType} email for student "${userName}".
-Admin Reason for ${actionType}: "${reason || "Violating platform guidelines"}"`
-            }
-          ],
-          response_format: { type: "json_object" },
-          temperature: 0.7
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${groqApiKey}`
-          },
-          timeout: 10000
-        }
-      );
-
-      const responseText = response.data.choices[0].message.content.trim();
-      const parsed = JSON.parse(responseText);
-      subject = parsed.subject;
-      htmlBody = parsed.htmlBody;
-      textContent = htmlBody.replace(/<[^>]*>/g, "");
-      console.log(`🤖 Groq AI email draft generated successfully!`);
-    } catch (err) {
-      console.error("❌ Groq API failed or returned invalid JSON. Using fallback template.", err.message);
-    }
-  }
-
-  // Fallback if GROQ_API_KEY is missing or request fails
-  if (!subject || !htmlBody) {
-    const isSuspension = actionType === "suspension";
-    const isActivation = actionType === "activation";
-
-    if (isActivation) {
-      subject = "Your Account Has Been Reactivated - E-Bundle Ethiopia";
-      htmlBody = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
-          <div style="background: linear-gradient(135deg, #4F46E5, #7C3AED); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 24px;">E-Bundle Ethiopia</h1>
-            <p style="color: #e0e0e0; margin: 10px 0 0 0;">Account Reactivated</p>
-          </div>
-          <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-            <h2 style="color: #333; margin-top: 0;">Welcome Back, ${userName}!</h2>
-            <p style="color: #666; font-size: 16px; line-height: 1.6;">
-              We are pleased to inform you that your E-Bundle Ethiopia account has been successfully <strong>reactivated</strong> by the administration.
-            </p>
-            <div style="background-color: #ECFDF5; border-left: 4px solid #10B981; padding: 15px; margin: 20px 0; border-radius: 4px;">
-              <p style="margin: 0; color: #065F46; font-weight: bold;">Status Update:</p>
-              <p style="margin: 5px 0 0 0; color: #047857; line-height: 1.5;">Your account is fully active now and you can use all features and courses freely.</p>
-            </div>
-            <p style="color: #666; font-size: 15px; line-height: 1.6;">
-              You can log in now using your existing credentials and start learning right away!
-            </p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="https://ebundle-ethiopia.netlify.app/login.html" style="display: inline-block; background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Log In to E-Bundle</a>
-            </div>
-            <p style="color: #999; font-size: 12px; text-align: center; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
-              This is an automated notification. E-Bundle Ethiopia Administration.
-            </p>
-          </div>
-        </div>
-      `;
-      textContent = `Hello ${userName},\n\nWe are pleased to inform you that your E-Bundle Ethiopia account has been reactivated. Your account is fully active now and you can use all features and courses freely.\n\nE-Bundle Ethiopia Administration.`;
-    } else {
-      subject = isSuspension 
-        ? "Account Status Update: Suspended - E-Bundle Ethiopia" 
-        : "Account Status Update: Removed - E-Bundle Ethiopia";
-
-      const reasonText = reason || "Violating the terms of service and community guidelines.";
-
-      htmlBody = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
-          <div style="background: linear-gradient(135deg, #4F46E5, #7C3AED); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 24px;">E-Bundle Ethiopia</h1>
-            <p style="color: #e0e0e0; margin: 10px 0 0 0;">Account ${actionText}</p>
-          </div>
-          <div style="background-color: white; padding: 40px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-            <h2 style="color: #333; margin-top: 0;">Hello ${userName},</h2>
-            <p style="color: #666; font-size: 16px; line-height: 1.6;">
-              We are writing to inform you that your E-Bundle Ethiopia account has been <strong>${actionText.toLowerCase()}</strong>.
-            </p>
-            <div style="background-color: #F5F3FF; border-left: 4px solid #7C3AED; padding: 15px; margin: 20px 0; border-radius: 4px;">
-              <p style="margin: 0; color: #5B21B6; font-weight: bold;">Reason for Action:</p>
-              <p style="margin: 5px 0 0 0; color: #4C1D95; line-height: 1.5;">${reasonText}</p>
-            </div>
-            ${isSuspension ? `
-            <p style="color: #666; font-size: 15px; line-height: 1.6;">
-              If you believe this was done in error or would like to request an appeal, please reply to this email or contact support.
-            </p>
-            ` : `
-            <p style="color: #666; font-size: 15px; line-height: 1.6;">
-              Your personal data, enrolled courses, and activity history have been removed from our system. If you wish to rejoin the platform, you will need to register for a new account in compliance with our policies.
-            </p>
-            `}
-            <p style="color: #999; font-size: 12px; text-align: center; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
-              This is an automated notification. E-Bundle Ethiopia Administration.
-            </p>
-          </div>
-        </div>
-      `;
-      textContent = `Hello ${userName},\n\nWe are writing to inform you that your E-Bundle Ethiopia account has been ${actionText.toLowerCase()}.\n\nReason: ${reasonText}\n\nE-Bundle Ethiopia Administration.`;
-    }
-  }
-
-  const result = await sendEmailWithResend({ to: user.email, subject, html: htmlBody, text: textContent });
-  if (result.success) {
-    console.log(`✅ Moderation email (${actionType}) sent to ${user.email}`);
-    return true;
-  } else {
-    console.error(`❌ Failed to send moderation email to ${user.email}:`, result.error);
-    return false;
-  }
-};
-
-
-
-const generateOTP = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-};
 
 // Admin model moved to models/Admin.js
 
@@ -2247,8 +2252,6 @@ app.post("/resend-otp", async (req, res) => {
   }
 });
 
-
-
 app.post("/login", async (req, res) => {
   try {
     const { loginId, password } = req.body;
@@ -3483,8 +3486,6 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/enrollments", enrollmentRoutes);
 
 // ================= AI TUTOR CHAT (GROQ API) =================
-const axios = require("axios");
-
 // Get the model from environment or use default - UPDATED to current available models
 const getGroqModel = () => {
   const envModel = process.env.GROQ_MODEL;
@@ -4205,7 +4206,7 @@ io.on("connection", (socket) => {
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`\n✅ Server running on http://localhost:${PORT}`);
-  console.log(`📧 Resend email service ready (From: ${FROM_EMAIL})`);
+  console.log(`📧 Brevo email service ready (From: ${BREVO_SENDER_EMAIL})`);
   console.log(`📊 Dashboard endpoints ready`);
   console.log(`📚 Library endpoints ready`);
   console.log(`💬 Community endpoints ready`);
