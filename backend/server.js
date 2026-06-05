@@ -14,9 +14,6 @@ const Activity = require("./models/Activity");
 const Course = require("./models/Course");
 const Progress = require("./models/Progress");
 const axios = require('axios');
-const BREVO_API_KEY = process.env.BREVO_API_KEY;
-const BREVO_SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || process.env.SENDER_EMAIL || "no-reply@example.com";
-const FROM_EMAIL = process.env.EMAIL_FROM || "E-Bundle Ethiopia <onboarding@resend.dev>";
 const ChatMessage = require("./models/ChatMessage");
 const Admin = require("./models/Admin");
 const { authenticateToken, authenticateAdmin } = require("./middleware/auth");
@@ -27,6 +24,26 @@ const courseRoutes = require("./routes/courses");
 const enrollmentRoutes = require("./routes/enrollments");
 
 const app = express();
+
+// ================= MAILGUN CONFIGURATION =================
+const formData = require('form-data');
+const Mailgun = require('mailgun.js');
+const mailgun = new Mailgun(formData);
+const mg = mailgun.client({ 
+  username: 'api', 
+  key: process.env.MAILGUN_API_KEY 
+});
+
+// Validate Mailgun configuration
+if (!process.env.MAILGUN_API_KEY) {
+  console.error('❌ MAILGUN_API_KEY is missing! Email sending will fail.');
+}
+if (!process.env.MAILGUN_DOMAIN) {
+  console.error('❌ MAILGUN_DOMAIN is missing! Email sending will fail.');
+}
+if (!process.env.MAILGUN_FROM_EMAIL) {
+  console.warn('⚠️ MAILGUN_FROM_EMAIL not set, using default');
+}
 
 // ================= ENVIRONMENT VARIABLES VALIDATION =================
 const requiredEnvVars = ["MONGO_URI", "JWT_SECRET"];
@@ -45,58 +62,39 @@ if (missingEnvVars.length > 0) {
   }
 }
 
-// Validate Brevo configuration
-if (!BREVO_API_KEY) {
-  console.error("❌ BREVO_API_KEY is missing! Email sending will fail.");
-  console.error("   Please add BREVO_API_KEY to your Render environment variables.");
-}
-if (!BREVO_SENDER_EMAIL) {
-  console.error("❌ BREVO_SENDER_EMAIL is missing! Email sending will fail.");
-  console.error("   Please add BREVO_SENDER_EMAIL to your Render environment variables.");
-}
-
-// ================= FIXED EMAIL FUNCTIONS WITH BREVO =================
-async function sendEmail(to, subject, html) {
-  if (!BREVO_API_KEY) {
-    console.error("❌ Cannot send email: BREVO_API_KEY not configured");
-    return { success: false, error: "BREVO_API_KEY not configured" };
+// ================= EMAIL FUNCTIONS WITH MAILGUN =================
+async function sendEmail(to, subject, html, text = null) {
+  if (!process.env.MAILGUN_API_KEY) {
+    console.error("❌ Cannot send email: MAILGUN_API_KEY not configured");
+    return { success: false, error: "MAILGUN_API_KEY not configured" };
   }
 
-  const text = html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
-  const url = 'https://api.brevo.com/v3/smtp/email';
-  const payload = {
-    sender: { 
-      email: BREVO_SENDER_EMAIL,
-      name: "E-Bundle Ethiopia"
-    },
-    to: [{ email: to }],
-    subject: subject,
-    htmlContent: html,
-    textContent: text,
-  };
+  const plainText = text || html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+  const domain = process.env.MAILGUN_DOMAIN;
+  const fromEmail = process.env.MAILGUN_FROM_EMAIL || `E-Bundle Ethiopia <postmaster@${domain}>`;
   
   try {
-    const response = await axios.post(url, payload, {
-      headers: {
-        'api-key': BREVO_API_KEY,
-        'Content-Type': 'application/json',
-      },
-      timeout: 10000,
+    const response = await mg.messages.create(domain, {
+      from: fromEmail,
+      to: [to],
+      subject: subject,
+      html: html,
+      text: plainText,
     });
-    console.log(`✅ Brevo email sent to ${to} (ID: ${response.data.messageId || 'N/A'})`);
-    return { success: true, data: response.data };
-  } catch (err) {
-    console.error('❌ Brevo email error:', err.response?.data?.message || err.message);
-    if (err.response?.data) {
-      console.error('Details:', JSON.stringify(err.response.data, null, 2));
+    console.log(`✅ Mailgun email sent to ${to} (ID: ${response.id || 'N/A'})`);
+    return { success: true, data: response };
+  } catch (error) {
+    console.error('❌ Mailgun email error:', error.message);
+    if (error.details) {
+      console.error('Details:', JSON.stringify(error.details, null, 2));
     }
-    return { success: false, error: err.response?.data?.message || err.message };
+    return { success: false, error: error.message };
   }
 }
 
 // Wrapper function for compatibility with existing code
 async function sendEmailWithResend({ to, subject, html, text }) {
-  return sendEmail(to, subject, html);
+  return sendEmail(to, subject, html, text);
 }
 
 const sendAdminResetEmail = async (email, otp, firstName) => {
@@ -4206,7 +4204,7 @@ io.on("connection", (socket) => {
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`\n✅ Server running on http://localhost:${PORT}`);
-  console.log(`📧 Brevo email service ready (From: ${BREVO_SENDER_EMAIL})`);
+  console.log(`📧 Mailgun email service ready (From: ${process.env.MAILGUN_FROM_EMAIL || 'E-Bundle Ethiopia'})`);
   console.log(`📊 Dashboard endpoints ready`);
   console.log(`📚 Library endpoints ready`);
   console.log(`💬 Community endpoints ready`);
