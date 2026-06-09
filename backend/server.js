@@ -25,25 +25,8 @@ const enrollmentRoutes = require("./routes/enrollments");
 
 const app = express();
 
-// ================= MAILGUN CONFIGURATION =================
-const formData = require('form-data');
-const Mailgun = require('mailgun.js');
-const mailgun = new Mailgun(formData);
-const mg = mailgun.client({ 
-  username: 'api', 
-  key: process.env.MAILGUN_API_KEY 
-});
 
-// Validate Mailgun configuration
-if (!process.env.MAILGUN_API_KEY) {
-  console.error('❌ MAILGUN_API_KEY is missing! Email sending will fail.');
-}
-if (!process.env.MAILGUN_DOMAIN) {
-  console.error('❌ MAILGUN_DOMAIN is missing! Email sending will fail.');
-}
-if (!process.env.MAILGUN_FROM_EMAIL) {
-  console.warn('⚠️ MAILGUN_FROM_EMAIL not set, using default');
-}
+
 
 // ================= ENVIRONMENT VARIABLES VALIDATION =================
 const requiredEnvVars = ["MONGO_URI", "JWT_SECRET"];
@@ -63,31 +46,25 @@ if (missingEnvVars.length > 0) {
 }
 
 // ================= EMAIL FUNCTIONS WITH MAILGUN =================
-async function sendEmail(to, subject, html, text = null) {
-  if (!process.env.MAILGUN_API_KEY) {
-    console.error("❌ Cannot send email: MAILGUN_API_KEY not configured");
-    return { success: false, error: "MAILGUN_API_KEY not configured" };
-  }
+// Initialize Resend client
+const { Resend } = require('resend');
+const resend = new Resend(process.env.RESEND_API_KEY);
 
+// Send email using Resend
+async function sendEmail(to, subject, html, text = null) {
   const plainText = text || html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
-  const domain = process.env.MAILGUN_DOMAIN;
-  const fromEmail = process.env.MAILGUN_FROM_EMAIL || `E-Bundle Ethiopia <postmaster@${domain}>`;
-  
   try {
-    const response = await mg.messages.create(domain, {
-      from: fromEmail,
-      to: [to],
-      subject: subject,
-      html: html,
+    const response = await resend.emails.send({
+      from: 'onboarding@resend.dev',
+      to,
+      subject,
+      html,
       text: plainText,
     });
-    console.log(`✅ Mailgun email sent to ${to} (ID: ${response.id || 'N/A'})`);
+    console.log(`✅ Resend email sent to ${to}`);
     return { success: true, data: response };
   } catch (error) {
-    console.error('❌ Mailgun email error:', error.message);
-    if (error.details) {
-      console.error('Details:', JSON.stringify(error.details, null, 2));
-    }
+    console.error('❌ Resend email error:', error.message);
     return { success: false, error: error.message };
   }
 }
