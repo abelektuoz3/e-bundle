@@ -25,11 +25,8 @@ const enrollmentRoutes = require("./routes/enrollments");
 
 const app = express();
 
-
-
-
 // ================= ENVIRONMENT VARIABLES VALIDATION =================
-const requiredEnvVars = ["MONGO_URI", "JWT_SECRET"];
+const requiredEnvVars = ["MONGO_URI", "JWT_SECRET", "BREVO_API_KEY"];
 
 const missingEnvVars = requiredEnvVars.filter(
   (varName) => !process.env[varName],
@@ -45,32 +42,57 @@ if (missingEnvVars.length > 0) {
   }
 }
 
-// ================= EMAIL FUNCTIONS WITH MAILGUN =================
-// Initialize Resend client
-const { Resend } = require('resend');
-const resend = new Resend(process.env.RESEND_API_KEY);
+// ================= EMAIL FUNCTIONS WITH BREVO (formerly Sendinblue) =================
 
-// Send email using Resend
+// Send email using Brevo API
 async function sendEmail(to, subject, html, text = null) {
   const plainText = text || html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+  
+  const BREVO_API_KEY = process.env.BREVO_API_KEY;
+  const BREVO_SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || "onboarding@resend.dev";
+  const BREVO_SENDER_NAME = process.env.BREVO_SENDER_NAME || "E-Bundle Ethiopia";
+
+  if (!BREVO_API_KEY) {
+    console.error("❌ BREVO_API_KEY is not set in environment variables");
+    return { success: false, error: "BREVO_API_KEY not configured" };
+  }
+
   try {
-    const response = await resend.emails.send({
-      from: 'onboarding@resend.dev',
-      to,
-      subject,
-      html,
-      text: plainText,
-    });
-    console.log(`✅ Resend email sent to ${to}`);
-    return { success: true, data: response };
+    const response = await axios.post(
+      "https://api.brevo.com/v3/smtp/email",
+      {
+        sender: {
+          name: BREVO_SENDER_NAME,
+          email: BREVO_SENDER_EMAIL,
+        },
+        to: [
+          {
+            email: to,
+          },
+        ],
+        subject: subject,
+        htmlContent: html,
+        textContent: plainText,
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": BREVO_API_KEY,
+        },
+        timeout: 10000,
+      }
+    );
+
+    console.log(`✅ Brevo email sent to ${to}`);
+    return { success: true, data: response.data };
   } catch (error) {
-    console.error('❌ Resend email error:', error.message);
-    return { success: false, error: error.message };
+    console.error("❌ Brevo email error:", error.response?.data?.message || error.message);
+    return { success: false, error: error.response?.data?.message || error.message };
   }
 }
 
 // Wrapper function for compatibility with existing code
-async function sendEmailWithResend({ to, subject, html, text }) {
+async function sendEmailWithBrevo({ to, subject, html, text }) {
   return sendEmail(to, subject, html, text);
 }
 
@@ -4181,7 +4203,7 @@ io.on("connection", (socket) => {
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`\n✅ Server running on http://localhost:${PORT}`);
-  console.log(`📧 Mailgun email service ready (From: ${process.env.MAILGUN_FROM_EMAIL || 'E-Bundle Ethiopia'})`);
+  console.log(`📧 Brevo email service ready (API Key: ${process.env.BREVO_API_KEY ? '✅ Configured' : '❌ Missing'})`);
   console.log(`📊 Dashboard endpoints ready`);
   console.log(`📚 Library endpoints ready`);
   console.log(`💬 Community endpoints ready`);
