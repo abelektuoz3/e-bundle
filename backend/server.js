@@ -329,14 +329,15 @@ const allowedOrigins =
   : [
       "http://localhost:3000",
       "http://localhost:5000",
-      "https://e-bundle.onrender.com",
-      "https://ebundle-ethiopia.netlify.app",
+      "https://e-bundle-ahuk.onrender.com",
     ];
 
 app.use(
   cors({
     origin: function (origin, callback) {
       if (!origin) return callback(null, true);
+      // Allow any Vercel deployment (production + preview URLs)
+      if (origin.endsWith(".vercel.app")) return callback(null, true);
       if (
         allowedOrigins.indexOf(origin) !== -1 ||
         process.env.NODE_ENV !== "production"
@@ -344,6 +345,7 @@ app.use(
         callback(null, true);
       } else {
         console.warn(`Origin ${origin} not allowed by CORS`);
+        // Permissive fallback — tighten once custom domain is set
         callback(null, true);
       }
     },
