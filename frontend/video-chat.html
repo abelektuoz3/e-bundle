@@ -316,7 +316,7 @@
 
         connectSocket: () => {
           const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-          const serverUrl = isLocal ? "http://localhost:5000" : "https://e-bundle.onrender.com";
+          const serverUrl = isLocal ? "http://localhost:5000" : "https://e-bundle-ahuk.onrender.com";
 
           videoChat.socket = io(serverUrl, { transports: ["websocket"] });
 

@@ -737,7 +737,7 @@
     <script>
       // Dynamically set API URL based on environment
       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
-      const API_URL = isLocal ? 'http://localhost:5000/api' : 'https://e-bundle.onrender.com/api';
+      const API_URL = isLocal ? 'http://localhost:5000/api' : 'https://e-bundle-ahuk.onrender.com/api';
       let authToken = localStorage.getItem("adminToken");
       let currentFile = null;
       let currentFilter = "all";
@@ -1434,7 +1434,7 @@
         const title = document.getElementById("modal-title");
 
         title.textContent = file.title;
-        const fullUrl = `https://e-bundle.onrender.com${file.url}`;
+        const fullUrl = `https://e-bundle-ahuk.onrender.com${file.url}`;
 
         let previewContent = "";
         if (file.type === "video") {

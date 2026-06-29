@@ -258,11 +258,11 @@
     <script>
       // ================= FIXED: Use dynamic API URL =================
       // For local development: /api/chat
-      // For production (Netlify): https://e-bundle.onrender.com/api/chat
+      // For production (Netlify): https://e-bundle-ahuk.onrender.com/api/chat
       const API_URL =
         window.location.hostname === "localhost" ?
           "/api/chat"
-        : "https://e-bundle.onrender.com/api/chat";
+        : "https://e-bundle-ahuk.onrender.com/api/chat";
 
       let isWaitingForResponse = false;
       let authToken = null;
@@ -299,7 +299,7 @@
           const profileUrl =
             window.location.hostname === "localhost" ?
               "/profile"
-            : "https://e-bundle.onrender.com/profile";
+            : "https://e-bundle-ahuk.onrender.com/profile";
 
           const response = await fetch(profileUrl, {
             headers: {
