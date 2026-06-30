@@ -2672,7 +2672,7 @@ app.post("/log-activity", authenticateToken, async (req, res) => {
     });
 
     await activity.save();
-
+ 
     const updateFields = {};
     if (xp && xp > 0) updateFields.quizScore = xp;
     if (timeSpent) updateFields.totalStudyTime = timeSpent;
