@@ -260,7 +260,7 @@ Admin Reason for ${actionType}: "${reason || "Violating platform guidelines"}"`
               You can log in now using your existing credentials and start learning right away!
             </p>
             <div style="text-align: center; margin: 30px 0;">
-              <a href="https://ebundle-ethiopia.netlify.app/login.html" style="display: inline-block; background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Log In to E-Bundle</a>
+              <a href="${process.env.FRONTEND_URL || 'https://ebundle-ethiopia.vercel.app'}/login.html" style="display: inline-block; background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Log In to E-Bundle</a>
             </div>
             <p style="color: #999; font-size: 12px; text-align: center; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
               This is an automated notification. E-Bundle Ethiopia Administration.
@@ -2562,7 +2562,7 @@ app.post("/forgot-password", async (req, res) => {
     await user.save();
 
     const frontendUrl =
-      process.env.FRONTEND_URL || "https://ebundle-ethiopia.netlify.app";
+      process.env.FRONTEND_URL || "https://ebundle-ethiopia.vercel.app";
 
     const resetLink = `${frontendUrl}/change-password?token=${token}`;
 
